@@ -12,10 +12,9 @@ import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.corebounce.nova.content.Movie;
 import org.corebounce.util.Log;
 import org.jnetpcap.PcapException;
-
-import org.corebounce.nova.content.Movie;
 
 @SuppressWarnings("nls")
 public class NOVAControl implements IConstants {
@@ -108,7 +107,7 @@ public class NOVAControl implements IConstants {
 
 		dispatcher = new Dispatcher(device, config);
 		
-		new UIServer();
+		new UIServer(80);
 
 		Thread thread = new Thread(this::streamTask, "Voxel Streamer");
 		thread.setPriority(Thread.MIN_PRIORITY);
