@@ -30,7 +30,7 @@ public class UIServer {
         server.createContext("/nova/", this::handleControl);
         server.createContext("/res/", this::handleResource);
         server.start();
-        System.out.println("Server is running at http://" + host.getHostName() + ":" + host.getPort() + "/");
+        Log.info("Server is running at http://" + host.getHostName() + ":" + host.getPort() + "/");
     }
 
     private void handleContent(HttpExchange he) throws IOException {
