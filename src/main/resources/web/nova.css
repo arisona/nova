@@ -1,0 +1,18 @@
+body {
+    font-family: sans-serif;
+    background-color: #202020;
+    color: #a0a0a0;
+}
+
+.combo {
+    width: 300px;
+    size: 4;
+}
+
+.slider {
+    width: 220px;
+}
+
+.button {
+
+}

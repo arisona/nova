@@ -1,8 +1,11 @@
 package org.corebounce.nova;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.Map;
 
 import org.corebounce.util.Log;
 
@@ -10,37 +13,51 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 public class UIServer {
+    private static final Map<String,String> CONTENT_TYPES = Map.of(
+        "html", "text/html; charset=UTF-8",
+        "css",  "text/css; charset=UTF-8",
+        "js",   "application/javascript; charset=UTF-8",
+        "json", "application/json; charset=UTF-8",
+        "jpg",  "image/jpeg",
+        "png",  "image/png",
+        "gif",  "image/gif"
+    );
+
     UIServer(int port) throws IOException {
         InetSocketAddress host = new InetSocketAddress(port);
         HttpServer server = HttpServer.create(host, 0);
         server.createContext("/", this::handleContent);
         server.createContext("/nova/", this::handleControl);
+        server.createContext("/res/", this::handleResource);
         server.start();
         System.out.println("Server is running at http://" + host.getHostName() + ":" + host.getPort() + "/");
     }
 
-    private void handleContent(HttpExchange e) throws IOException {
-        URI uri = e.getRequestURI();
+    private void handleContent(HttpExchange he) throws IOException {
+        URI uri = he.getRequestURI();
+        Log.info("Handle content " + uri);
         String response = "";
         try {
             if (uri.getPath().equals("/index.html") || uri.getPath().equals("/")) {
                 response = getPage();
-                e.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
-                e.sendResponseHeaders(200, response.length());
+                he.getResponseHeaders().set("Content-Type", CONTENT_TYPES.get("html"));
+                he.sendResponseHeaders(200, response.length());
             } else {
                 response = "Invalid path " + uri.getPath();
                 throw new Exception(response);
             }
         } catch (Throwable t) {
-            e.sendResponseHeaders(404, response.length());
+            Log.warning(t);
+            he.sendResponseHeaders(404, response.length());
         }
-        try (java.io.OutputStream os = e.getResponseBody()) {
+        try (OutputStream os = he.getResponseBody()) {
             os.write(response.getBytes());
         }
     }
 
-    private void handleControl(HttpExchange e) throws IOException {
-        URI uri = e.getRequestURI();
+    private void handleControl(HttpExchange he) throws IOException {
+        URI uri = he.getRequestURI();
+        Log.info("Handle control " + uri);
         String response = "";
         try {
             String param = uri.getPath().split("[/]")[2];
@@ -81,14 +98,36 @@ public class UIServer {
                 break;
             default:
                 response = "Invalid parameter " + param;
-                throw new Exception(response);
+                throw new IllegalArgumentException(response);
             }
-            e.sendResponseHeaders(200, 0);
+            he.sendResponseHeaders(200, 0);
         } catch (Throwable t) {
-            e.sendResponseHeaders(404, response.length());
+            Log.warning(t);
+            he.sendResponseHeaders(404, response.length());
         }
-        try (java.io.OutputStream os = e.getResponseBody()) {
+        try (OutputStream os = he.getResponseBody()) {
             os.write(response.getBytes());
+        }
+    }
+
+    private void handleResource(HttpExchange he) throws IOException {
+        URI uri = he.getRequestURI();
+        Log.info("Handle resource " + uri);
+        try {
+            String param = "/web/" + uri.getPath().split("[/]")[2];
+            String ext = param.contains(".") ? param.substring(param.lastIndexOf(".") + 1) : "";
+            String contentType = CONTENT_TYPES.get(ext);
+            if (contentType == null)
+                throw new IllegalArgumentException("Invalid file extension " + ext);
+            Log.info("Handle local resource " + param + " " + contentType);
+            he.getResponseHeaders().set("Content-Type", contentType);
+            he.sendResponseHeaders(200, 0);
+            try (InputStream is = getClass().getResourceAsStream(param); OutputStream os = he.getResponseBody()) {
+                is.transferTo(os);
+            }
+        } catch (Throwable t) {
+            Log.warning(t);
+            he.sendResponseHeaders(404, -1);
         }
     }
 
@@ -102,30 +141,8 @@ public class UIServer {
                   <head>
                     <meta charset='utf-8'>
                     <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
-                    <script language='javascript' type='text/javascript'>
-                      function httpGet(theUrl) {
-                        var xmlHttp = new XMLHttpRequest();
-                        xmlHttp.open('GET', theUrl, true);
-                        xmlHttp.setRequestHeader('If-Modified-Since', 'Sat, 1 Jan 2005 00:00:00 GMT');
-                        xmlHttp.send(null);
-                      }
-                    </script>
-                    <style type='text/css'>
-                      body {
-                        font-family:sans-serif;
-                        background-color:#202020;
-                        color:#a0a0a0;
-                      }
-                      .combo {
-                        width:300px;
-                        size:4;
-                      }
-                      .slider {
-                        width:220px;
-                      }
-                      .button {
-                      }
-                    </style>
+                    <link rel="stylesheet" href="res/nova.css">
+                    <script src="res/nova.js"></script>
                     <title>NOVA</title>
                   </head>
                   <body>
@@ -155,7 +172,7 @@ public class UIServer {
         for (int i = 0; i < control.getContents().size(); ++i) {
             String label = control.getContents().get(i).name;
             if (control.getContent() == i) {
-                s.append(String.format("    <option value='%d' selected='selected'>%s</option>\n", i, label));                
+                s.append(String.format("    <option value='%d' selected='selected'>%s</option>\n", i, label));
             } else {
                 s.append(String.format("    <option value='%d'>%s</option>\n", i, label));
             }
