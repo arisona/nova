@@ -15,7 +15,8 @@ The application launches via `NOVAControl.main()`, and takes a single argument w
 
 The configuration can be stored in a text file, e.g., `nova.properties`, and contains the following elements:
 
-- `nova`: The ethernet interface used for communicating with NOVA. Default if omitted is `eth0`.
+- `port`: The port the UI web server will be listening on. Default if omitted is `80`.
+- `nova`: The ethernet interface used for communicating with NOVA. Default is `eth0`.
 - `addr_<X>_<Y>`: The address (as configured by jumpers on the NOVA board, see below) of the module at module location (X,Y). Default is `addr_0_0 = 1`.
 - `flip`: If `flip = true` then content will be vertically mirrored. Default is `false`.
 - `brightness`: The initial brightness value in the range [0..1]. Default is `0.5`.

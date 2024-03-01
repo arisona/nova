@@ -1,7 +1,6 @@
 package org.corebounce.nova;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
@@ -10,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -257,6 +257,7 @@ public abstract class Content {
 				Log.warning(t, "Could not load content '" + content + "'");
 			}
 		}
+		contents.sort(Comparator.comparing(Object::toString));
 		return contents;
 	}
 	

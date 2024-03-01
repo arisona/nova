@@ -12,14 +12,14 @@ import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.corebounce.nova.content.Movie;
 import org.corebounce.util.Log;
 import org.jnetpcap.PcapException;
 
-import org.corebounce.nova.content.Movie;
-
 @SuppressWarnings("nls")
 public class NOVAControl implements IConstants {
-	static final String PROPERTY_KEY_INTERFACE = "nova";
+    static final String PROPERTY_KEY_PORT = "port";
+    static final String PROPERTY_KEY_INTERFACE = "nova";
 	static final String PROPERTY_KEY_ADDRESS = "addr_";
 	static final String PROPERTY_KEY_FLIP = "flip";
 	static final String PROPERTY_KEY_BRIGHTNESS = "brightness";
@@ -72,10 +72,16 @@ public class NOVAControl implements IConstants {
 		File  propFile = new File(configuration).getAbsoluteFile();
 		properties.load(new FileReader(propFile));
 
-		device = EnetInterface.getInterface(properties.getProperty(PROPERTY_KEY_INTERFACE, "eth0"));
-		Log.info("Using interface " + device.getName());
-		device.open();
-
+        int port = 80;
+        try {
+            port = Integer.parseInt(properties.getProperty(PROPERTY_KEY_PORT, "80"));
+        } catch(Throwable t) {}
+        Log.info("Listening on port " + port);
+		
+        device = EnetInterface.getInterface(properties.getProperty(PROPERTY_KEY_INTERFACE, "eth0"));
+        Log.info("Using interface " + device.getName());
+        device.open();
+		
 		config = new NOVAConfig(properties);
 
 		try {
@@ -108,7 +114,7 @@ public class NOVAControl implements IConstants {
 
 		dispatcher = new Dispatcher(device, config);
 		
-		new UIServer();
+		new UIServer(port);
 
 		Thread thread = new Thread(this::streamTask, "Voxel Streamer");
 		thread.setPriority(Thread.MIN_PRIORITY);
@@ -206,7 +212,7 @@ public class NOVAControl implements IConstants {
 			contents.get(content).stop();
 		} catch (Throwable t) {}
 		content = value % contents.size();
-		Log.info("setContent(" + content + ")" + contents.get(content));
+		Log.info("setContent(" + content + "): " + contents.get(content));
 		try {
 			contents.get(content).start();
 		} catch (Throwable t) {}

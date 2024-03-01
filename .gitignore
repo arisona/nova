@@ -1,5 +1,5 @@
 target/
-bin/
+node_modules/
 3dd/
 controlParams.properties
 dependency-reduced-pom.xml
