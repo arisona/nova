@@ -22,7 +22,8 @@ public class UIServer {
         "json", "application/json; charset=UTF-8",
         "jpg",  "image/jpeg",
         "png",  "image/png",
-        "gif",  "image/gif"
+        "gif",  "image/gif",
+        "svg",  "image/svg+xml"
     );
 
     UIServer(int port) throws IOException {
