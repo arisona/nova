@@ -14,7 +14,6 @@ import java.util.zip.Inflater;
 
 import org.corebounce.util.Log;
 
-@SuppressWarnings("nls")
 public class Common3DD {
 	private static RandomAccessFile currentRA;
 	private static File             currentFile;
@@ -29,7 +28,7 @@ public class Common3DD {
 		File   raw;                    // raw file
 
 		public Header(MappedByteBuffer in) {
-			for(int i = 0; i < 6; i++)
+			for (int i = 0; i < 6; i++)
 				checksum[i] = (char)(in.get() & 0xFF);
 			in.getShort(); // alignemnt
 			version        = in.getInt();
@@ -60,7 +59,7 @@ public class Common3DD {
 		@Override
 		public String toString() {
 			StringBuilder result = new StringBuilder();
-			for(char c : checksum)
+			for (char c : checksum)
 				result.append(c);
 			result.append(":" + version);
 			result.append(":" + dimX + "x" + dimY + "x" + dimZ);
@@ -71,7 +70,7 @@ public class Common3DD {
 		public void write(FileOutputStream out) throws IOException {
 			ByteBuffer buffer = ByteBuffer.allocate(24);
 			buffer.order(ByteOrder.LITTLE_ENDIAN);
-			for(int i = 0; i < 8; i++)
+			for (int i = 0; i < 8; i++)
 				buffer.put(i < checksum.length ? (byte)checksum[i] : 0);
 			buffer.putInt(version);
 			buffer.putShort(dimX);
@@ -113,15 +112,14 @@ public class Common3DD {
 
 		public byte[] getFrame() {
 			byte[] frameArray = null;
-
 			try {
-				if(frameData != null)
+				if (frameData != null)
 					return frameData;
-				else if(frame == null || frame.get() == null) {
+				else if (frame == null || frame.get() == null) {
 					frameArray = new byte[header.dimX * header.dimY * header.dimZ * 3];
 					frame      = new SoftReference<>(frameArray);
 
-					if(header.raw != null) {
+					if (header.raw != null) {
 						RandomAccessFile in = getRAFile(header.raw);
 						in.seek(start);
 						in.readFully(frameArray);
@@ -137,7 +135,7 @@ public class Common3DD {
 					}
 				} else
 					frameArray = frame.get(); 
-			} catch(Throwable t)  {
+			} catch (Throwable t)  {
 				Log.severe(t);
 			}
 			return frameArray;
@@ -154,9 +152,10 @@ public class Common3DD {
 			deflater.setInput(frame);
 			deflater.finish();
 			int totalCount = 0;
-			for(;;) {
+			for (;;) {
 				int count = deflater.deflate(buffer, totalCount, buffer.length - totalCount);
-				if(count == 0 && deflater.needsInput()) break;
+				if (count == 0 && deflater.needsInput())
+					break;
 				totalCount += count;
 			}
 			out.write(totalCount);
@@ -175,8 +174,8 @@ public class Common3DD {
 	}
 
 	static RandomAccessFile getRAFile(File f) throws IOException {
-		if(!f.equals(currentFile)) {
-			if(currentRA != null)
+		if (!f.equals(currentFile)) {
+			if (currentRA != null)
 				currentRA.close();
 			currentRA = new RandomAccessFile(f, "r");
 		}

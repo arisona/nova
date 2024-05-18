@@ -10,10 +10,10 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 
-public class Reader3DD extends Common3DD {
-	private Header   header;
-	Frame[]          frames;
-	File             file;
+public final class Reader3DD extends Common3DD {
+	private Header header;
+	Frame[]        frames;
+	File           file;
 
 	public Reader3DD(File f) throws IOException {
 		this(f, 50, 50, 10, false);
@@ -23,9 +23,8 @@ public class Reader3DD extends Common3DD {
 		this(f, ddimX, ddimY, ddimZ, false);
 	}
 	
-	@SuppressWarnings("nls")
 	public Reader3DD(File f, int ddimX, int ddimY, int ddimZ, boolean overwrite) throws IOException {
-		this.file    = f;
+		this.file = f;
 
 		boolean cropX = ddimX < 0; ddimX = Math.abs(ddimX);
 		boolean cropY = ddimY < 0; ddimY = Math.abs(ddimY);
@@ -36,8 +35,8 @@ public class Reader3DD extends Common3DD {
 		int dimZ = 10;
 		
 		{
-			RandomAccessFile     inf = new RandomAccessFile(f, "r");
-			FileChannel          in  = inf.getChannel();
+			RandomAccessFile inf = new RandomAccessFile(f, "r");
+			FileChannel      in  = inf.getChannel();
 			MappedByteBuffer  buffer = in.map(MapMode.READ_ONLY, 0, in.size());
 			buffer.order(ByteOrder.LITTLE_ENDIAN);
 			header = new Header(buffer);
@@ -52,17 +51,17 @@ public class Reader3DD extends Common3DD {
 
 		
 		File rawFile = new File(f.getParentFile(), f.getName() + "_"+ddimX+"x"+ddimY+"x"+ddimZ+".raw");
-		if(!(overwrite) && rawFile.exists() && rawFile.lastModified() > f.lastModified()) {
+		if (!(overwrite) && rawFile.exists() && rawFile.lastModified() > f.lastModified()) {
 			int n = (int)rawFile.length() / (dimX * dimY * 10 * 3);
 			header = new Header(rawFile, n);
 			frames = new Frame[header.numberOfImages];
-			for(int i = 0; i < frames.length; i++)
+			for (int i = 0; i < frames.length; i++)
 				frames[i] = new Frame(header, i);
 		} else {
 			System.out.println("Converting " + f + 
-					" x:" +dimX + "->" + ddimX + (cropX ? "c" : "") + 
-					" y:"+ dimY + "->" + ddimY + (cropY ? "c" : "") +
-					" z:"+ dimZ + "->" + ddimZ + (cropZ ? "c" : ""));
+					" x:" + dimX + "->" + ddimX + (cropX ? "c" : "") + 
+					" y:" + dimY + "->" + ddimY + (cropY ? "c" : "") +
+					" z:" + dimZ + "->" + ddimZ + (cropZ ? "c" : ""));
 
 			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(rawFile), 8 * 1024 * 1024);
 			RandomAccessFile     inf = new RandomAccessFile(f, "r");
@@ -75,12 +74,12 @@ public class Reader3DD extends Common3DD {
 			frames = new Frame[header.numberOfImages];
 
 			byte[] dst = new byte[ddimX*ddimY*ddimZ*3];
-			for(int fn = 0; fn < frames.length; fn++) {
+			for (int fn = 0; fn < frames.length; fn++) {
 				frames[fn] = new Frame(buffer, header, fn);
 				byte[] src = frames[fn].getFrame();
-				for(int k = 0; k < ddimZ; k++)
-					for(int j = 0; j < ddimY; j++)
-						for(int i = 0; i < ddimX; i++) {
+				for (int k = 0; k < ddimZ; k++) {
+					for (int j = 0; j < ddimY; j++) {
+						for (int i = 0; i < ddimX; i++) {
 							final int didx = 3 * (k + (ddimZ * (i + j * ddimX)));
 							final int si   = cropX ? i : ((dimX * i) / ddimX);
 							final int sj   = cropY ? j : ((dimY * j) / ddimY);
@@ -90,6 +89,8 @@ public class Reader3DD extends Common3DD {
 							dst[didx+1] = src[sidx+1];
 							dst[didx+2] = src[sidx+2];
 						}
+					}
+				}
 				out.write(dst);
 			}
 

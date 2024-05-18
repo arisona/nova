@@ -15,11 +15,11 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jdk.version>21</jdk.version>
-        <maven.compiler.source>${jdk.version}</maven.compiler.source>
-        <maven.compiler.target>${jdk.version}</maven.compiler.target>
+        <maven.compiler.release>${jdk.version}</maven.compiler.release>
         <java.encoding>UTF-8</java.encoding>
         <java.preview>--enable-preview</java.preview>
         <java.native>--enable-native-access=ALL-UNNAMED</java.native>
+        <exec.mainClass>org.corebounce.nova.NOVAControl</exec.mainClass>
     </properties>
 
     <dependencies>

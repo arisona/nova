@@ -83,7 +83,7 @@ export JAVA_HOME=/home/pi/jdk-21.0.2/
 mvn install
 ```
 
-* Edit `configs/nova.properties`. Importantly, set the correct Ethernet interface and the correct module setup for communication with NOVA. Typically this will be as follows (depending on jumper setting on your module, see [here](nova_control.md)).
+* Edit `config/nova.properties`. Importantly, set the correct Ethernet interface and the correct module setup for communication with NOVA. Typically this will be as follows (depending on jumper setting on your module, see [here](nova_control.md)).
 
 ```
 nova=eth0

@@ -1,5 +1,6 @@
 package org.corebounce.nova;
 
 public interface ISyncListener {
-	void sync(int seqNum);
+
+    void sync(int seqNum);
 }
