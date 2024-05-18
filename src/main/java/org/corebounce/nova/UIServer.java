@@ -14,16 +14,17 @@ import org.json.JSONArray;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
-public class UIServer {
-    private static final Map<String,String> CONTENT_TYPES = Map.of(
-        "html", "text/html; charset=UTF-8",
-        "css",  "text/css; charset=UTF-8",
-        "js",   "application/javascript; charset=UTF-8",
-        "json", "application/json; charset=UTF-8",
-        "jpg",  "image/jpeg",
-        "png",  "image/png",
-        "gif",  "image/gif",
-        "svg",  "image/svg+xml"
+public final class UIServer {
+
+    private static final Map<String, String> CONTENT_TYPES = Map.of(
+            "html", "text/html; charset=UTF-8",
+            "css", "text/css; charset=UTF-8",
+            "js", "application/javascript; charset=UTF-8",
+            "json", "application/json; charset=UTF-8",
+            "jpg", "image/jpeg",
+            "png", "image/png",
+            "gif", "image/gif",
+            "svg", "image/svg+xml"
     );
 
     UIServer(int port) throws IOException {
@@ -42,8 +43,9 @@ public class UIServer {
             String res = "/www" + (uri.getPath().equals("/") ? "/index.html" : uri.getPath());
             String ext = res.contains(".") ? res.substring(res.lastIndexOf(".") + 1) : "";
             String contentType = CONTENT_TYPES.get(ext);
-            if (contentType == null)
+            if (contentType == null) {
                 throw new IllegalArgumentException("Invalid contet request " + res + " (" + ext + ")");
+            }
             Log.info("Handle local resource " + res + " " + contentType);
             he.getResponseHeaders().set("Content-Type", contentType);
             he.sendResponseHeaders(200, 0);
@@ -109,7 +111,7 @@ public class UIServer {
             os.write(response.getBytes());
         }
     }
-    
+
     private String getState() {
         NOVAControl c = NOVAControl.get();
         List<String> contents = c.getContents().stream().map(content -> content.name).toList();
