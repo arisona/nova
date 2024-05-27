@@ -36,17 +36,16 @@ public final class NOVAControl implements IConstants {
 
     private static NOVAControl theControl;
 
-    private double red = 1.0;
-    private double green = 1.0;
-    private double blue = 1.0;
-    private double brightness = 0.5;
-    private double speed = 0;
-    private int content = 0;
+    private final List<Content> availableContent = new ArrayList<>();
+    private int selectedContent = 0;
+    private float hue = 0.0f;
+    private float saturation = 1.0f;
+    private float brightness = 0.5f;
+    private float speed = 0.0f;
 
     private final Properties properties = new Properties();
     private final EnetInterface device;
     private final NOVAConfig config;
-    private final List<Content> contents = new ArrayList<>();
 
     private final AtomicBoolean reset = new AtomicBoolean();
 
@@ -85,11 +84,11 @@ public final class NOVAControl implements IConstants {
         config = new NOVAConfig(properties);
 
         try {
-            brightness = Double.parseDouble(properties.getProperty(PROPERTY_KEY_BRIGHTNESS, "0.5"));
+            brightness = Float.parseFloat(properties.getProperty(PROPERTY_KEY_BRIGHTNESS, "0.5"));
         } catch (Throwable t) {
         }
 
-        contents.addAll(Content.createContent(config, properties));
+        availableContent.addAll(Content.createContent(config, properties));
 
         File movies = new File(properties.getProperty(PROPERTY_KEY_MOVIES, "."));
         if (movies.exists() && movies.isDirectory()) {
@@ -151,7 +150,7 @@ public final class NOVAControl implements IConstants {
 
     public static void main(String[] args) throws IOException, InterruptedException, PcapException {
         if (args.length != 1) {
-            System.out.println("usage: " + NOVAControl.class.getName() + " <config_file>");
+            System.out.println("Usage: " + NOVAControl.class.getName() + " <config_file>");
             System.exit(0);
         }
 
@@ -160,71 +159,60 @@ public final class NOVAControl implements IConstants {
         new NOVAControl(args[0]);
     }
 
-    public double getRed() {
-        return red;
+    List<Content> getAvailableContent() {
+        return availableContent;
     }
 
-    void setRed(double value) {
-        red = value;
+    int getSelectedContent() {
+        return selectedContent;
+    }
+
+    void setSelectedContent(int index) {
+        try {
+            availableContent.get(selectedContent).stop();
+        } catch (Throwable t) {
+        }
+        selectedContent = index % availableContent.size();
+        Log.info("setContent(" + selectedContent + "): " + availableContent.get(selectedContent));
+        try {
+            availableContent.get(selectedContent).start();
+        } catch (Throwable t) {
+        }
         writeControlParams();
     }
 
-    public double getGreen() {
-        return green;
+    public float getHue() {
+        return hue;
     }
 
-    void setGreen(double value) {
-        green = value;
-        writeControlParams();
+    public void setHue(float hue) {
+        this.hue = hue;
     }
 
-    public double getBlue() {
-        return blue;
+    public float getSaturation() {
+        return saturation;
     }
 
-    void setBlue(double value) {
-        blue = value;
-        writeControlParams();
+    public void setSaturation(float saturation) {
+        this.saturation = saturation;
     }
 
-    public double getBrightness() {
+    public float getBrightness() {
         return brightness;
     }
 
-    void setBrightness(double value) {
-        brightness = value;
+    void setBrightness(float brightness) {
+        this.brightness = brightness;
         writeControlParams();
     }
 
-    public double getSpeed() {
+    public float getSpeed() {
         return speed;
     }
 
-    void setSpeed(double value) {
-        speed = value;
+    void setSpeed(float speed) {
+        this.speed = speed;
         writeControlParams();
-    }
-
-    int getContent() {
-        return content;
-    }
-
-    void setContent(int value) {
-        try {
-            contents.get(content).stop();
-        } catch (Throwable t) {
-        }
-        content = value % contents.size();
-        Log.info("setContent(" + content + "): " + contents.get(content));
-        try {
-            contents.get(content).start();
-        } catch (Throwable t) {
-        }
-        writeControlParams();
-    }
-
-    List<Content> getContents() {
-        return contents;
     }
 
     boolean isOn() {
@@ -260,28 +248,29 @@ public final class NOVAControl implements IConstants {
     private void streamTask() {
         final float[] fframe = new float[config.dimI() * config.dimJ() * config.dimK() * 3];
 
-        for (double time = 0;; time += 0.04 * Math.pow(2, getSpeed())) {
+        for (double time = 0;; time += 0.04 * Math.pow(2, speed)) {
             try {
-                final int[][] frame = frameQ.take();
-                final float r = getColorAsInt(red);
-                final float g = getColorAsInt(green);
-                final float b = getColorAsInt(blue);
-                boolean continueWithContent = contents.get(getContent()).fillFrame(fframe, time);
+                float[] rgb = ColorUtils.hsvToRgb(hue, saturation, 1);
+                float r = rgb[0] * brightness * brightness * 1023;
+                float g = rgb[1] * brightness * brightness * 1023;
+                float b = rgb[2] * brightness * brightness * 1023;
+
+                int[][] frame = frameQ.take();
+                boolean continueWithContent = availableContent.get(selectedContent).fillFrame(fframe, time);
 
                 for (int m : config.getModules()) {
                     int off = config.getFrameOffset(m);
                     int idx = 0;
 
-                    final int[] pixels = frame[m];
+                    int[] pixels = frame[m];
                     if (config.flipK()) {
                         for (int i = config.moduleDimI(); i-- > 0;) {
                             for (int j = config.moduleDimJ(); j-- > 0;) {
                                 for (int k = 0; k < config.moduleDimK(); k++) {
-                                    final int x = off + 3 * (j * config.dimI() * config.dimK() + i * config.dimK() + ((config.dimK() - 1) - k));
-                                    final float fr = fframe[x];
-                                    final float fg = fframe[x + 1];
-                                    final float fb = fframe[x + 2];
-
+                                    int x = off + 3 * (j * config.dimI() * config.dimK() + i * config.dimK() + ((config.dimK() - 1) - k));
+                                    float fr = fframe[x];
+                                    float fg = fframe[x + 1];
+                                    float fb = fframe[x + 2];
                                     pixels[idx++] = (((int) (r * fr * fr) << 20) & 0x3FF00000)
                                             | (((int) (g * fg * fg) << 10) & 0x000FFC00)
                                             | ((int) (b * fb * fb) & 0x000003FF);
@@ -292,11 +281,10 @@ public final class NOVAControl implements IConstants {
                         for (int i = config.moduleDimI(); i-- > 0;) {
                             for (int j = config.moduleDimJ(); j-- > 0;) {
                                 for (int k = 0; k < config.moduleDimK(); k++) {
-                                    final int x = off + 3 * (j * config.dimI() * config.dimK() + i * config.dimK() + k);
-                                    final float fr = fframe[x];
-                                    final float fg = fframe[x + 1];
-                                    final float fb = fframe[x + 2];
-
+                                    int x = off + 3 * (j * config.dimI() * config.dimK() + i * config.dimK() + k);
+                                    float fr = fframe[x];
+                                    float fg = fframe[x + 1];
+                                    float fb = fframe[x + 2];
                                     pixels[idx++] = (((int) (r * fr * fr) << 20) & 0x3FF00000)
                                             | (((int) (g * fg * fg) << 10) & 0x000FFC00)
                                             | ((int) (b * fb * fb) & 0x000003FF);
@@ -307,7 +295,7 @@ public final class NOVAControl implements IConstants {
                 }
                 txQ.add(frame);
                 if (!(continueWithContent)) {
-                    setContent(getContent() + 1);
+                    setSelectedContent(getSelectedContent() + 1);
                 }
             } catch (Throwable t) {
                 Log.severe(t);
@@ -352,7 +340,7 @@ public final class NOVAControl implements IConstants {
                 if (config.numOperational() > 0) {
                     return;
                 }
-                Log.info("No modules found, retry " + (1 + i));
+                // Log.info("No modules found, retry " + (1 + i));
             } catch (Throwable t) {
                 Log.severe(t);
             }
@@ -401,12 +389,11 @@ public final class NOVAControl implements IConstants {
         Properties props = new Properties();
         try (FileReader in = new FileReader(new File(properties.getProperty(PROPERTY_KEY_CONFIG_DIR, "."), CONTROL_PARAMS))) {
             props.load(in);
-            setRed(Double.parseDouble(props.getProperty("red", "" + red)));
-            setGreen(Double.parseDouble(props.getProperty("green", "" + green)));
-            setBlue(Double.parseDouble(props.getProperty("blue", "" + blue)));
-            setBrightness(Double.parseDouble(props.getProperty("brightness", "" + brightness)));
-            setSpeed(Double.parseDouble(props.getProperty("speed", "" + speed)));
-            setContent(Integer.parseInt(props.getProperty("content", "" + content)));
+            setSelectedContent(Integer.parseInt(props.getProperty("selected-content", "" + selectedContent)));
+            setHue(Float.parseFloat(props.getProperty("hue", "" + hue)));
+            setSaturation(Float.parseFloat(props.getProperty("saturation", "" + saturation)));
+            setBrightness(Float.parseFloat(props.getProperty("brightness", "" + brightness)));
+            setSpeed(Float.parseFloat(props.getProperty("speed", "" + speed)));
         } catch (Throwable t) {
             //Log.severe(t);
         }
@@ -414,20 +401,15 @@ public final class NOVAControl implements IConstants {
 
     private void writeControlParams() {
         Properties props = new Properties();
-        props.put("red", "" + getRed());
-        props.put("green", "" + getGreen());
-        props.put("blue", "" + getBlue());
-        props.put("brightness", "" + getBrightness());
-        props.put("speed", "" + getSpeed());
-        props.put("content", "" + getContent());
+        props.put("content", "" + selectedContent);
+        props.put("hue", "" + hue);
+        props.put("saturation", "" + saturation);
+        props.put("brightness", "" + brightness);
+        props.put("speed", "" + speed);
         try (FileWriter out = new FileWriter(new File(properties.getProperty(PROPERTY_KEY_CONFIG_DIR, "."), CONTROL_PARAMS))) {
             props.store(out, "NOVA control parameters");
         } catch (Throwable t) {
             Log.severe(t);
         }
-    }
-
-    private int getColorAsInt(double v) {
-        return (int) (v * brightness * brightness * 1023.0);
     }
 }

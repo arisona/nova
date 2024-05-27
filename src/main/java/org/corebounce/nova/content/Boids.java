@@ -6,9 +6,9 @@ import org.corebounce.nova.Content;
 
 @SuppressWarnings("nls")
 public class Boids extends Content {
-	ArrayList<Boid> boids;
+	private ArrayList<Boid> boids = new ArrayList<>();
 	private double prevTime = 0;
-	int nx,ny,nz;
+	private int nx,ny,nz;
 	private double startTime;
 
 	public Boids(int dimI, int dimJ, int dimK, int numFrames) {

@@ -24,7 +24,9 @@ public final class UIServer {
             "jpg", "image/jpeg",
             "png", "image/png",
             "gif", "image/gif",
-            "svg", "image/svg+xml"
+            "svg", "image/svg+xml",
+            "woff", "font/woff",
+            "woff2", "font/woff2"
     );
 
     UIServer(int port) throws IOException {
@@ -60,7 +62,7 @@ public final class UIServer {
 
     private void handleAPI(HttpExchange he) throws IOException {
         URI uri = he.getRequestURI();
-        Log.info("Handle control " + uri);
+        Log.info("Handle " + uri);
         String response = "";
         try {
             String param = uri.getPath().split("[/]")[2];
@@ -69,38 +71,30 @@ public final class UIServer {
 
             NOVAControl control = NOVAControl.get();
             switch (param) {
-                case "nova-red":
-                    control.setRed(Double.parseDouble(value));
-                    break;
-                case "nova-green":
-                    control.setGreen(Double.parseDouble(value));
-                    break;
-                case "nova-blue":
-                    control.setBlue(Double.parseDouble(value));
-                    break;
-                case "nova-brightness":
-                    control.setBrightness(Double.parseDouble(value));
-                    break;
-                case "nova-speed":
-                    control.setSpeed(Double.parseDouble(value));
-                    break;
-                case "nova-contents":
-                    control.setContent(Integer.parseInt(value));
-                    break;
-                case "nova-reset":
+                case "selected-content" ->
+                    control.setSelectedContent(Integer.parseInt(value));
+                case "hue" ->
+                    control.setHue(Float.parseFloat(value));
+                case "saturation" ->
+                    control.setSaturation(Float.parseFloat(value));
+                case "brightness" ->
+                    control.setBrightness(Float.parseFloat(value));
+                case "speed" ->
+                    control.setSpeed(Float.parseFloat(value));
+                case "reset" ->
                     control.novaReset();
-                    break;
-                case "nova-reload":
+                case "reload" -> {
                     Log.info("User requested reload. Exiting.");
                     System.exit(0);
-                    break;
-                case "get-state":
+                }
+                case "get-state" -> {
                     response = getState();
                     he.getResponseHeaders().set("Content-Type", CONTENT_TYPES.get("json"));
-                    break;
-                default:
+                }
+                default -> {
                     response = "Invalid parameter " + param;
                     throw new IllegalArgumentException(response);
+                }
             }
             he.sendResponseHeaders(200, 0);
         } catch (Throwable t) {
@@ -114,19 +108,19 @@ public final class UIServer {
 
     private String getState() {
         NOVAControl c = NOVAControl.get();
-        List<String> contents = c.getContents().stream().map(content -> content.name).toList();
+        List<String> availableContent = c.getAvailableContent().stream().map(content -> content.name).toList();
         return String.format("""
                 {
-                    "nova-red": %f,
-                    "nova-green": %f,
-                    "nova-blue": %f,
-                    "nova-brightness": %f,
-                    "nova-speed": %f,
-                    "nova-content": %d,
-                    "nova-contents": %s
+                    "available-content": %s,
+                    "selected-content": %d,
+                    "hue": %f,
+                    "saturation": %f,
+                    "brightness": %f,
+                    "speed": %f
                 }
                 """,
-                c.getRed(), c.getGreen(), c.getBlue(), c.getBrightness(), c.getSpeed(),
-                c.getContent(), new JSONArray(contents));
+                new JSONArray(availableContent),
+                c.getSelectedContent(),
+                c.getHue(), c.getSaturation(), c.getBrightness(), c.getSpeed());
     }
 }
