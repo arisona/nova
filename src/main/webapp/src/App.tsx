@@ -5,8 +5,8 @@ import * as React from 'react';
 import NovaColor from './NovaColor';
 import NovaContent from './NovaContent';
 import NovaSlider from './NovaSlider';
-import { hsvToRgb } from './color';
 import { apiGetState, apiSet, apiSetValue } from './api';
+import { hsvToRgb } from './color';
 
 // icons: https://fonts.google.com/icons?icon.set=Material+Icons
 
@@ -21,7 +21,7 @@ export type NovaState = {
 
 export const defaultNovaState: NovaState = {
     availableContent: ['No Content'],
-    selectedContent: 'No Content',
+    selectedContent: '0',
     brightness: 1,
     hue: 0.5,
     saturation: 1,
@@ -33,26 +33,26 @@ export default function App() {
 
     const handleSelectedContentChange = (event: SelectChangeEvent) => {
         const selectedContent = event.target.value as string;
-        apiSetValue('selected-content', state.availableContent.indexOf(selectedContent));
+        apiSetValue('selected-content', selectedContent);
         setState(prevState => ({ ...prevState, selectedContent: selectedContent }));
     };
 
-    const handleBrightnessChange = (event: Event, newValue: number | number[]) => {
+    const handleBrightnessChange = (_event: Event, newValue: number | number[]) => {
         apiSetValue('brightness', newValue as number);
         setState(prevState => ({ ...prevState, brightness: newValue as number}));
     };
 
-    const handleHueChange = (event: Event, newValue: number | number[]) => {
+    const handleHueChange = (_event: Event, newValue: number | number[]) => {
         apiSetValue('hue', newValue as number);
         setState(prevState => ({ ...prevState, hue: newValue as number }));
     };
 
-    const handleSaturationChange = (event: Event, newValue: number | number[]) => {
+    const handleSaturationChange = (_event: Event, newValue: number | number[]) => {
         apiSetValue('saturation', newValue as number);
         setState(prevState => ({ ...prevState, saturation: newValue as number }));
     };
 
-    const handleSpeedChange = (event: Event, newValue: number | number[]) => {
+    const handleSpeedChange = (_event: Event, newValue: number | number[]) => {
         apiSetValue('speed', newValue as number);
         setState(prevState => ({ ...prevState, speed: newValue as number }));
     };
@@ -77,7 +77,7 @@ export default function App() {
         <Container maxWidth="sm">
             <Box sx={{ my: 4 }}>
                 <Typography variant="h3" component="h3" align="center" sx={{ mb: 2 }}>
-                    NO\/A
+                    NOVA
                 </Typography>
 
                 <NovaContent availableContent={state.availableContent} selectedContent={state.selectedContent} handleContentChange={handleSelectedContentChange} />

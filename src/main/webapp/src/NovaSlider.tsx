@@ -1,4 +1,4 @@
-import { Box, Button, Container, FormControl, Icon, InputLabel, Link, MenuItem, Select, SelectChangeEvent, Slider, Stack, Typography } from '@mui/material';
+import { Slider, Stack } from '@mui/material';
 import * as React from 'react';
 
 

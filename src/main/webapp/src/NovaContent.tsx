@@ -1,5 +1,4 @@
-import React from 'react';
-import { FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
+import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent } from '@mui/material';
 
 type NovaContentProps = {
     availableContent: string[]
@@ -27,9 +26,9 @@ export default function NovaContent({ availableContent, selectedContent, handleC
                 onChange={handleContentChange}
                 variant='outlined'
             >
-                {availableContent.map((content) => {
+                {availableContent.map((content, index) => {
                     return (
-                        <MenuItem key={content} value={content} sx={{ color: 'primary.main' }}>{content}</MenuItem>
+                        <MenuItem key={index} value={index.toString()} sx={{ color: 'primary.main' }}>{content}</MenuItem>
                     );
                 })}
             </Select>

@@ -17,10 +17,9 @@ export async function apiGetState(): Promise<NovaState> {
         })
         .then(response => response.json())
         .then(data => {
-            const availableContent = data['available-content'] as string[];
             const state: NovaState = {
-                availableContent: availableContent,
-                selectedContent: availableContent[data['selected-content'] as number],
+                availableContent: data['available-content'] as string[],
+                selectedContent: data['selected-content'] as string,
                 brightness: data['brightness'] as number,
                 hue: data['hue'] as number,
                 saturation: data['saturation'] as number,
