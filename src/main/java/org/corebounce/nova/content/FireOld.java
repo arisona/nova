@@ -9,7 +9,7 @@ public class FireOld extends Content {
 	double[][] off;
 	
 	public FireOld(int dimI, int dimJ, int dimK, int numFrames) {
-		super("Fire", dimI, dimJ, dimK, numFrames);
+		super("Fire (Old)", dimI, dimJ, dimK, numFrames);
 		off = new double[dimI][dimJ];
 		for(int i = 0; i < dimI; i++)
 			for(int j = 0; j < dimJ; j++)
