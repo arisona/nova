@@ -22,7 +22,6 @@ public final class NOVAControl implements IConstants {
     static final String PROPERTY_KEY_INTERFACE = "nova";
     static final String PROPERTY_KEY_ADDRESS = "addr_";
     static final String PROPERTY_KEY_FLIP = "flip";
-    static final String PROPERTY_KEY_BRIGHTNESS = "brightness";
     static final String PROPERTY_KEY_CONTENT = "content";
     static final String PROPERTY_KEY_DURATION = "duration";
     static final String PROPERTY_KEY_MOVIES = "movies";
@@ -82,11 +81,6 @@ public final class NOVAControl implements IConstants {
         device.open();
 
         config = new NOVAConfig(properties);
-
-        try {
-            brightness = Float.parseFloat(properties.getProperty(PROPERTY_KEY_BRIGHTNESS, "0.5"));
-        } catch (Throwable t) {
-        }
 
         availableContent.addAll(Content.createContent(config, properties));
 
@@ -250,10 +244,10 @@ public final class NOVAControl implements IConstants {
 
         for (double time = 0;; time += 0.04 * Math.pow(2, speed)) {
             try {
-                float[] rgb = ColorUtils.hsvToRgb(hue, saturation, 1);
-                float r = rgb[0] * brightness * brightness * 1023;
-                float g = rgb[1] * brightness * brightness * 1023;
-                float b = rgb[2] * brightness * brightness * 1023;
+                float[] rgb = ColorUtils.hsvToRgb(hue, saturation, brightness * brightness);
+                float r = rgb[0] * 1023;
+                float g = rgb[1] * 1023;
+                float b = rgb[2] * 1023;
 
                 int[][] frame = frameQ.take();
                 boolean continueWithContent = availableContent.get(selectedContent).fillFrame(fframe, time);
