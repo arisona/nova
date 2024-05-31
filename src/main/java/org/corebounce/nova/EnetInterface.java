@@ -1,7 +1,6 @@
 package org.corebounce.nova;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,7 +45,7 @@ public final class EnetInterface implements IConstants {
 
     private static final String HEXTAB = "0123456789ABCDEF";
 
-    private String toEnet(byte[] addr) {
+    private static String toEnet(byte[] addr) {
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < 6; i++) {
             if (i != 0) {
@@ -97,7 +96,6 @@ public final class EnetInterface implements IConstants {
     @SuppressWarnings("unused")
     public void send(byte[] packet) throws IOException, PcapException {
         if (pcap != null) {
-            ByteBuffer b = ByteBuffer.wrap(packet);
             pcap.sendPacket(packet);
         }
         if (SEND_DELAY > 0) {

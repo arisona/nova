@@ -1,14 +1,26 @@
 # NOVA control software documentation
 
-The NOVA control software is a Java application that controls the NOVA hardware by directly sending ethernet frames to the hardware using [jnetpcap](https://www.jnetpcap.com). In addition to controlling the connected NOVA voxel modules (up to 10x10 modules, where as each module contains 5x5x10 LED voxels), the NOVA control software provides a web interface running on the default interface on port 80 to control playback and content parameters.
+The NOVA control software is a Java application that controls the NOVA hardware by directly sending ethernet frames to the hardware using [jnetpcap](https://github.com/slytechs-repos/jnetpcap-wrapper). In addition to controlling the connected NOVA voxel modules (up to 10x10 modules, where as each module contains 5x5x10 LED voxels), the NOVA control software provides a web interface running on the default interface on port 80 to control playback and content parameters.
 
 ## Development setup
+
+### Main project
 
 The NOVA Server project is a Java / Maven project and can easily be imported into IDEs like Visual Studio Code or Eclipse for development. Jar files can be built from command line using `mvn`
 
 The application launches via `NOVAControl.main()`, and takes a single argument which points to the configuration file, for which details are outlined below.
 
-**Important:** JDK 21 or later are required to build and run this project. For JDK 21, you also need to enable preview features (add `--enable-preview` to the command line). For JDK 22 and later this should not be necessary any longer.
+Requirements:
+- JDK 22 or later
+- Maven or IDE with Maven support (preferred IDE is Visual Studio Code)
+
+**Important:** Currently, the sources for jnetcap are included in the source tree. Once jnetcap for JDK 22 or later becomes available on Maven Central, these sources will be removed.
+
+
+### Web app setup
+
+The project includes a web app based on React / Material UI. The built and bundled app is included in the source repository at `src/resources/www`. Its sources are located at `src/webapp`. For development, you will need Node, and can the proceed as usual using `npm install`. As bundler, Vite is used, and you can use `npm run dev` to run the app in dev mode, and `npm run build` to build and copy the bundle to `src/resources/www`.
+
 
 
 ## Software configuration
