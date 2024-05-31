@@ -74,11 +74,11 @@ tar xzf openjdk-22.0.1_linux-aarch64_bin.tar.gz
 
 ### NOVA software setup and configuration
 
-* Get and compile NOVA code
+* Get and compile NOVA code:
 
 ```
 cd /home/pi
-git clone https://github.com/schubige/nova.git
+git clone https://github.com/arisona/nova.git
 cd nova
 export JAVA_HOME=/home/pi/jdk-22.0.1/
 mvn install
