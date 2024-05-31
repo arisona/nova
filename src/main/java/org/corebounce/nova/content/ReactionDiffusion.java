@@ -74,7 +74,7 @@ public class ReactionDiffusion extends Content {
 			a = b;
 			b = (b+1) % 8;
 			c = (int)(timeInSec/35);
-			System.out.println(a+" : "+ b);
+//			System.out.println(a+" : "+ b);
 		}
 
 		for (int x = 0; x < nx; x++) {

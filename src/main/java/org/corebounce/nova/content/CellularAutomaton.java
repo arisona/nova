@@ -73,7 +73,7 @@ public class CellularAutomaton extends Content {
 		int delta = (int) Math.floor(timeInSec);
 		if (delta/2!=count) {
 //		if (delta % 3 == 2) {
-			System.out.println("next step now");
+//			System.out.println("next step now");
 			step(this.ix);
 			this.ix = (this.ix + 1) % this.nx;
 			count = delta/2;
