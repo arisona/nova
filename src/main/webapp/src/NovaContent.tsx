@@ -6,11 +6,11 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 
-type NovaContentProps = {
+interface NovaContentProps {
   availableContent: string[];
   selectedContent: string;
   handleContentChange: (event: SelectChangeEvent) => void;
-};
+}
 
 export default function NovaContent({
   availableContent,

@@ -1,11 +1,11 @@
 import { Box } from "@mui/material";
 import { rgbToHex } from "./color";
 
-type NovaColorProps = {
+interface NovaColorProps {
   r: number;
   g: number;
   b: number;
-};
+}
 
 export default function NovaColor({ r, g, b }: NovaColorProps) {
   const color = rgbToHex(r, g, b);

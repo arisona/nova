@@ -17,14 +17,14 @@ import { hsvToRgb } from "./color";
 
 // icons: https://fonts.google.com/icons?icon.set=Material+Icons
 
-export type NovaState = {
+export interface NovaState {
   availableContent: string[];
   selectedContent: string;
   brightness: number;
   hue: number;
   saturation: number;
   speed: number;
-};
+}
 
 export const defaultNovaState: NovaState = {
   availableContent: ["No Content"],

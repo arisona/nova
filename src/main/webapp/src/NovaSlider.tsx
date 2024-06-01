@@ -1,7 +1,7 @@
 import { Slider, Stack } from "@mui/material";
 import * as React from "react";
 
-type NovaSliderProps = {
+interface NovaSliderProps {
   icon: React.ReactNode;
   label: string;
   min?: number;
@@ -13,7 +13,7 @@ type NovaSliderProps = {
     value: number | number[],
     activeThumb: number,
   ) => void;
-};
+}
 
 export default function NovaSlider({
   icon,
