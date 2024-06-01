@@ -1,28 +1,28 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-    plugins: [react()],
+  plugins: [react()],
 
-    build: {
-        outDir: '../resources/www',
-        emptyOutDir: true,
-        rollupOptions: {
-            output: {
-                entryFileNames: `assets/[name].js`,
-                chunkFileNames: `assets/[name].js`,
-                assetFileNames: `assets/[name].[ext]`
-            }
-        }
+  build: {
+    outDir: "../resources/www",
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/[name].js`,
+        chunkFileNames: `assets/[name].js`,
+        assetFileNames: `assets/[name].[ext]`,
+      },
     },
+  },
 
-    server: {
-        proxy: {
-            '/api': {
-                target: 'http://localhost:80',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api/, 'api')
-            }
-        }
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:80",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, "api"),
+      },
     },
+  },
 });
