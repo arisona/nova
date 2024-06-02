@@ -12,10 +12,11 @@
     "@emotion/react": "latest",
     "@emotion/styled": "latest",
     "@fontsource/roboto": "latest",
-    "@mui/icons-material": "next",
-    "@mui/material": "next",
+    "@mui/icons-material": "^5.15.19",
+    "@mui/material": "^5.15.19",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "react-router-dom": "latest"
   },
   "devDependencies": {
     "@eslint/js": "^9.4.0",

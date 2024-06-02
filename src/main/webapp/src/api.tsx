@@ -17,12 +17,16 @@ export async function apiGetState(): Promise<NovaState> {
     .then((response) => response.json())
     .then((data) => {
       const state: NovaState = {
-        availableContent: data["available-content"] as string[],
-        selectedContent: data["selected-content"] as string,
+        availableContent: [],
+        enabledContent: data["available-content"] as string[],
+        selectedContentIndex: data["selected-content"] as string,
         brightness: data["brightness"] as number,
         hue: data["hue"] as number,
         saturation: data["saturation"] as number,
         speed: data["speed"] as number,
+        flip: false,
+        ethernetInterface: "",
+        ethernetAddress: "",
       };
       return state;
     })

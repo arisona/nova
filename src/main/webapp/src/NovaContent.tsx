@@ -6,17 +6,17 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 
-interface NovaContentProps {
-  availableContent: string[];
-  selectedContent: string;
+interface NovaSelectContentProps {
+  enabledContent: string[];
+  selectedContentIndex: string;
   handleContentChange: (event: SelectChangeEvent) => void;
 }
 
-export default function NovaContent({
-  availableContent,
-  selectedContent,
+export function NovaSelectContent({
+  enabledContent,
+  selectedContentIndex,
   handleContentChange,
-}: NovaContentProps) {
+}: NovaSelectContentProps) {
   return (
     <FormControl fullWidth sx={{ mb: 4 }}>
       <InputLabel id="select-content-label" sx={{ color: "primary.main" }}>
@@ -33,12 +33,12 @@ export default function NovaContent({
           },
         }}
         labelId="select-content-label"
-        value={selectedContent}
+        value={selectedContentIndex}
         label="Content"
         onChange={handleContentChange}
         variant="outlined"
       >
-        {availableContent.map((content, index) => {
+        {enabledContent.map((content, index) => {
           return (
             <MenuItem
               key={index}

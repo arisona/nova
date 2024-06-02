@@ -15,7 +15,7 @@ interface NovaSliderProps {
   ) => void;
 }
 
-export default function NovaSlider({
+export function NovaSlider({
   icon,
   label,
   min = 0, // default value for min

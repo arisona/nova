@@ -7,7 +7,7 @@ interface NovaColorProps {
   b: number;
 }
 
-export default function NovaColor({ r, g, b }: NovaColorProps) {
+export function NovaColor({ r, g, b }: NovaColorProps) {
   const color = rgbToHex(r, g, b);
   const border = rgbToHex(clamp(r * 2), clamp(g * 2), clamp(b * 2));
   return (
