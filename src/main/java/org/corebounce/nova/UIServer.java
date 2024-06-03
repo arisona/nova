@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -60,6 +62,8 @@ public final class UIServer {
         }
     }
 
+    private final List<Integer> enabledContentIndices = new ArrayList<>();
+
     private void handleAPI(HttpExchange he) throws IOException {
         URI uri = he.getRequestURI();
         Log.info("Handle " + uri);
@@ -67,11 +71,23 @@ public final class UIServer {
         try {
             String param = uri.getPath().split("[/]")[2];
             String query = uri.getQuery();
-            String value = query == null ? null : query.split("[=]")[1];
-
+            //String value = query == null ? null : query.split("[=]")[1];
+            String value = "";
+            if (query != null) {
+                String[] parts = query.split("[=]");
+                if (parts.length == 2) {
+                    value = URLDecoder.decode(parts[1], "UTF-8");
+                }
+            }
+ 
             NOVAControl control = NOVAControl.get();
             switch (param) {
-                case "selected-content" ->
+                case "enabled-content-indices" -> {
+                    enabledContentIndices.clear();
+                    enabledContentIndices.addAll(List.of(value.split("\s")).stream().map(Integer::parseInt).toList());
+                    System.out.println("Enabled content indices: "+ enabledContentIndices);
+                }
+                case "selected-content-index" ->
                     control.setSelectedContent(Integer.parseInt(value));
                 case "hue" ->
                     control.setHue(Float.parseFloat(value));
@@ -79,8 +95,16 @@ public final class UIServer {
                     control.setSaturation(Float.parseFloat(value));
                 case "brightness" ->
                     control.setBrightness(Float.parseFloat(value));
+                case "flip" ->
+                    System.out.println("Flip: " + value);
+                case "ethernet-interface" ->
+                    System.out.println("Eif: " + value);
+                case "ethernet-address" ->
+                    System.out.println("Eaddr: " + value);
                 case "speed" ->
                     control.setSpeed(Float.parseFloat(value));
+                case "restore" ->
+                    System.out.println("Restore");
                 case "reset" ->
                     control.novaReset();
                 case "reload" -> {
@@ -109,18 +133,26 @@ public final class UIServer {
     private String getState() {
         NOVAControl c = NOVAControl.get();
         List<String> availableContent = c.getAvailableContent().stream().map(content -> content.name).toList();
-        return String.format("""
+        String result = String.format("""
                 {
                     "available-content": %s,
-                    "selected-content": %d,
+                    "enabled-content-indices": %s,
+                    "selected-content-index": %d,
                     "hue": %f,
                     "saturation": %f,
                     "brightness": %f,
-                    "speed": %f
+                    "speed": %f,
+                    "flip": %b,
+                    "ethernet-interface": "%s",
+                    "ethernet-address": "%s"
                 }
                 """,
                 new JSONArray(availableContent),
+                new JSONArray(enabledContentIndices),
                 c.getSelectedContent(),
-                c.getHue(), c.getSaturation(), c.getBrightness(), c.getSpeed());
+                c.getHue(), c.getSaturation(), c.getBrightness(), c.getSpeed(),
+                false, "eth0", "1");
+        System.out.println(result);
+        return result;
     }
 }

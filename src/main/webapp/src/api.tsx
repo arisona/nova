@@ -4,7 +4,7 @@ export function apiSet(id: string) {
   fetch(`/api/${id}`);
 }
 
-export function apiSetValue(id: string, value: number | string) {
+export function apiSetValue(id: string, value: string | number | boolean) {
   fetch(`/api/${id}?value=${value}`);
 }
 
@@ -14,20 +14,34 @@ export async function apiGetState(): Promise<NovaState> {
       if (!response.ok) throw new Error(response.status.toString());
       return response;
     })
-    .then((response) => response.json())
+    .then((response) => {
+      return response.json();
+    })
     .then((data) => {
+      const availableContent = data["available-content"] as string[];
       const state: NovaState = {
-        availableContent: [],
-        enabledContent: data["available-content"] as string[],
-        selectedContentIndex: data["selected-content"] as string,
+        availableContent: availableContent.map(
+          (name: string, index: number) => ({
+            name: name as string,
+            index: index as number,
+          }),
+        ),
+        enabledContent: data["enabled-content-indices"].map(
+          (index: string) => ({
+            name: availableContent[+index] as string,
+            index: +index,
+          }),
+        ),
+        selectedContentIndex: data["selected-content-index"] as number,
         brightness: data["brightness"] as number,
         hue: data["hue"] as number,
         saturation: data["saturation"] as number,
         speed: data["speed"] as number,
-        flip: false,
-        ethernetInterface: "",
-        ethernetAddress: "",
+        flip: data["flip"] as boolean,
+        ethernetInterface: data["ethernet-interface"] as string,
+        ethernetAddress: data["ethernet-address"] as string,
       };
+      console.log(state);
       return state;
     })
     .catch(function (error) {

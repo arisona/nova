@@ -3,9 +3,9 @@ import { MainPage } from "./MainPage";
 import { SettingsPage } from "./SettingsPage";
 
 export interface NovaState {
-  availableContent: string[];
-  enabledContent: string[];
-  selectedContentIndex: string;
+  availableContent: { index: number; name: string }[];
+  enabledContent: { index: number; name: string }[];
+  selectedContentIndex: number;
   brightness: number;
   hue: number;
   saturation: number;
@@ -16,9 +16,9 @@ export interface NovaState {
 }
 
 export const defaultNovaState: NovaState = {
-  availableContent: ["No Content"],
-  enabledContent: ["No Content"],
-  selectedContentIndex: "0",
+  availableContent: [],
+  enabledContent: [],
+  selectedContentIndex: -1,
   brightness: 1,
   hue: 0.5,
   saturation: 1,

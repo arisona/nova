@@ -7,18 +7,18 @@ import {
   WbSunny,
 } from "@mui/icons-material";
 import {
+  Autocomplete,
   Box,
   Container,
   IconButton,
-  SelectChangeEvent,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import * as React from "react";
 
 import { NovaState, defaultNovaState } from "./App";
 import { NovaColor } from "./NovaColor";
-import { NovaSelectContent } from "./NovaContent";
 import { NovaSlider } from "./NovaSlider";
 import { apiGetState, apiSetValue } from "./api";
 import { hsvToRgb } from "./color";
@@ -32,12 +32,22 @@ export function MainPage() {
 
   const [state, setState] = React.useState<NovaState>(defaultNovaState);
 
-  const handleSelectedContentChange = (event: SelectChangeEvent) => {
-    const selectedContentIndex = event.target.value as string;
-    apiSetValue("selected-content", selectedContentIndex);
+  const handleRefresh = () => {
+    apiGetState().then((state) => setState(state));
+  };
+
+  const handleSettings = () => {
+    navigate("/settings");
+  };
+
+  const handleContentChange = (
+    value: { index: number; name: string } | null,
+  ) => {
+    const index = value ? value.index : -1;
+    apiSetValue("selected-content-index", index);
     setState((prevState) => ({
       ...prevState,
-      selectedContentIndex: selectedContentIndex,
+      selectedContentIndex: index,
     }));
   };
 
@@ -67,17 +77,18 @@ export function MainPage() {
     setState((prevState) => ({ ...prevState, speed: newValue as number }));
   };
 
-  const handleRefresh = () => {
-    apiGetState().then((state) => setState(state));
-  };
-
-  const handleSettings = () => {
-    navigate("/settings");
+  const getSelectedContent = () => {
+    const selectedContent = state.enabledContent.find(
+      (value) => value.index === state.selectedContentIndex,
+    );
+    return selectedContent ? selectedContent : null;
   };
 
   const rgb = hsvToRgb(state.hue, state.saturation, state.brightness);
 
   React.useEffect(() => handleRefresh(), []);
+
+  console.log(state);
 
   return (
     <Container maxWidth="sm">
@@ -101,11 +112,28 @@ export function MainPage() {
           </Stack>
         </Stack>
 
-        <NovaSelectContent
-          enabledContent={state.enabledContent}
-          selectedContentIndex={state.selectedContentIndex}
-          handleContentChange={handleSelectedContentChange}
-        />
+        <Stack direction="row" sx={{ mb: 4 }}>
+          <Autocomplete
+            fullWidth
+            disablePortal
+            id="select-content"
+            disableCloseOnSelect
+            options={state.enabledContent}
+            getOptionKey={(option) => option.index}
+            getOptionLabel={(option) => option.name}
+            renderInput={({ inputProps, ...rest }) => (
+              <TextField
+                {...rest}
+                label="Select Content"
+                inputProps={{ ...inputProps, readOnly: true }}
+              />
+            )}
+            value={getSelectedContent()}
+            onChange={(_event, value) => {
+              handleContentChange(value);
+            }}
+          />
+        </Stack>
 
         <NovaColor r={rgb[0]} g={rgb[1]} b={rgb[2]} />
 
