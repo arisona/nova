@@ -1,33 +1,16 @@
 package org.corebounce.nova;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.Inet4Address;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.net.SocketException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.corebounce.nova.content.Movie;
 import org.corebounce.util.Log;
 import org.jnetpcap.PcapException;
 
 public final class NOVAControl implements IConstants {
-
-    static final String PROPERTY_KEY_PORT = "port";
-    static final String PROPERTY_KEY_INTERFACE = "nova";
-    static final String PROPERTY_KEY_ADDRESS = "addr_";
-    static final String PROPERTY_KEY_FLIP = "flip";
-    static final String PROPERTY_KEY_CONTENT = "content";
-    static final String PROPERTY_KEY_DURATION = "duration";
-    static final String PROPERTY_KEY_MOVIES = "movies";
-    static final String PROPERTY_KEY_CONFIG_DIR = "config_dir";
-
-    private static final String CONTROL_PARAMS = "controlParams.properties";
 
     private static final int N_PACKET_BUFFERS = 1024;
     private static final int MODULE_QUEUE_SIZE = 4;
@@ -35,16 +18,8 @@ public final class NOVAControl implements IConstants {
 
     private static NOVAControl theControl;
 
-    private final List<Content> availableContent = new ArrayList<>();
-    private int selectedContent = 0;
-    private float hue = 0.0f;
-    private float saturation = 1.0f;
-    private float brightness = 0.5f;
-    private float speed = 0.0f;
-
-    private final Properties properties = new Properties();
+    private final State state;
     private final EnetInterface device;
-    private final NOVAConfig config;
 
     private final AtomicBoolean reset = new AtomicBoolean();
 
@@ -60,37 +35,17 @@ public final class NOVAControl implements IConstants {
 
     private SyncGenerator syncGen;
 
-    public NOVAControl(String configuration) throws IOException, InterruptedException, PcapException {
+    public NOVAControl() throws SocketException, IOException, PcapException {
         if (theControl != null) {
             throw new RuntimeException("Cannot instantiate multiple NOVAControl instances.");
         }
         theControl = this;
 
-        File propFile = new File(configuration).getAbsoluteFile();
-        properties.load(new FileReader(propFile));
+        state = new State();
 
-        int port = 80;
-        try {
-            port = Integer.parseInt(properties.getProperty(PROPERTY_KEY_PORT, "80"));
-        } catch (Throwable t) {
-        }
-        Log.info("Listening on port " + port);
-
-        device = EnetInterface.getInterface(properties.getProperty(PROPERTY_KEY_INTERFACE, "eth0"));
+        device = EnetInterface.getInterface(state.getEthernetInterface());
         Log.info("Using interface " + device.getName());
         device.open();
-
-        config = new NOVAConfig(properties);
-
-        availableContent.addAll(Content.createContent(config, properties));
-
-        File movies = new File(properties.getProperty(PROPERTY_KEY_MOVIES, "."));
-        if (movies.exists() && movies.isDirectory()) {
-            Movie.ROOT_DIR = movies;
-        }
-
-        properties.put(PROPERTY_KEY_CONFIG_DIR, propFile.getParent());
-        readControlParams();
 
         try (DatagramSocket socket = new DatagramSocket()) {
             selfIpAddr = Inet4Address.getLocalHost().getAddress();
@@ -98,18 +53,18 @@ public final class NOVAControl implements IConstants {
         }
 
         int maxModule = 0;
-        for (int m : config.getModules()) {
+        for (int m : state.getModules()) {
             novaIpAddr[m] = new byte[]{(byte) NOVA_IP_0, (byte) NOVA_IP_1, (byte) NOVA_IP_2, (byte) m};
             maxModule = Math.max(maxModule, m);
         }
 
         for (int i = 0; i < FRAME_QUEUE_SIZE; i++) {
-            frameQ.add(new int[maxModule + 1][config.dimI() * config.dimJ() * config.dimK() * 3]);
+            frameQ.add(new int[maxModule + 1][state.getDimI() * state.getDimJ() * state.getDimK() * 3]);
         }
 
-        dispatcher = new Dispatcher(device, config);
+        dispatcher = new Dispatcher(device, state);
 
-        new UIServer(port);
+        new UIServer(state);
 
         Thread thread = new Thread(this::streamTask, "Voxel Streamer");
         thread.setPriority(Thread.MIN_PRIORITY);
@@ -118,8 +73,8 @@ public final class NOVAControl implements IConstants {
         for (;;) {
             try {
                 getStatus();
-                Log.info("NOVA Status: " + config.numOperational() + " of " + config.numModules() + " operational");
-                if (config.isOperational()) {
+                Log.info("NOVA Status: " + state.getNumOperational() + " of " + state.getNumModules() + " operational");
+                if (state.isOperational()) {
                     if (!(isOn())) {
                         novaOn();
                     }
@@ -138,75 +93,16 @@ public final class NOVAControl implements IConstants {
         }
     }
 
-    public static NOVAControl get() {
+    static NOVAControl get() {
         return theControl;
     }
 
+    State getState() {
+        return state;
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException, PcapException {
-        if (args.length != 1) {
-            System.out.println("Usage: " + NOVAControl.class.getName() + " <config_file>");
-            System.exit(0);
-        }
-
-        Log.info("Using configuration: " + args[0]);
-
-        new NOVAControl(args[0]);
-    }
-
-    List<Content> getAvailableContent() {
-        return availableContent;
-    }
-
-    int getSelectedContent() {
-        return selectedContent;
-    }
-
-    void setSelectedContent(int index) {
-        try {
-            availableContent.get(selectedContent).stop();
-        } catch (Throwable t) {
-        }
-        selectedContent = index % availableContent.size();
-        Log.info("setContent(" + selectedContent + "): " + availableContent.get(selectedContent));
-        try {
-            availableContent.get(selectedContent).start();
-        } catch (Throwable t) {
-        }
-        writeControlParams();
-    }
-
-    public float getHue() {
-        return hue;
-    }
-
-    public void setHue(float hue) {
-        this.hue = hue;
-    }
-
-    public float getSaturation() {
-        return saturation;
-    }
-
-    public void setSaturation(float saturation) {
-        this.saturation = saturation;
-    }
-
-    public float getBrightness() {
-        return brightness;
-    }
-
-    void setBrightness(float brightness) {
-        this.brightness = brightness;
-        writeControlParams();
-    }
-
-    public float getSpeed() {
-        return speed;
-    }
-
-    void setSpeed(float speed) {
-        this.speed = speed;
-        writeControlParams();
+        new NOVAControl();
     }
 
     boolean isOn() {
@@ -240,28 +136,59 @@ public final class NOVAControl implements IConstants {
     }
 
     private void streamTask() {
-        final float[] fframe = new float[config.dimI() * config.dimJ() * config.dimK() * 3];
+        final float[] fframe = new float[state.getDimI() * state.getDimJ() * state.getDimK() * 3];
+        int selectedContentIndex = -1;
 
-        for (double time = 0;; time += 0.04 * Math.pow(2, speed)) {
+        // note: the speed calculation is a bit weird, but made to match the original 
+        // implementation where speed was in the range [-3, 5] and now is [0, 1]
+        for (double time = 0;; time += 0.04 * Math.pow(2, state.getSpeed() * 8 - 3)) {
             try {
-                float[] rgb = ColorUtils.hsvToRgb(hue, saturation, brightness * brightness);
+                int newContentIndex = state.getSelectedContentIndex();
+                if (newContentIndex != selectedContentIndex) {
+                    if (selectedContentIndex >= 0) {
+                        try {
+                            state.getContent(selectedContentIndex).stop();
+                        } catch (Throwable t) {
+                        }
+                    }
+                    selectedContentIndex = newContentIndex;
+                    if (selectedContentIndex >= 0) {
+                        Log.info("setContent(" + selectedContentIndex + "): " + state.getContent(selectedContentIndex));
+                        try {
+                            state.getContent(selectedContentIndex).start();
+                        } catch (Throwable t) {
+                        }
+                    } else {
+                        Log.info("setContent(-1): Blank");
+                    }
+                }
+                int[][] frame = frameQ.take();
+                if (selectedContentIndex < 0) {
+                    for (int i = 0; i < frame.length; i++) {
+                        for (int j = 0; j < frame[i].length; j++) {
+                            frame[i][j] = 0;
+                        }
+                    }
+                    txQ.add(frame);
+                    continue;
+                }
+                state.getContent(selectedContentIndex).fillFrame(fframe, time);
+
+                float[] rgb = ColorUtils.hsvToRgb(state.getHue(), state.getSaturation(), state.getBrightness() * state.getBrightness());
                 float r = rgb[0] * 1023;
                 float g = rgb[1] * 1023;
                 float b = rgb[2] * 1023;
 
-                int[][] frame = frameQ.take();
-                boolean continueWithContent = availableContent.get(selectedContent).fillFrame(fframe, time);
-
-                for (int m : config.getModules()) {
-                    int off = config.getFrameOffset(m);
+                for (int m : state.getModules()) {
+                    int off = state.getFrameOffset(m);
                     int idx = 0;
 
                     int[] pixels = frame[m];
-                    if (config.flipK()) {
-                        for (int i = config.moduleDimI(); i-- > 0;) {
-                            for (int j = config.moduleDimJ(); j-- > 0;) {
-                                for (int k = 0; k < config.moduleDimK(); k++) {
-                                    int x = off + 3 * (j * config.dimI() * config.dimK() + i * config.dimK() + ((config.dimK() - 1) - k));
+                    if (state.isFlipVertical()) {
+                        for (int i = state.getModuleDimI(); i-- > 0;) {
+                            for (int j = state.getModuleDimJ(); j-- > 0;) {
+                                for (int k = 0; k < state.getModuleDimK(); k++) {
+                                    int x = off + 3 * (j * state.getDimI() * state.getDimK() + i * state.getDimK() + ((state.getDimK() - 1) - k));
                                     float fr = fframe[x];
                                     float fg = fframe[x + 1];
                                     float fb = fframe[x + 2];
@@ -272,10 +199,10 @@ public final class NOVAControl implements IConstants {
                             }
                         }
                     } else {
-                        for (int i = config.moduleDimI(); i-- > 0;) {
-                            for (int j = config.moduleDimJ(); j-- > 0;) {
-                                for (int k = 0; k < config.moduleDimK(); k++) {
-                                    int x = off + 3 * (j * config.dimI() * config.dimK() + i * config.dimK() + k);
+                        for (int i = state.getModuleDimI(); i-- > 0;) {
+                            for (int j = state.getModuleDimJ(); j-- > 0;) {
+                                for (int k = 0; k < state.getModuleDimK(); k++) {
+                                    int x = off + 3 * (j * state.getDimI() * state.getDimK() + i * state.getDimK() + k);
                                     float fr = fframe[x];
                                     float fg = fframe[x + 1];
                                     float fb = fframe[x + 2];
@@ -288,9 +215,6 @@ public final class NOVAControl implements IConstants {
                     }
                 }
                 txQ.add(frame);
-                if (!(continueWithContent)) {
-                    setSelectedContent(getSelectedContent() + 1);
-                }
             } catch (Throwable t) {
                 Log.severe(t);
             }
@@ -299,20 +223,20 @@ public final class NOVAControl implements IConstants {
 
     private void reset() throws IOException, InterruptedException, PcapException {
         StringBuilder msg = new StringBuilder("Resetting Modules:");
-        for (int m : config.getModules()) {
+        for (int m : state.getModules()) {
             msg.append(" ").append(m);
         }
         msg.append('\n');
         Log.info(msg.toString());
         for (int i = 0; i < 4; i++) {
-            for (int m : config.getModules()) {
+            for (int m : state.getModules()) {
                 byte[] packet = packet();
                 PacketUtils.reset(packet, IConstants.UDP_PAYLOAD_OFF);
                 send(packet, m);
             }
             Thread.sleep(200);
         }
-        for (int m : config.getModules()) {
+        for (int m : state.getModules()) {
             byte[] packet = packet();
             PacketUtils.autoid(packet, IConstants.UDP_PAYLOAD_OFF);
             send(packet, m);
@@ -331,7 +255,7 @@ public final class NOVAControl implements IConstants {
             try {
                 device.send(packet);
                 Thread.sleep(500);
-                if (config.numOperational() > 0) {
+                if (state.getNumOperational() > 0) {
                     return;
                 }
                 // Log.info("No modules found, retry " + (1 + i));
@@ -368,40 +292,12 @@ public final class NOVAControl implements IConstants {
                 return;
             }
 
-            for (int m : config.getModules()) {
+            for (int m : state.getModules()) {
                 PacketUtils.rgb(packet, IConstants.UDP_PAYLOAD_OFF, seqNum + MODULE_QUEUE_SIZE, frame[m]);
                 send(packet, m);
             }
 
             frameQ.add(frame);
-        } catch (Throwable t) {
-            Log.severe(t);
-        }
-    }
-
-    private void readControlParams() {
-        Properties props = new Properties();
-        try (FileReader in = new FileReader(new File(properties.getProperty(PROPERTY_KEY_CONFIG_DIR, "."), CONTROL_PARAMS))) {
-            props.load(in);
-            setSelectedContent(Integer.parseInt(props.getProperty("selected-content", "" + selectedContent)));
-            setHue(Float.parseFloat(props.getProperty("hue", "" + hue)));
-            setSaturation(Float.parseFloat(props.getProperty("saturation", "" + saturation)));
-            setBrightness(Float.parseFloat(props.getProperty("brightness", "" + brightness)));
-            setSpeed(Float.parseFloat(props.getProperty("speed", "" + speed)));
-        } catch (Throwable t) {
-            //Log.severe(t);
-        }
-    }
-
-    private void writeControlParams() {
-        Properties props = new Properties();
-        props.put("content", "" + selectedContent);
-        props.put("hue", "" + hue);
-        props.put("saturation", "" + saturation);
-        props.put("brightness", "" + brightness);
-        props.put("speed", "" + speed);
-        try (FileWriter out = new FileWriter(new File(properties.getProperty(PROPERTY_KEY_CONFIG_DIR, "."), CONTROL_PARAMS))) {
-            props.store(out, "NOVA control parameters");
         } catch (Throwable t) {
             Log.severe(t);
         }

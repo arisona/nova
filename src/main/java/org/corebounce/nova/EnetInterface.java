@@ -15,22 +15,29 @@ import org.jnetpcap.PcapIf;
 
 public final class EnetInterface implements IConstants {
 
+    private static final String HEXTAB = "0123456789ABCDEF";
+    private static final int SEND_DELAY = 0;
+
     private final PcapIf device;
     private Pcap pcap;
     private final byte[] addr;
     private final LinkedBlockingQueue<byte[]> queue = new LinkedBlockingQueue<>();
     private final AtomicBoolean close = new AtomicBoolean();
-    private static final int SEND_DELAY = 0;
 
     public EnetInterface(PcapIf device) throws IOException {
         this.device = device;
         this.addr = device.hardwareAddress().orElse(new byte[6]);
     }
 
+    private EnetInterface() {
+        this.device = null;
+        this.addr = new byte[6];
+    }
+
     public void open() throws IOException, PcapException {
-        int snaplen = 64 * 1024;
-        int timeout = 1;
         if (device != null) {
+            int snaplen = 64 * 1024;
+            int timeout = 1;
             pcap = Pcap.openLive(device, snaplen, true, timeout, TimeUnit.MILLISECONDS);
             if (pcap == null) {
                 throw new IOException("Could not open " + this);
@@ -39,11 +46,62 @@ public final class EnetInterface implements IConstants {
             String expression = "ether proto " + PROT_SYNC + " and ether dst " + toEnet(addr) + " or ether broadcast";
             BpFilter filter = pcap.compile(expression, false);
             pcap.setFilter(filter);
+            new RxThread();
         }
-        new RxThread();
     }
 
-    private static final String HEXTAB = "0123456789ABCDEF";
+    public void close() throws InterruptedException {
+        if (device != null) {
+            close.set(true);
+            while (!(close.get())) {
+                Thread.sleep(5);
+            }
+        }
+    }
+
+    public void send(byte[] packet) throws IOException, PcapException {
+        if (pcap != null) {
+            pcap.sendPacket(packet);
+        }
+        if (SEND_DELAY > 0) {
+            try {
+                Thread.sleep(SEND_DELAY);
+            } catch (Throwable t) {
+                throw new IOException(t);
+            }
+        }
+    }
+
+    public byte[] receive() throws InterruptedException {
+        return queue.take();
+    }
+
+    public String getName() {
+        return device != null ? device.name() : "dummy";
+    }
+
+    public byte[] getAddr() {
+        return addr;
+    }
+
+    public boolean isDummy() {
+        return device == null;
+    }
+
+    @Override
+    public String toString() {
+        return getName();
+    }
+
+    static EnetInterface getInterface(String name) throws IOException, PcapException {
+        for (var device : Pcap.findAllDevs()) {
+            if (device.name().equals(name)) {
+                return new EnetInterface(device);
+            }
+        }
+        Log.warning("no such interface: " + name + " (using dummy)");
+        return new EnetInterface();
+    }
 
     private static String toEnet(byte[] addr) {
         StringBuilder result = new StringBuilder();
@@ -57,7 +115,7 @@ public final class EnetInterface implements IConstants {
         return result.toString();
     }
 
-    private class RxThread implements OfArray<LinkedBlockingQueue<byte[]>> {
+    private final class RxThread implements OfArray<LinkedBlockingQueue<byte[]>> {
 
         RxThread() {
             Thread t = new Thread(this::dispatch);
@@ -84,52 +142,5 @@ public final class EnetInterface implements IConstants {
         public void handleArray(LinkedBlockingQueue<byte[]> user, PcapHeader header, byte[] packet) {
             queue.offer(packet.clone());
         }
-    }
-
-    public void close() throws InterruptedException {
-        close.set(true);
-        while (!(close.get())) {
-            Thread.sleep(5);
-        }
-    }
-
-    @SuppressWarnings("unused")
-    public void send(byte[] packet) throws IOException, PcapException {
-        if (pcap != null) {
-            pcap.sendPacket(packet);
-        }
-        if (SEND_DELAY > 0) {
-            try {
-                Thread.sleep(SEND_DELAY);
-            } catch (Throwable t) {
-                throw new IOException(t);
-            }
-        }
-    }
-
-    public byte[] receive() throws InterruptedException {
-        return queue.take();
-    }
-
-    public String getName() {
-        return device.name();
-    }
-
-    public byte[] getAddr() {
-        return addr;
-    }
-
-    @Override
-    public String toString() {
-        return getName();
-    }
-
-    static EnetInterface getInterface(String name) throws IOException, PcapException {
-        for (var device : Pcap.findAllDevs()) {
-            if (device.name().equals(name)) {
-                return new EnetInterface(device);
-            }
-        }
-        throw new IllegalArgumentException("No such interface: " + name);
     }
 }

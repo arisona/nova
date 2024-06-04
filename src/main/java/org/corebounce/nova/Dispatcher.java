@@ -5,15 +5,17 @@ import org.corebounce.util.Log;
 public final class Dispatcher implements IConstants {
 
     final EnetInterface device;
-    final NOVAConfig config;
+    final State state;
     SyncGenerator sync;
 
-    public Dispatcher(EnetInterface device, NOVAConfig config) {
+    public Dispatcher(EnetInterface device, State state) {
         this.device = device;
-        this.config = config;
-        Thread thread = new Thread(this::dispatchTask);
-        thread.setPriority(Thread.MIN_PRIORITY);
-        thread.start();
+        this.state = state;
+        if (!device.isDummy()) {
+            Thread thread = new Thread(this::dispatchTask);
+            thread.setPriority(Thread.MIN_PRIORITY);
+            thread.start();
+        }
     }
 
     public void setSyncGen(SyncGenerator sync) {
@@ -35,25 +37,25 @@ public final class Dispatcher implements IConstants {
                 synchronized (this) {
                     System.arraycopy(packet, 6, status, 0, 6);
                     switch (packet[ADDR_LEN + PROT_LEN + 2]) {
-                        case CMD_START:
+                        case CMD_START -> {
                             if (sync != null) {
                                 sync.handle(CMD_START, status);
                             }
-                            break;
-                        case CMD_STOP:
+                        }
+                        case CMD_STOP -> {
                             if (sync != null) {
                                 sync.handle(CMD_STOP, status);
                             }
-                            break;
-                        case CMD_STATUS:
+                        }
+                        case CMD_STATUS -> {
                             if (packet[20] == (byte) NOVA_IP_0) {
-                                if (config != null) {
-                                    config.setStatus(new DMUXStatus(packet, ADDR_LEN + PROT_LEN));
+                                if (state != null) {
+                                    state.setStatus(new DMUXStatus(packet, ADDR_LEN + PROT_LEN));
                                 }
                             } else if (sync != null) {
                                 sync.handle(CMD_STATUS, status);
                             }
-                            break;
+                        }
                     }
                 }
             } catch (Throwable t) {

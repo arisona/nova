@@ -46,4 +46,52 @@ public class ColorUtils {
             default -> new float[]{v, p, q};
         };
     }
+
+    public static void hsvToRgb(float h, float s, float v, float[] rgb, int idx) {
+        if (s == 0) {
+            rgb[idx + 0] = v;
+            rgb[idx + 1] = v;
+            rgb[idx + 2] = v;
+            return;
+        }
+
+        h *= 6;
+        int i = (int) Math.floor(h);
+        float f = h - i;
+        float p = v * (1 - s);
+        float q = v * (1 - s * f);
+        float t = v * (1 - s * (1 - f));
+        switch (i) {
+            case 0 -> {
+                rgb[idx + 0] = v;
+                rgb[idx + 1] = t;
+                rgb[idx + 2] = p;
+            }
+            case 1 -> {
+                rgb[idx + 0] = q;
+                rgb[idx + 1] = v;
+                rgb[idx + 2] = p;
+            }
+            case 2 -> {
+                rgb[idx + 0] = p;
+                rgb[idx + 1] = v;
+                rgb[idx + 2] = t;
+            }
+            case 3 -> {
+                rgb[idx + 0] = p;
+                rgb[idx + 1] = q;
+                rgb[idx + 2] = v;
+            }
+            case 4 -> {
+                rgb[idx + 0] = t;
+                rgb[idx + 1] = p;
+                rgb[idx + 2] = v;
+            }
+            default -> {
+                rgb[idx + 0] = v;
+                rgb[idx + 1] = p;
+                rgb[idx + 2] = q;
+            }
+        }
+    }
 }

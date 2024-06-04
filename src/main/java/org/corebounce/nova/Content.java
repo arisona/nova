@@ -12,7 +12,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -32,10 +31,6 @@ public abstract class Content {
     protected final int dimJ;
     /* Z-dimension (vertical) of the NOVA hardware, always 10. */
     protected final int dimK;
-    /* number of frames to run. */
-    protected final int numFrames;
-    /* number current number of frames. */
-    protected int frames;
 
     /**
      * Creates a content instance.
@@ -44,14 +39,12 @@ public abstract class Content {
      * @param dimI The X-dimension.
      * @param dimJ The Y-dimension.
      * @param dimK The Z-dimension.
-     * @param numFrames The number of frames to run.
      */
-    protected Content(String name, int dimI, int dimJ, int dimK, int numFrames) {
+    protected Content(String name, int dimI, int dimJ, int dimK) {
         this.name = name;
         this.dimI = dimI;
         this.dimJ = dimJ;
         this.dimK = dimK;
-        this.numFrames = numFrames <= 0 ? Integer.MAX_VALUE : numFrames;
     }
 
     /**
@@ -113,10 +106,10 @@ public abstract class Content {
     private static void addAndClamp(final float[] rgbFrame, final int idx, final float value) {
         float v = rgbFrame[idx] + value;
         if (v < 0f) {
-            rgbFrame[idx] = 0f; 
-        }else if (v > 1f) {
-            rgbFrame[idx] = 1f; 
-        }else {
+            rgbFrame[idx] = 0f;
+        } else if (v > 1f) {
+            rgbFrame[idx] = 1f;
+        } else {
             rgbFrame[idx] = v;
         }
     }
@@ -170,11 +163,14 @@ public abstract class Content {
         rgbFrame[idx + 2] = b * wb + (1 - wb) * rgbFrame[idx + 2];
     }
 
+    protected final float getSpeed() {
+        return NOVAControl.get().getState().getSpeed();
+    }
+
     /**
      * Called when a content is activated.
      */
     public void start() {
-        frames = numFrames;
     }
 
     /**
@@ -189,10 +185,8 @@ public abstract class Content {
      *
      * @param rgbFrame The voxel frame to operate on.
      * @param timeInSec The relative animation time starting from 0.
-     * @return True if this content has more frames avilable or fals if the
-     * server should switch to the next content.
      */
-    public abstract boolean fillFrame(float[] rgbFrame, double timeInSec);
+    public abstract void fillFrame(float[] rgbFrame, double timeInSec);
 
     /**
      * Returns the name of the content.
@@ -211,76 +205,24 @@ public abstract class Content {
         return Collections.singletonList(this);
     }
 
-    protected void setRGBfromHSV(float h, float S, float V, float[] rgb, int idx) {
-        final float C = V * S;
-        final float H = (h * 360f) % 360f;
-        final float X = (float) (C * (1 - Math.abs(H / 60.0 % 2 - 1)));
-
-        if (H < 60) {
-            rgb[idx + 0] = C;
-            rgb[idx + 1] = X;
-            rgb[idx + 2] = 0;
-        } else if (H < 120) {
-            rgb[idx + 0] = X;
-            rgb[idx + 1] = C;
-            rgb[idx + 2] = 0;
-        } else if (H < 180) {
-            rgb[idx + 0] = 0;
-            rgb[idx + 1] = C;
-            rgb[idx + 2] = X;
-        } else if (H < 240) {
-            rgb[idx + 0] = 0;
-            rgb[idx + 1] = X;
-            rgb[idx + 2] = C;
-        } else if (H < 300) {
-            rgb[idx + 0] = X;
-            rgb[idx + 1] = 0;
-            rgb[idx + 2] = C;
-        } else {
-            rgb[idx + 0] = C;
-            rgb[idx + 1] = 0;
-            rgb[idx + 2] = X;
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    static List<Content> createContent(NOVAConfig config, Properties properties) {
-        int numFrames = -1;
-        try {
-            numFrames = Integer.parseInt(properties.getProperty(NOVAControl.PROPERTY_KEY_DURATION, "-1")) * 25;
-        } catch (NumberFormatException t) {
-        }
-
+    static List<Content> createContent(State state) {
         var contents = new ArrayList<Content>();
-        for (String content : properties.getProperty(NOVAControl.PROPERTY_KEY_CONTENT, "AUTO").split("[,]")) {
-            try {
-                if ("AUTO".equals(content)) {
-                    for (var cls : findAllContentClasses(Test.class.getPackageName())) {
-                        Content c = cls.getConstructor(int.class, int.class, int.class, int.class)
-                                .newInstance(config.dimI(), config.dimJ(), config.dimK(), numFrames);
-                        for (Content ci : c.getContents()) {
-                            Log.info("Adding content '" + ci + "'");
-                            contents.add(ci);
-                        }
-                    }
-                } else {
-                    Class<Content> cls = (Class<Content>) Class.forName("org.corebounce.nova.content." + content);
-                    Content c = cls.getConstructor(int.class, int.class, int.class, int.class)
-                            .newInstance(config.dimI(), config.dimJ(), config.dimK(), numFrames);
-                    for (Content ci : c.getContents()) {
-                        Log.info("Adding content '" + ci + "'");
-                        contents.add(ci);
-                    }
+        try {
+            for (var cls : findAllContentClasses(Test.class.getPackageName())) {
+                Content c = cls.getConstructor(int.class, int.class, int.class)
+                        .newInstance(state.getDimI(), state.getDimJ(), state.getDimK());
+                for (Content ci : c.getContents()) {
+                    Log.info("Adding content '" + ci + "'");
+                    contents.add(ci);
                 }
-            } catch (Throwable t) {
-                Log.warning(t, "Could not load content '" + content + "'");
             }
+        } catch (Throwable t) {
+            Log.warning(t, "Could not load content");
         }
         contents.sort(Comparator.comparing(Object::toString));
         return contents;
     }
 
-    @SuppressWarnings("unchecked")
     private static Set<Class<Content>> findAllContentClasses(String packageName) throws IOException, URISyntaxException {
         var packagePath = packageName.replace('.', '/');
         Path root;
@@ -305,7 +247,7 @@ public abstract class Content {
                     if (cls.getSuperclass().equals(Content.class)) {
                         classes.add((Class<Content>) cls);
                     }
-                } catch (Throwable t) {
+                } catch (ClassNotFoundException t) {
                 }
             });
         }

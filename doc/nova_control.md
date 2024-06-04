@@ -83,10 +83,9 @@ public class Sweep extends Content {
 	 * @param dimI The X-dimension.
 	 * @param dimJ The Y-dimension.
 	 * @param dimK The Z-dimension.
-	 * @param numFrames The number of frames to run.
 	 */
-	public Sweep(int dimI, int dimJ, int dimK, int numFrames) {
-		super("Sweep", dimI, dimJ, dimK, numFrames);
+	public Sweep(int dimI, int dimJ, int dimK) {
+		super("Sweep", dimI, dimJ, dimK);
 	}
 
 	/**
