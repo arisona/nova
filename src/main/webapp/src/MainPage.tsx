@@ -17,24 +17,26 @@ import {
 } from "@mui/material";
 import * as React from "react";
 
-import { NovaState, defaultNovaState } from "./App";
+import { NovaState } from "./App";
 import { NovaColor } from "./NovaColor";
 import { NovaSlider } from "./NovaSlider";
-import { apiGetState, apiSetValue } from "./api";
+import { apiSetValue } from "./api";
 import { hsvToRgb } from "./color";
 
 import { useNavigate } from "react-router-dom";
 
 // icons: https://fonts.google.com/icons?icon.set=Material+Icons
 
-export function MainPage() {
+export const MainPage = ({
+  state,
+  setState,
+  handleRefresh,
+}: {
+  state: NovaState;
+  setState: React.Dispatch<React.SetStateAction<NovaState>>;
+  handleRefresh: () => void;
+}) => {
   const navigate = useNavigate();
-
-  const [state, setState] = React.useState<NovaState>(defaultNovaState);
-
-  const handleRefresh = () => {
-    apiGetState().then((state) => setState(state));
-  };
 
   const handleSettings = () => {
     navigate("/settings");
@@ -56,7 +58,10 @@ export function MainPage() {
     newValue: number | number[],
   ) => {
     apiSetValue("brightness", newValue as number);
-    setState((prevState) => ({ ...prevState, brightness: newValue as number }));
+    setState((prevState) => ({
+      ...prevState,
+      brightness: newValue as number,
+    }));
   };
 
   const handleHueChange = (_event: Event, newValue: number | number[]) => {
@@ -69,12 +74,18 @@ export function MainPage() {
     newValue: number | number[],
   ) => {
     apiSetValue("saturation", newValue as number);
-    setState((prevState) => ({ ...prevState, saturation: newValue as number }));
+    setState((prevState) => ({
+      ...prevState,
+      saturation: newValue as number,
+    }));
   };
 
   const handleSpeedChange = (_event: Event, newValue: number | number[]) => {
     apiSetValue("speed", newValue as number);
-    setState((prevState) => ({ ...prevState, speed: newValue as number }));
+    setState((prevState) => ({
+      ...prevState,
+      speed: newValue as number,
+    }));
   };
 
   const getSelectedContent = () => {
@@ -85,10 +96,6 @@ export function MainPage() {
   };
 
   const rgb = hsvToRgb(state.hue, state.saturation, state.brightness);
-
-  React.useEffect(() => handleRefresh(), []);
-
-  console.log(state);
 
   return (
     <Container maxWidth="sm">
@@ -164,4 +171,4 @@ export function MainPage() {
       </Box>
     </Container>
   );
-}
+};

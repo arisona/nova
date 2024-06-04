@@ -1,14 +1,14 @@
 import { NovaState, defaultNovaState } from "./App";
 
-export function apiSet(id: string) {
+export const apiSet = (id: string) => {
   fetch(`/api/${id}`);
-}
+};
 
-export function apiSetValue(id: string, value: string | number | boolean) {
+export const apiSetValue = (id: string, value: string | number | boolean) => {
   fetch(`/api/${id}?value=${value}`);
-}
+};
 
-export async function apiGetState(): Promise<NovaState> {
+export const apiGetState = async (): Promise<NovaState> => {
   return fetch("/api/get-state")
     .then((response) => {
       if (!response.ok) throw new Error(response.status.toString());
@@ -44,8 +44,8 @@ export async function apiGetState(): Promise<NovaState> {
       console.log(state);
       return state;
     })
-    .catch(function (error) {
+    .catch((error) => {
       console.error("Request failed: ", error);
       return defaultNovaState;
     });
-}
+};

@@ -15,15 +15,15 @@ interface NovaSliderProps {
   ) => void;
 }
 
-export function NovaSlider({
+export const NovaSlider = ({
   icon,
   label,
-  min = 0, // default value for min
-  max = 1, // default value for max
-  step = 0.01, // default value for step
-  value = 0, // default value for value
+  min = 0,
+  max = 1,
+  step = 0.01,
+  value = 0,
   onChange,
-}: NovaSliderProps) {
+}: NovaSliderProps) => {
   return (
     <Stack spacing={2} direction="row" sx={{ mb: 2 }} alignItems="center">
       {icon}
@@ -37,4 +37,4 @@ export function NovaSlider({
       />
     </Stack>
   );
-}
+};

@@ -1,6 +1,8 @@
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { MainPage } from "./MainPage";
 import { SettingsPage } from "./SettingsPage";
+import React from "react";
+import { apiGetState } from "./api";
 
 export interface NovaState {
   availableContent: { index: number; name: string }[];
@@ -28,13 +30,39 @@ export const defaultNovaState: NovaState = {
   ethernetAddress: "1",
 };
 
-export function App() {
+export const App = () => {
+  const [state, setState] = React.useState<NovaState>(defaultNovaState);
+
+  const handleRefresh = () => {
+    apiGetState().then((state) => setState(state));
+  };
+
+  React.useEffect(() => handleRefresh(), []);
+
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<MainPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route
+          path="/"
+          element={
+            <MainPage
+              state={state}
+              setState={setState}
+              handleRefresh={handleRefresh}
+            />
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <SettingsPage
+              state={state}
+              setState={setState}
+              handleRefresh={handleRefresh}
+            />
+          }
+        />
       </Routes>
     </Router>
   );
-}
+};

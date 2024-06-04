@@ -19,13 +19,19 @@ import {
 } from "@mui/material";
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { NovaState, defaultNovaState } from "./App";
-import { apiGetState, apiSet, apiSetValue } from "./api";
+import { NovaState } from "./App";
+import { apiSet, apiSetValue } from "./api";
 
-export function SettingsPage() {
+export const SettingsPage = ({
+  state,
+  setState,
+  handleRefresh,
+}: {
+  state: NovaState;
+  setState: React.Dispatch<React.SetStateAction<NovaState>>;
+  handleRefresh: () => void;
+}) => {
   const navigate = useNavigate();
-
-  const [state, setState] = React.useState<NovaState>(defaultNovaState);
 
   const handleBack = () => {
     navigate("/");
@@ -80,10 +86,6 @@ export function SettingsPage() {
     apiSet("reload");
   };
 
-  const handleRefresh = () => {
-    apiGetState().then((state) => setState(state));
-  };
-
   const getEnabledContent = () => {
     if (state.enabledContent.length) {
       return state.enabledContent;
@@ -91,8 +93,6 @@ export function SettingsPage() {
       return [];
     }
   };
-
-  React.useEffect(() => handleRefresh(), []);
 
   return (
     <Container maxWidth="sm">
@@ -192,4 +192,4 @@ export function SettingsPage() {
       </Box>
     </Container>
   );
-}
+};

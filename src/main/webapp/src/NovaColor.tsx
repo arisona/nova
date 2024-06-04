@@ -7,7 +7,7 @@ interface NovaColorProps {
   b: number;
 }
 
-export function NovaColor({ r, g, b }: NovaColorProps) {
+export const NovaColor = ({ r, g, b }: NovaColorProps) => {
   const color = rgbToHex(r, g, b);
   const border = rgbToHex(clamp(r * 2), clamp(g * 2), clamp(b * 2));
   return (
@@ -23,8 +23,8 @@ export function NovaColor({ r, g, b }: NovaColorProps) {
       />
     </>
   );
-}
+};
 
-function clamp(value: number): number {
+const clamp = (value: number): number => {
   return Math.min(1, Math.max(0, value));
-}
+};
