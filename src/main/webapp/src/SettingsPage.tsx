@@ -1,10 +1,5 @@
+import { NavigateBefore } from "@mui/icons-material";
 import {
-  CheckBox,
-  CheckBoxOutlineBlank,
-  NavigateBefore,
-} from "@mui/icons-material";
-import {
-  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -12,6 +7,12 @@ import {
   FormControlLabel,
   FormGroup,
   IconButton,
+  InputLabel,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   Stack,
   Switch,
   TextField,
@@ -37,18 +38,17 @@ export const SettingsPage = ({
     navigate("/");
   };
 
-  const handleEnabledContentChange = (
-    values: {
-      index: number;
-      name: string;
-    }[],
-  ) => {
-    const indices = values
-      .map((value) => value.index)
-      .sort((a, b) => a - b)
-      .join(" ");
+  const handleEnabledContentChange = (value: {
+    index: number;
+    name: string;
+  }) => {
+    const add = state.enabledContent.indexOf(value) === -1;
+    const enabledContent = add
+      ? state.enabledContent.concat(value).sort((a, b) => a.index - b.index)
+      : state.enabledContent.filter((item) => item.index !== value.index);
+    const indices = enabledContent.map((value) => value.index).join(" ");
     apiSetValue("enabled-content-indices", indices);
-    setState((prevState) => ({ ...prevState, enabledContent: values }));
+    setState((prevState) => ({ ...prevState, enabledContent: enabledContent }));
   };
 
   const handleFlipChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,44 +113,44 @@ export const SettingsPage = ({
           </Stack>
         </Stack>
 
-        <Stack direction="row" sx={{ mb: 4 }}>
-          <Autocomplete
-            fullWidth
-            disablePortal
-            id="select-enabled-content"
-            multiple
-            disableCloseOnSelect
-            options={state.availableContent}
-            getOptionKey={(option) => option.index}
-            getOptionLabel={(option) => option.name}
-            renderTags={() => null}
-            renderInput={({ inputProps, ...rest }) => (
-              <TextField
-                {...rest}
-                label="Select Enabled Content"
-                inputProps={{ ...inputProps, readOnly: true }}
-              />
-            )}
-            renderOption={(props, option, { selected }) => (
-              <li {...props} key={option.index}>
-                <Checkbox
-                  icon={<CheckBoxOutlineBlank fontSize="small" />}
-                  checkedIcon={<CheckBox fontSize="small" />}
-                  style={{ marginRight: 8 }}
-                  checked={selected}
-                />
-                {option.name}
-              </li>
-            )}
-            value={getEnabledContent()}
-            isOptionEqualToValue={(option, value) =>
-              option.index === value.index
-            }
-            onChange={(_event, value) => {
-              handleEnabledContentChange(value);
-            }}
-          />
-        </Stack>
+        <InputLabel id="select-enabled-content-label" sx={{ mb: 1 }}>
+          Select Enabled Content
+        </InputLabel>
+        <Box
+          sx={{
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1,
+            px: 1,
+            py: 0,
+            maxHeight: "16em",
+            overflow: "auto",
+            mb: 2,
+          }}
+        >
+          <List dense>
+            {state.availableContent.map((option) => (
+              <ListItem key={option.index} disablePadding>
+                <ListItemButton
+                  dense
+                  disableRipple
+                  onClick={() => handleEnabledContentChange(option)}
+                >
+                  <ListItemIcon>
+                    <Checkbox
+                      disableRipple
+                      checked={getEnabledContent().some(
+                        (item: { index: number; name: string }) =>
+                          item.index === option.index,
+                      )}
+                    />
+                  </ListItemIcon>
+                  <ListItemText primary={option.name} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>{" "}
+        </Box>
 
         <Stack spacing={2} direction="row" sx={{ mb: 4 }}>
           <FormGroup>
@@ -163,6 +163,9 @@ export const SettingsPage = ({
           </FormGroup>
         </Stack>
 
+        <InputLabel id="network-settings-label" sx={{ mb: 2 }}>
+          Ethernet Settings (Reload Server to Apply Changes)
+        </InputLabel>
         <Stack spacing={2} direction="row" sx={{ mb: 8 }}>
           <TextField
             fullWidth
@@ -172,7 +175,7 @@ export const SettingsPage = ({
           />
           <TextField
             fullWidth
-            label="Module Ethernet Address"
+            label="Module Address"
             value={state.ethernetAddress}
             onChange={handleEthernetAddressChange}
           />
