@@ -131,7 +131,7 @@ export const MainPage = ({
             renderInput={({ inputProps, ...rest }) => (
               <TextField
                 {...rest}
-                label="Select Content"
+                label="Select content"
                 inputProps={{ ...inputProps, readOnly: true }}
               />
             )}

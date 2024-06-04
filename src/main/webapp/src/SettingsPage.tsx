@@ -57,6 +57,20 @@ export const SettingsPage = ({
     setState((prevState) => ({ ...prevState, flip: flip }));
   };
 
+  const handleCycleDurationChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    let duration = +event.target.value;
+    if (duration < 0 || isNaN(duration)) {
+      duration = 0;
+    }
+    apiSetValue("cycle-duration", duration);
+    setState((prevState) => ({
+      ...prevState,
+      cycleDuration: duration,
+    }));
+  };
+
   const handleEthernetInterfaceChange = (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -114,7 +128,7 @@ export const SettingsPage = ({
         </Stack>
 
         <InputLabel id="select-enabled-content-label" sx={{ mb: 1 }}>
-          Select Enabled Content
+          Select enabled content
         </InputLabel>
         <Box
           sx={{
@@ -125,7 +139,7 @@ export const SettingsPage = ({
             py: 0,
             maxHeight: "16em",
             overflow: "auto",
-            mb: 2,
+            mb: 3,
           }}
         >
           <List dense>
@@ -152,44 +166,60 @@ export const SettingsPage = ({
           </List>{" "}
         </Box>
 
-        <Stack spacing={2} direction="row" sx={{ mb: 4 }}>
-          <FormGroup>
+        <Stack
+          spacing={2}
+          justifyContent="space-between"
+          direction="row"
+          sx={{ mb: 8 }}
+        >
+          <FormGroup sx={{ width: "100%", pt: 1 }}>
             <FormControlLabel
               control={
                 <Switch checked={state.flip} onChange={handleFlipChange} />
               }
-              label="Flip Content Vertically"
+              label="Flip content vertically"
             />
           </FormGroup>
+          <TextField
+            fullWidth
+            label="Cycle duration (0 to disable)"
+            value={state.cycleDuration}
+            onChange={handleCycleDurationChange}
+          />
         </Stack>
 
         <InputLabel id="network-settings-label" sx={{ mb: 2 }}>
-          Ethernet Settings (Reload Server to Apply Changes)
+          Ethernet settings (reload server to apply changes)
         </InputLabel>
         <Stack spacing={2} direction="row" sx={{ mb: 8 }}>
           <TextField
             fullWidth
-            label="Ethernet Interface"
+            label="Ethernet interface"
             value={state.ethernetInterface}
             onChange={handleEthernetInterfaceChange}
           />
           <TextField
             fullWidth
-            label="Module Address"
-            value={state.ethernetAddress}
+            label="Module address"
+            value={
+              state.ethernetAddress === "disabled"
+                ? "Not configurable"
+                : state.ethernetAddress
+            }
             onChange={handleEthernetAddressChange}
+            disabled={state.ethernetAddress === "disabled"}
           />
         </Stack>
 
         <Stack spacing={2} direction="row" sx={{ mb: 4 }}>
           <Button fullWidth variant="outlined" onClick={handleRestore}>
-            Restore Defaults
+            Restore defaults
           </Button>
           <Button fullWidth variant="outlined" onClick={handleReset}>
-            Reset Hardware
+            Reset hardware
           </Button>
           <Button fullWidth variant="outlined" onClick={handleReload}>
-            Reload Server
+            Reload server
           </Button>
         </Stack>
       </Box>

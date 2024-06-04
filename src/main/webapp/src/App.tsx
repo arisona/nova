@@ -13,6 +13,7 @@ export interface NovaState {
   saturation: number;
   speed: number;
   flip: boolean;
+  cycleDuration: number;
   ethernetInterface: string;
   ethernetAddress: string;
 }
@@ -26,6 +27,7 @@ export const defaultNovaState: NovaState = {
   saturation: 1,
   speed: 0.5,
   flip: false,
+  cycleDuration: 0,
   ethernetInterface: "eth0",
   ethernetAddress: "1",
 };

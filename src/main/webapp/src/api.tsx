@@ -38,6 +38,7 @@ export const apiGetState = async (): Promise<NovaState> => {
         saturation: data["saturation"] as number,
         speed: data["speed"] as number,
         flip: data["flip"] as boolean,
+        cycleDuration: data["cycle-duration"] as number,
         ethernetInterface: data["ethernet-interface"] as string,
         ethernetAddress: data["ethernet-address"] as string,
       };

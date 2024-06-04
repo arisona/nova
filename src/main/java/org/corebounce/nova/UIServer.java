@@ -97,6 +97,8 @@ public final class UIServer {
                     control.setBrightness(Float.parseFloat(value));
                 case "flip" ->
                     System.out.println("Flip: " + value);
+                case "cycle-duration" ->
+                    System.out.println("Duration: " + value);
                 case "ethernet-interface" ->
                     System.out.println("Eif: " + value);
                 case "ethernet-address" ->
@@ -143,15 +145,16 @@ public final class UIServer {
                     "brightness": %f,
                     "speed": %f,
                     "flip": %b,
+                    "cycle-duration": %f,
                     "ethernet-interface": "%s",
-                    "ethernet-address": "%s"
+                    "ethernet-address": "%d"
                 }
                 """,
                 new JSONArray(availableContent),
                 new JSONArray(enabledContentIndices),
                 c.getSelectedContent(),
                 c.getHue(), c.getSaturation(), c.getBrightness(), c.getSpeed(),
-                false, "eth0", "1");
+                false, 0f, "eth0", 1);
         System.out.println(result);
         return result;
     }
