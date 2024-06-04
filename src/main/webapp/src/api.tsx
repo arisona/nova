@@ -33,14 +33,14 @@ export const apiGetState = async (): Promise<NovaState> => {
           }),
         ),
         selectedContentIndex: data["selected-content-index"] as number,
-        brightness: data["brightness"] as number,
         hue: data["hue"] as number,
         saturation: data["saturation"] as number,
+        brightness: data["brightness"] as number,
         speed: data["speed"] as number,
-        flip: data["flip"] as boolean,
+        flip: data["flip-vertical"] as boolean,
         cycleDuration: data["cycle-duration"] as number,
         ethernetInterface: data["ethernet-interface"] as string,
-        ethernetAddress: data["ethernet-address"] as string,
+        module0Address: data["module0-address"] as string,
       };
       console.log(state);
       return state;

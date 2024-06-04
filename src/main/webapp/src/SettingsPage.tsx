@@ -42,18 +42,20 @@ export const SettingsPage = ({
     index: number;
     name: string;
   }) => {
-    const add = state.enabledContent.indexOf(value) === -1;
+    const add = !state.enabledContent.some(
+      (item) => item.index === value.index,
+    );
     const enabledContent = add
       ? state.enabledContent.concat(value).sort((a, b) => a.index - b.index)
       : state.enabledContent.filter((item) => item.index !== value.index);
-    const indices = enabledContent.map((value) => value.index).join(" ");
+    const indices = enabledContent.map((value) => value.index).join(",");
     apiSetValue("enabled-content-indices", indices);
     setState((prevState) => ({ ...prevState, enabledContent: enabledContent }));
   };
 
   const handleFlipChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const flip = event.target.checked;
-    apiSetValue("flip", flip);
+    apiSetValue("flip-vertical", flip);
     setState((prevState) => ({ ...prevState, flip: flip }));
   };
 
@@ -83,8 +85,8 @@ export const SettingsPage = ({
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const eaddr = event.target.value;
-    apiSetValue("ethernet-address", eaddr);
-    setState((prevState) => ({ ...prevState, ethernetAddress: eaddr }));
+    apiSetValue("module0-address", eaddr);
+    setState((prevState) => ({ ...prevState, module0Address: eaddr }));
   };
 
   const handleRestore = () => {
@@ -137,6 +139,7 @@ export const SettingsPage = ({
             borderRadius: 1,
             px: 1,
             py: 0,
+            minHeight: "16em",
             maxHeight: "16em",
             overflow: "auto",
             mb: 3,
@@ -202,12 +205,12 @@ export const SettingsPage = ({
             fullWidth
             label="Module address"
             value={
-              state.ethernetAddress === "disabled"
+              state.module0Address === "disabled"
                 ? "Not configurable"
-                : state.ethernetAddress
+                : state.module0Address
             }
             onChange={handleEthernetAddressChange}
-            disabled={state.ethernetAddress === "disabled"}
+            disabled={state.module0Address === "disabled"}
           />
         </Stack>
 
