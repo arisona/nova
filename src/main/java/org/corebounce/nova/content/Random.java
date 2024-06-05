@@ -4,36 +4,36 @@ import org.corebounce.nova.Content;
 
 public class Random extends Content {
 
-    long last;
-    float[] frame = new float[0];
+  long last;
+  float[] frame = new float[0];
 
-    public Random(int dimI, int dimJ, int dimK) {
-        super("Random", dimI, dimJ, dimK);
-    }
+  public Random(int dimI, int dimJ, int dimK) {
+    super("Random", dimI, dimJ, dimK);
+  }
 
-    private void randomize() {
-        for (int i = 0; i < frame.length; i++) {
-            frame[i] += (float) (Math.random() * 0.2);
-        }
+  private void randomize() {
+    for (int i = 0; i < frame.length; i++) {
+      frame[i] += (float) (Math.random() * 0.2);
     }
+  }
 
-    @Override
-    public void fillFrame(float[] rgbFrame, double timeInSec) {
-        if (rgbFrame.length != frame.length) {
-            frame = new float[rgbFrame.length];
-            last = -1;
-            for (int i = 0; i < frame.length; i++) {
-                frame[i] = (float) (Math.random() * Math.PI * 2);
-            }
-        }
-        long t = (long) (timeInSec * 10);
-        if (last != t) {
-            randomize();
-            last = t;
-        }
-        for (int i = 0; i < frame.length; i++) {
-            float v = (float) Math.sin(frame[i]);
-            rgbFrame[i] = 1 - (v * v);
-        }
+  @Override
+  public void fillFrame(float[] rgbFrame, double timeInSec) {
+    if (rgbFrame.length != frame.length) {
+      frame = new float[rgbFrame.length];
+      last = -1;
+      for (int i = 0; i < frame.length; i++) {
+        frame[i] = (float) (Math.random() * Math.PI * 2);
+      }
     }
+    long t = (long) (timeInSec * 10);
+    if (last != t) {
+      randomize();
+      last = t;
+    }
+    for (int i = 0; i < frame.length; i++) {
+      float v = (float) Math.sin(frame[i]);
+      rgbFrame[i] = 1 - (v * v);
+    }
+  }
 }

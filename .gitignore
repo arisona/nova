@@ -1,7 +1,7 @@
 target/
 node_modules/
 3dd/
-settings.properties
+settings.conf
 dependency-reduced-pom.xml
 .classpath
 .project
