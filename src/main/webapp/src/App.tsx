@@ -1,7 +1,8 @@
+import { Box, Container } from "@mui/material";
+import React from "react";
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { MainPage } from "./MainPage";
 import { SettingsPage } from "./SettingsPage";
-import React from "react";
 import { apiGetState } from "./api";
 
 export interface NovaState {
@@ -16,6 +17,8 @@ export interface NovaState {
   cycleDuration: number;
   ethernetInterface: string;
   module0Address: string;
+  statusOk: boolean;
+  statusMessage: string;
 }
 
 export const defaultNovaState: NovaState = {
@@ -30,41 +33,47 @@ export const defaultNovaState: NovaState = {
   cycleDuration: 0,
   ethernetInterface: "eth0",
   module0Address: "1",
+  statusOk: false,
+  statusMessage: "Unkown error",
 };
 
 export const App = () => {
   const [state, setState] = React.useState<NovaState>(defaultNovaState);
 
   const handleRefresh = () => {
-    apiGetState().then((state) => setState(state));
+    apiGetState(state).then((state) => setState(state));
   };
 
   React.useEffect(() => handleRefresh(), []);
 
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <MainPage
-              state={state}
-              setState={setState}
-              handleRefresh={handleRefresh}
+    <Container maxWidth="sm">
+      <Box sx={{ my: 4 }}>
+        <Router>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <MainPage
+                  state={state}
+                  setState={setState}
+                  handleRefresh={handleRefresh}
+                />
+              }
             />
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <SettingsPage
-              state={state}
-              setState={setState}
-              handleRefresh={handleRefresh}
+            <Route
+              path="/settings"
+              element={
+                <SettingsPage
+                  state={state}
+                  setState={setState}
+                  handleRefresh={handleRefresh}
+                />
+              }
             />
-          }
-        />
-      </Routes>
-    </Router>
+          </Routes>
+        </Router>
+      </Box>
+    </Container>
   );
 };

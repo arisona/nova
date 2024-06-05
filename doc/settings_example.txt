@@ -1,13 +1,8 @@
-## This is an example how to configure the NOVA hardware.
+## This is an example how to configure the Nova hardware.
 ## All other settings can be configured from the UI
-## This file is normally stored on first startup as settings.conf
+## This file is normally created on first startup as settings.conf
 
-## Network interface to use for communication with NOVA.
-## Default: eth0
-# ethernet_interface = eth0
-
-
-## NOVA module position to address mapping.
+## Nova module position to address mapping.
 ## All modules are in the 192.168.1/24 subnet and are configured via jumpers on the board.
 ## Format of a map entry is address_<x>_<y>=<address>
 ## Default: address_0_0 = 1
@@ -67,3 +62,7 @@ address_0_0 = 4
 ## Port for the ui web server to listen on.
 ## Default: 80
 # port = 80
+
+## Network interface to use for communication with Nova.
+## Default: eth0
+# ethernet_interface = eth0

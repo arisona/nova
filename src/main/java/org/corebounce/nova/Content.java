@@ -17,17 +17,17 @@ import java.util.stream.Stream;
 import org.corebounce.nova.content.Test;
 
 /**
- * Content base class for NOVA Server content.
+ * Content base class for Nova Server content.
  */
 public abstract class Content {
 
   /* name of content. */
   protected final String name;
-  /* X-dimension in the horizontal plane of the NOVA hardware, always a multiple of 5. */
+  /* X-dimension in the horizontal plane of the Nova hardware, always a multiple of 5. */
   protected final int dimI;
-  /* Y-dimension in the horizontal plane of the NOVA hardware, always a multiple of 5. */
+  /* Y-dimension in the horizontal plane of the Nova hardware, always a multiple of 5. */
   protected final int dimJ;
-  /* Z-dimension (vertical) of the NOVA hardware, always 10. */
+  /* Z-dimension (vertical) of the Nova hardware, always 10. */
   protected final int dimK;
 
   /**
@@ -181,7 +181,7 @@ public abstract class Content {
   }
 
   protected final float getSpeed() {
-    return NOVAControl.get().getState().getSpeed();
+    return NovaControl.get().getState().getSpeed();
   }
 
   /**

@@ -8,13 +8,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jnetpcap.PcapException;
 
-public final class NOVAControl implements IConstants {
+public final class NovaControl implements IConstants {
 
   private static final int N_PACKET_BUFFERS = 1024;
   private static final int MODULE_QUEUE_SIZE = 4;
   private static final int FRAME_QUEUE_SIZE = MODULE_QUEUE_SIZE + 4;
 
-  private static NOVAControl theControl;
+  private static NovaControl theControl;
 
   private final State state;
   private final EnetInterface device;
@@ -33,7 +33,7 @@ public final class NOVAControl implements IConstants {
 
   private SyncGenerator syncGen;
 
-  public NOVAControl() throws SocketException, IOException, PcapException {
+  public NovaControl() throws SocketException, IOException, PcapException {
     if (theControl != null) {
       throw new RuntimeException("Cannot instantiate multiple NOVAControl instances.");
     }
@@ -91,25 +91,29 @@ public final class NOVAControl implements IConstants {
     }
   }
 
-  static NOVAControl get() {
+  static NovaControl get() {
     return theControl;
   }
 
-  State getState() {
-    return state;
-  }
-
   public static void main(String[] args) throws IOException, InterruptedException, PcapException {
-    new NOVAControl();
+    new NovaControl();
   }
 
   boolean isOn() {
     return syncGen != null;
   }
 
+  State getState() {
+    return state;
+  }
+
+  EnetInterface getDevice() {
+    return device;
+  }
+
   void novaOn() throws IOException, InterruptedException, PcapException {
     if (!(isOn()) && device != null) {
-      Log.info("NOVA on");
+      Log.info("Nova on");
       reset();
       syncGen = new SyncGenerator(device, dispatcher);
       for (int i = -MODULE_QUEUE_SIZE; i < 0; i++) {
@@ -122,7 +126,7 @@ public final class NOVAControl implements IConstants {
 
   void novaOff() {
     if (isOn()) {
-      Log.info("NOVA off");
+      Log.info("Nova off");
       syncGen.setListener(null);
       syncGen.dispose();
       syncGen = null;

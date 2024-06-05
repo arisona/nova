@@ -1,4 +1,4 @@
-import { NovaState, defaultNovaState } from "./App";
+import { NovaState } from "./App";
 
 export const apiSet = (id: string) => {
   fetch(`/api/${id}`);
@@ -8,7 +8,7 @@ export const apiSetValue = (id: string, value: string | number | boolean) => {
   fetch(`/api/${id}?value=${value}`);
 };
 
-export const apiGetState = async (): Promise<NovaState> => {
+export const apiGetState = async (oldState: NovaState): Promise<NovaState> => {
   return fetch("/api/get-state")
     .then((response) => {
       if (!response.ok) throw new Error(response.status.toString());
@@ -41,12 +41,18 @@ export const apiGetState = async (): Promise<NovaState> => {
         cycleDuration: data["cycle-duration"] as number,
         ethernetInterface: data["ethernet-interface"] as string,
         module0Address: data["module0-address"] as string,
+        statusOk: data["status-ok"] as boolean,
+        statusMessage: data["status-message"] as string,
       };
       console.log(state);
       return state;
     })
     .catch((error) => {
       console.error("Request failed: ", error);
-      return defaultNovaState;
+      return {
+        ...oldState,
+        statusOk: false,
+        statusMessage: "Cannot connect to Nova server.",
+      };
     });
 };

@@ -1,7 +1,7 @@
-import { Slider, Stack } from "@mui/material";
+import { Slider as MuiSlider, Stack } from "@mui/material";
 import * as React from "react";
 
-interface NovaSliderProps {
+interface SliderProps {
   icon: React.ReactNode;
   label: string;
   min?: number;
@@ -15,7 +15,7 @@ interface NovaSliderProps {
   ) => void;
 }
 
-export const NovaSlider = ({
+export const Slider = ({
   icon,
   label,
   min = 0,
@@ -23,11 +23,11 @@ export const NovaSlider = ({
   step = 0.01,
   value = 0,
   onChange,
-}: NovaSliderProps) => {
+}: SliderProps) => {
   return (
-    <Stack spacing={2} direction="row" sx={{ mb: 2 }} alignItems="center">
+    <Stack spacing={2} direction="row" alignItems="center" sx={{ mb: 2 }}>
       {icon}
-      <Slider
+      <MuiSlider
         aria-label={label}
         min={min}
         max={max}

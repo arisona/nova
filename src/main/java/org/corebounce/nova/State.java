@@ -137,7 +137,7 @@ public final class State {
     enabledContentIndices = getString(config, CONFIG_KEY_ENABLED_CONTENT, getListIndices(availableContent));
 
     var msg = String.format(
-      "Set up NOVA state with %dx%d modules (%dx%dx%d voxels), port %d, interface %s",
+      "Set up Nova state with %dx%d modules (%dx%dx%d voxels), port %d, interface %s",
       moduleDimI,
       moduleDimJ,
       dimI,
@@ -147,6 +147,8 @@ public final class State {
       ethernetInterface
     );
     Log.info(msg);
+
+    writeSettings();
   }
 
   public void restore() {
@@ -299,6 +301,18 @@ public final class State {
     return getNumOperational() > modulesFlat.length / 2;
   }
 
+  public boolean isStatusOk() {
+    if (NovaControl.get().getDevice().isDummy()) return false;
+
+    if (!isOperational()) return false;
+    return true;
+  }
+
+  public String getStatusMessage() {
+    if (NovaControl.get().getDevice().isDummy()) return "Cannot connect using interface " + ethernetInterface;
+    return "" + getNumOperational() + " of " + modulesFlat.length + " modules operational";
+  }
+
   public int getNumOperational() {
     int result = 0;
     for (int m : modulesFlat) {
@@ -309,13 +323,13 @@ public final class State {
     return result;
   }
 
-  public void setStatus(DMUXStatus status) {
+  public void setDMUXStatus(DMUXStatus status) {
     this.status[status.ipAddr & 0xFF] = status;
   }
 
   public void writeSettings() {
     var s = new StringBuilder();
-    s.append("# NOVA settings\n");
+    s.append("# Nova settings\n");
     for (var i = 0; i < moduleConfig.length; i++) {
       for (var j = 0; j < moduleConfig[i].length; j++) {
         if (moduleConfig[i][j] == 0) continue;

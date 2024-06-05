@@ -26,7 +26,7 @@ public final class Dispatcher implements IConstants {
     for (;;) {
       try {
         byte[] packet = device.receive();
-        if (!(PacketUtils.isNOVAEnet(packet))) {
+        if (!(PacketUtils.isNovaEnet(packet))) {
           continue;
         }
         if (AddressUtils.isDstBroadcast(packet)) {
@@ -48,7 +48,7 @@ public final class Dispatcher implements IConstants {
             case CMD_STATUS -> {
               if (packet[20] == (byte) NOVA_IP_0) {
                 if (state != null) {
-                  state.setStatus(new DMUXStatus(packet, ADDR_LEN + PROT_LEN));
+                  state.setDMUXStatus(new DMUXStatus(packet, ADDR_LEN + PROT_LEN));
                 }
               } else if (sync != null) {
                 sync.handle(CMD_STATUS, status);

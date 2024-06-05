@@ -97,7 +97,7 @@ public final class UIServer {
         case "module0-address" -> state.setModule0Address(value);
         case "speed" -> state.setSpeed(Float.parseFloat(value));
         case "restore" -> state.restore();
-        case "reset" -> NOVAControl.get().novaReset();
+        case "reset" -> NovaControl.get().novaReset();
         case "reload" -> {
           Log.info("User requested reload: exiting");
           System.exit(0);
@@ -142,7 +142,9 @@ public final class UIServer {
           "flip-vertical": %b,
           "cycle-duration": %f,
           "ethernet-interface": "%s",
-          "module0-address": "%s"
+          "module0-address": "%s",
+          "status-ok": %b,
+          "status-message": "%s"
       }
       """,
       new JSONArray(availableContent),
@@ -155,7 +157,9 @@ public final class UIServer {
       state.isFlipVertical(),
       state.getCycleDuration(),
       state.getEthernetInterface(),
-      module0Address
+      module0Address,
+      state.isStatusOk(),
+      state.getStatusMessage()
     );
     Log.info(result);
     return result;

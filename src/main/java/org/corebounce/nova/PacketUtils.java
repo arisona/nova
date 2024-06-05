@@ -172,7 +172,7 @@ public final class PacketUtils implements IConstants {
     novaUDP(packet, off, CMD_RGB, frameNo, pixelData);
   }
 
-  public static boolean isNOVAEnet(byte[] packet) {
+  public static boolean isNovaEnet(byte[] packet) {
     return (packet[12] == (byte) (PROT_SYNC >> 8) && packet[13] == (byte) PROT_SYNC);
   }
 }
