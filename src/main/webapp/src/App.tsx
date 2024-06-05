@@ -24,7 +24,7 @@ export const defaultNovaState: NovaState = {
   selectedContentIndex: -1,
   hue: 0.5,
   saturation: 1,
-  brightness: 1,
+  brightness: 0.5,
   speed: 0.5,
   flip: false,
   cycleDuration: 0,

@@ -3,16 +3,11 @@ package org.corebounce.nova;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.json.JSONArray;
 
@@ -45,8 +40,8 @@ public final class UIServer {
 
   UIServer(State state) throws IOException {
     this.state = state;
-    InetSocketAddress host = new InetSocketAddress(state.getPort());
-    HttpServer server = HttpServer.create(host, 0);
+    var host = new InetSocketAddress(state.getPort());
+    var server = HttpServer.create(host, 0);
     server.createContext("/", this::handleContent);
     server.createContext("/api/", this::handleAPI);
     server.start();
@@ -54,19 +49,19 @@ public final class UIServer {
   }
 
   private void handleContent(HttpExchange he) throws IOException {
-    URI uri = he.getRequestURI();
+    var uri = he.getRequestURI();
     Log.info("Handle content " + uri);
     try {
-      String res = "/www" + (uri.getPath().equals("/") ? "/index.html" : uri.getPath());
-      String ext = res.contains(".") ? res.substring(res.lastIndexOf(".") + 1) : "";
-      String contentType = CONTENT_TYPES.get(ext);
+      var res = "/www" + (uri.getPath().equals("/") ? "/index.html" : uri.getPath());
+      var ext = res.contains(".") ? res.substring(res.lastIndexOf(".") + 1) : "";
+      var contentType = CONTENT_TYPES.get(ext);
       if (contentType == null) {
         throw new IllegalArgumentException("Invalid contet request " + res + " (" + ext + ")");
       }
       Log.info("Handle local resource " + res + " " + contentType);
       he.getResponseHeaders().set("Content-Type", contentType);
       he.sendResponseHeaders(200, 0);
-      try (InputStream is = getClass().getResourceAsStream(res); OutputStream os = he.getResponseBody()) {
+      try (var is = getClass().getResourceAsStream(res); var os = he.getResponseBody()) {
         is.transferTo(os);
       }
     } catch (IOException | IllegalArgumentException t) {
@@ -76,15 +71,15 @@ public final class UIServer {
   }
 
   private void handleAPI(HttpExchange he) throws IOException {
-    URI uri = he.getRequestURI();
+    var uri = he.getRequestURI();
     Log.info("Handle api " + uri);
-    String response = "";
+    var response = "";
     try {
-      String param = uri.getPath().split("[/]")[2];
-      String query = uri.getQuery();
-      String value = "";
+      var param = uri.getPath().split("[/]")[2];
+      var query = uri.getQuery();
+      var value = "";
       if (query != null) {
-        String[] parts = query.split("[=]");
+        var parts = query.split("[=]");
         if (parts.length == 2) {
           value = URLDecoder.decode(parts[1], "UTF-8");
         }
@@ -122,18 +117,19 @@ public final class UIServer {
       Log.warning(t);
       he.sendResponseHeaders(404, response.length());
     }
-    try (OutputStream os = he.getResponseBody()) {
+    try (var os = he.getResponseBody()) {
       os.write(response.getBytes());
     }
   }
 
   private String getState() {
-    List<String> availableContent = state.getAvailableContent().stream().map(content -> content.name).toList();
-    String indices = state.getEnabledContentIndices();
-    Set<Integer> enabledContentIndices = indices.isEmpty()
+    var availableContent = state.getAvailableContent().stream().map(content -> content.name).toList();
+    var indices = state.getEnabledContentIndices();
+    var enabledContentIndices = indices.isEmpty()
       ? Collections.emptySet()
       : Arrays.stream(indices.split(",")).map(Integer::parseInt).collect(Collectors.toSet());
-    String result = String.format(
+    var module0Address = state.getNumModules() == 1 ? state.getModule0Address() : "disabled";
+    var result = String.format(
       """
       {
           "available-content": %s,
@@ -159,7 +155,7 @@ public final class UIServer {
       state.isFlipVertical(),
       state.getCycleDuration(),
       state.getEthernetInterface(),
-      state.getModule0Address()
+      module0Address
     );
     Log.info(result);
     return result;

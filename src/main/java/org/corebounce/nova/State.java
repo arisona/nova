@@ -27,6 +27,17 @@ public final class State {
   private static final String CONFIG_KEY_FLIP_VERTICAL = "flip_vertical";
   private static final String CONFIG_KEY_CYCLE_DURATION = "cycle_duration";
 
+  private static final int CONFIG_DEFAULT_ADDRESS = 1;
+  private static final int CONFIG_DEFAULT_PORT = 80;
+  private static final String CONFIG_DEFAULT_ETHERNET_INTERFACE = "eth0";
+  private static final int CONFIG_DEFAULT_SELECTED_CONTENT = 0;
+  private static final float CONFIG_DEFAULT_HUE = 0.5f;
+  private static final float CONFIG_DEFAULT_SATURATION = 1.0f;
+  private static final float CONFIG_DEFAULT_BRIGHTNESS = 0.5f;
+  private static final float CONFIG_DEFAULT_SPEED = 0.5f;
+  private static final boolean CONFIG_DEFAULT_FLIP_VERTICAL = false;
+  private static final float CONFIG_DEFAULT_CYCLE_DURATION = 0;
+
   // immutable state set at startup
   private final int[][] moduleConfig = new int[100][100];
   private final int[] modulesFlat;
@@ -55,20 +66,20 @@ public final class State {
 
   public State() {
     //// get config file
-    Properties config = new Properties();
+    var config = new Properties();
     try {
-      config.load(new FileReader(new File(CONFIG_FILE).getAbsoluteFile()));
+      config.load(new FileReader(new File(CONFIG_FILE)));
       Log.info("Using config file " + CONFIG_FILE);
     } catch (IOException t) {
       Log.info("Could not load config file " + CONFIG_FILE + ". Using defaults");
     }
 
     //// get module configuration
-    int moduleDimI = 0;
-    int moduleDimJ = 0;
-    for (int i = 0; i < moduleConfig.length; i++) {
-      for (int j = 0; j < moduleConfig[i].length; j++) {
-        String addr = getString(config, CONFIG_KEY_ADDRESS + i + "_" + j, null);
+    var moduleDimI = 0;
+    var moduleDimJ = 0;
+    for (var i = 0; i < moduleConfig.length; i++) {
+      for (var j = 0; j < moduleConfig[i].length; j++) {
+        var addr = getString(config, CONFIG_KEY_ADDRESS + i + "_" + j, null);
         if (addr != null) {
           moduleConfig[i][j] = Integer.parseInt(addr.trim());
           moduleDimI = Math.max(moduleDimI, i + 1);
@@ -78,68 +89,54 @@ public final class State {
     }
 
     if (moduleDimI == 0 || moduleDimJ == 0) {
-      // if no addresses are given, default to addr_0_0 = 1
+      // if no addresses are given, default to addr_0_0 = default
       moduleDimI = 1;
       moduleDimJ = 1;
-      moduleConfig[0][0] = 1;
+      moduleConfig[0][0] = CONFIG_DEFAULT_ADDRESS;
     }
 
     var modules = new int[moduleDimI][moduleDimJ];
-    for (int i = 0; i < moduleDimI; i++) {
-      for (int j = 0; j < moduleDimJ; j++) {
+    for (var i = 0; i < moduleDimI; i++) {
+      for (var j = 0; j < moduleDimJ; j++) {
         modules[i][j] = moduleConfig[i][j];
       }
     }
-
     dimI = modules.length * getModuleDimI();
-
-    int[] tmp = new int[100];
-    int count = 0;
-    int maxJ = 0;
-    for (int[] row : modules) {
+    var tmp = new int[100];
+    var count = 0;
+    var maxJ = 0;
+    for (var row : modules) {
       maxJ = Math.max(maxJ, row.length);
     }
-
-    for (int j = 0; j < maxJ; j++) {
-      for (int i = 0; i < modules.length; i++) {
-        int m = modules[i][j];
+    for (var j = 0; j < maxJ; j++) {
+      for (var i = 0; i < modules.length; i++) {
+        var m = modules[i][j];
         if (m > 0 && m < 101) {
           tmp[count++] = m;
           frameOffsets[m] = calcFrameOffset(modules, m);
         }
       }
     }
-
     this.dimJ = maxJ * getModuleDimJ();
-
     this.modulesFlat = new int[count];
     System.arraycopy(tmp, 0, this.modulesFlat, 0, count);
 
-    if (this.modulesFlat.length == 0) {
-      throw new IllegalArgumentException("At least one module must be configured");
-    }
-
     //// get other settings
-    port = getInt(config, CONFIG_KEY_PORT, 80);
-    ethernetInterface = getString(config, CONFIG_KEY_ETHERNET_INTERFACE, "eth0");
-    selectedContentIndex = getInt(config, CONFIG_KEY_SELECTED_CONTENT, 0);
-    hue = getFloat(config, CONFIG_KEY_HUE, 0f);
-    saturation = getFloat(config, CONFIG_KEY_SATURATION, 1f);
-    brightness = getFloat(config, CONFIG_KEY_BRIGHTNESS, 1f);
-    speed = getFloat(config, CONFIG_KEY_SPEED, 1f);
+    port = getInt(config, CONFIG_KEY_PORT, CONFIG_DEFAULT_PORT);
+    ethernetInterface = getString(config, CONFIG_KEY_ETHERNET_INTERFACE, CONFIG_DEFAULT_ETHERNET_INTERFACE);
+    selectedContentIndex = getInt(config, CONFIG_KEY_SELECTED_CONTENT, CONFIG_DEFAULT_SELECTED_CONTENT);
+    hue = getFloat(config, CONFIG_KEY_HUE, CONFIG_DEFAULT_HUE);
+    saturation = getFloat(config, CONFIG_KEY_SATURATION, CONFIG_DEFAULT_SATURATION);
+    brightness = getFloat(config, CONFIG_KEY_BRIGHTNESS, CONFIG_DEFAULT_BRIGHTNESS);
+    speed = getFloat(config, CONFIG_KEY_SPEED, CONFIG_DEFAULT_SPEED);
 
-    flipVertical = getString(config, CONFIG_KEY_FLIP_VERTICAL, "false").equals("true");
-    cycleDuration = getFloat(config, CONFIG_KEY_CYCLE_DURATION, 0f);
+    flipVertical = getBoolean(config, CONFIG_KEY_FLIP_VERTICAL, CONFIG_DEFAULT_FLIP_VERTICAL);
+    cycleDuration = getFloat(config, CONFIG_KEY_CYCLE_DURATION, CONFIG_DEFAULT_CYCLE_DURATION);
 
     availableContent.addAll(Content.createContent(this));
-    enabledContentIndices = getString(config, CONFIG_KEY_ENABLED_CONTENT, null);
-    if (enabledContentIndices == null) {
-      enabledContentIndices = IntStream.range(0, availableContent.size())
-        .mapToObj(Integer::toString)
-        .collect(Collectors.joining(","));
-    }
+    enabledContentIndices = getString(config, CONFIG_KEY_ENABLED_CONTENT, getListIndices(availableContent));
 
-    String msg = String.format(
+    var msg = String.format(
       "Set up NOVA state with %dx%d modules (%dx%dx%d voxels), port %d, interface %s",
       moduleDimI,
       moduleDimJ,
@@ -153,7 +150,20 @@ public final class State {
   }
 
   public void restore() {
-    Log.info("Restore settings (unimplemented)");
+    Log.info("Restoring settings");
+    if (getNumModules() == 1) moduleConfig[0][0] = CONFIG_DEFAULT_ADDRESS;
+
+    ethernetInterface = CONFIG_DEFAULT_ETHERNET_INTERFACE;
+    selectedContentIndex = CONFIG_DEFAULT_SELECTED_CONTENT;
+    hue = CONFIG_DEFAULT_HUE;
+    saturation = CONFIG_DEFAULT_SATURATION;
+    brightness = CONFIG_DEFAULT_BRIGHTNESS;
+    speed = CONFIG_DEFAULT_SPEED;
+
+    flipVertical = CONFIG_DEFAULT_FLIP_VERTICAL;
+    cycleDuration = CONFIG_DEFAULT_CYCLE_DURATION;
+
+    enabledContentIndices = getListIndices(availableContent);
   }
 
   public int[] getModules() {
@@ -277,12 +287,12 @@ public final class State {
   }
 
   public String getModule0Address() {
-    // to be implemented
-    return "0";
+    return Integer.toString(moduleConfig[0][0]);
   }
 
   public void setModule0Address(String module0Address) {
-    // to be implemented
+    if (getNumModules() == 1) moduleConfig[0][0] = Integer.parseInt(module0Address);
+    else Log.warning("Cannot set module 0 address for multiple modules");
   }
 
   public boolean isOperational() {
@@ -304,10 +314,10 @@ public final class State {
   }
 
   public void writeSettings() {
-    StringBuilder s = new StringBuilder();
+    var s = new StringBuilder();
     s.append("# NOVA settings\n");
-    for (int i = 0; i < moduleConfig.length; i++) {
-      for (int j = 0; j < moduleConfig[i].length; j++) {
+    for (var i = 0; i < moduleConfig.length; i++) {
+      for (var j = 0; j < moduleConfig[i].length; j++) {
         if (moduleConfig[i][j] == 0) continue;
         s.append(CONFIG_KEY_ADDRESS).append(i).append("_").append(j).append("=");
         s.append(moduleConfig[i][j]).append("\n");
@@ -324,7 +334,7 @@ public final class State {
     s.append(CONFIG_KEY_FLIP_VERTICAL).append("=").append(flipVertical).append("\n");
     s.append(CONFIG_KEY_CYCLE_DURATION).append("=").append(cycleDuration).append("\n");
 
-    try (FileWriter out = new FileWriter(new File(CONFIG_FILE).getAbsoluteFile())) {
+    try (var out = new FileWriter(new File(CONFIG_FILE).getAbsoluteFile())) {
       out.write(s.toString());
     } catch (IOException e) {
       Log.error(e);
@@ -332,8 +342,8 @@ public final class State {
   }
 
   private int calcFrameOffset(int[][] modules, int m) {
-    for (int i = 0; i < modules.length; i++) {
-      for (int j = 0; j < modules[i].length; j++) {
+    for (var i = 0; i < modules.length; i++) {
+      for (var j = 0; j < modules[i].length; j++) {
         if (modules[i][j] == m) {
           return (3 * getDimK() * (i * getModuleDimI() + j * getModuleDimJ() * getDimI()));
         }
@@ -360,5 +370,13 @@ public final class State {
     } catch (NumberFormatException t) {
       return defaultValue;
     }
+  }
+
+  private static boolean getBoolean(Properties properties, String key, boolean defaultValue) {
+    return Boolean.parseBoolean(properties.getProperty(key, Boolean.toString(defaultValue)));
+  }
+
+  private static String getListIndices(List<?> list) {
+    return IntStream.range(0, list.size()).mapToObj(Integer::toString).collect(Collectors.joining(","));
   }
 }
