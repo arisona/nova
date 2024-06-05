@@ -1,36 +1,12 @@
-package org.corebounce.util;
+package org.corebounce.nova;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 public final class Log {
 
-  public static final String LOG = "org.corebounce.util";
-
-  private static final boolean LOG_TO_FILE = false;
-
-  static {
-    if (LOG_TO_FILE) {
-      FileHandler fh;
-      SimpleDateFormat format = new SimpleDateFormat("MdHHmmss");
-      try {
-        fh = new FileHandler("NOVA_" + format.format(Calendar.getInstance().getTime()) + ".log");
-        fh.setFormatter(new SimpleFormatter());
-        Logger.getLogger(LOG).addHandler(fh);
-      } catch (Throwable t) {
-        t.printStackTrace();
-      }
-    }
-  }
-
-  public static String getStackTrace(final Throwable throwable) {
+  private static String getStackTrace(final Throwable throwable) {
     final StringWriter sw = new StringWriter();
     final PrintWriter pw = new PrintWriter(sw, true);
     throwable.printStackTrace(pw);
@@ -44,39 +20,65 @@ public final class Log {
     return result + " -- " + getStackTrace(t);
   }
 
-  public static void entering(Object o, String method) {
-    Logger.getLogger(LOG).entering(o.getClass().getName(), method);
-  }
-
-  public static void exiting(Object o, String method) {
-    Logger.getLogger(LOG).exiting(o.getClass().getName(), method);
+  private static void log(String type, String msg, Throwable t) {
+    System.out.print("[" + type + "]");
+    if (msg != null) {
+      System.out.print(" " + msg);
+    }
+    if (t != null) {
+      System.out.print("\n" + getMsg(t));
+    }
+    System.out.println();
   }
 
   public static void info(String msg) {
-    Logger.getLogger(LOG).log(Level.INFO, msg);
+    log("info", msg, null);
   }
 
   public static void info(Throwable t) {
-    Logger.getLogger(LOG).log(Level.INFO, getMsg(t), t);
+    log("info", null, t);
+  }
+
+  public static void info(String msg, Throwable t) {
+    log("info ", msg, t);
   }
 
   public static void warning(String msg) {
-    Logger.getLogger(LOG).log(Level.WARNING, msg);
+    log("warn", msg, null);
   }
 
   public static void warning(Throwable t) {
-    Logger.getLogger(LOG).log(Level.WARNING, getMsg(t), t);
+    log("warn", null, t);
   }
 
-  public static void warning(Throwable t, String msg) {
-    Logger.getLogger(LOG).log(Level.WARNING, msg, t);
+  public static void warning(String msg, Throwable t) {
+    log("warn", msg, t);
   }
 
-  public static void severe(String msg) {
-    Logger.getLogger(LOG).log(Level.SEVERE, msg);
+  public static void error(String msg) {
+    log("error", msg, null);
   }
 
-  public static void severe(Throwable t) {
-    Logger.getLogger(LOG).log(Level.SEVERE, getMsg(t), t);
+  public static void error(Throwable t) {
+    log("error", null, t);
+  }
+
+  public static void error(String msg, Throwable t) {
+    log("error", msg, t);
+  }
+
+  public static void fatal(String msg) {
+    log("fatal", msg, null);
+    System.exit(-1);
+  }
+
+  public static void fatal(Throwable t) {
+    log("fatal", null, t);
+    System.exit(-1);
+  }
+
+  public static void fatal(String msg, Throwable t) {
+    log("fatal", msg, t);
+    System.exit(-1);
   }
 }

@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.corebounce.util.Log;
 import org.jnetpcap.BpFilter;
 import org.jnetpcap.Pcap;
 import org.jnetpcap.PcapException;
@@ -98,7 +97,7 @@ public final class EnetInterface implements IConstants {
         return new EnetInterface(device);
       }
     }
-    Log.warning("no such interface: " + name + " (using dummy)");
+    Log.warning("No such interface: " + name + " (using dummy)");
     return new EnetInterface();
   }
 
@@ -128,7 +127,7 @@ public final class EnetInterface implements IConstants {
           try {
             pcap.dispatch(1, this, queue);
           } catch (PcapException e) {
-            Log.severe(e);
+            Log.error(e);
           }
         }
         pcap.close();

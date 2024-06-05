@@ -1,7 +1,5 @@
 package org.corebounce.nova;
 
-import org.corebounce.util.Log;
-
 public final class Dispatcher implements IConstants {
 
   final EnetInterface device;
@@ -59,7 +57,7 @@ public final class Dispatcher implements IConstants {
           }
         }
       } catch (Throwable t) {
-        Log.severe(t);
+        Log.error(t);
       }
     }
   }

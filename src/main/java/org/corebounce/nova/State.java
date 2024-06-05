@@ -9,30 +9,26 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.corebounce.util.Log;
 
 public final class State {
 
-  private static final String CONFIG_FILE = "config.properties";
+  private static final String CONFIG_FILE = "settings.conf";
 
-  private static final String CONFIG_KEY_ETHERNET_INTERFACE = "ethernet_interface";
   private static final String CONFIG_KEY_ADDRESS = "address_";
   private static final String CONFIG_KEY_PORT = "port";
 
-  private static final String SETTINGS_FILE = "settings.properties";
-
-  private static final String SETTINGS_KEY_ENABLED_CONTENT = "enabled_content";
-  private static final String SETTINGS_KEY_SELECTED_CONTENT = "selected_duration";
-  private static final String SETTINGS_KEY_HUE = "hue";
-  private static final String SETTINGS_KEY_SATURATION = "saturation";
-  private static final String SETTINGS_KEY_BRIGHTNESS = "brightness";
-  private static final String SETTINGS_KEY_SPEED = "speed";
-  private static final String SETTINGS_KEY_FLIP_VERTICAL = "flip_vertical";
-  private static final String SETTINGS_KEY_CYCLE_DURATION = "cycle_duration";
-  private static final String SETTINGS_KEY_ETHERNET_INTERFACE = "ethernet_interface";
-  private static final String SETTINGS_KEY_ADDRESS = "address_0_0";
+  private static final String CONFIG_KEY_ETHERNET_INTERFACE = "ethernet_interface";
+  private static final String CONFIG_KEY_ENABLED_CONTENT = "enabled_content";
+  private static final String CONFIG_KEY_SELECTED_CONTENT = "selected_duration";
+  private static final String CONFIG_KEY_HUE = "hue";
+  private static final String CONFIG_KEY_SATURATION = "saturation";
+  private static final String CONFIG_KEY_BRIGHTNESS = "brightness";
+  private static final String CONFIG_KEY_SPEED = "speed";
+  private static final String CONFIG_KEY_FLIP_VERTICAL = "flip_vertical";
+  private static final String CONFIG_KEY_CYCLE_DURATION = "cycle_duration";
 
   // immutable state set at startup
+  private final int[][] moduleConfig = new int[100][100];
   private final int[] modulesFlat;
   private final int[] frameOffsets = new int[256];
   private final int dimI;
@@ -53,28 +49,26 @@ public final class State {
   private boolean flipVertical;
   private float cycleDuration;
   private String ethernetInterface;
-  private String module0Address;
 
   // internal state
   private final DMUXStatus[] status = new DMUXStatus[101];
 
   public State() {
-    //// get configuration
+    //// get config file
     Properties config = new Properties();
     try {
       config.load(new FileReader(new File(CONFIG_FILE).getAbsoluteFile()));
-      Log.info("Using configuration file " + CONFIG_FILE + ".");
+      Log.info("Using config file " + CONFIG_FILE);
     } catch (IOException t) {
-      Log.info("Could not load configuration file " + CONFIG_FILE + ". Using defaults.");
+      Log.info("Could not load config file " + CONFIG_FILE + ". Using defaults");
     }
 
-    //// get module config
+    //// get module configuration
     int moduleDimI = 0;
     int moduleDimJ = 0;
-    int[][] moduleConfig = new int[100][100];
     for (int i = 0; i < moduleConfig.length; i++) {
       for (int j = 0; j < moduleConfig[i].length; j++) {
-        String addr = config.getProperty(CONFIG_KEY_ADDRESS + i + "_" + j);
+        String addr = getString(config, CONFIG_KEY_ADDRESS + i + "_" + j, null);
         if (addr != null) {
           moduleConfig[i][j] = Integer.parseInt(addr.trim());
           moduleDimI = Math.max(moduleDimI, i + 1);
@@ -125,50 +119,37 @@ public final class State {
       throw new IllegalArgumentException("At least one module must be configured");
     }
 
-    //// get ui web server port
-    this.port = getInt(config, CONFIG_KEY_PORT, 80);
+    //// get other settings
+    port = getInt(config, CONFIG_KEY_PORT, 80);
+    ethernetInterface = getString(config, CONFIG_KEY_ETHERNET_INTERFACE, "eth0");
+    selectedContentIndex = getInt(config, CONFIG_KEY_SELECTED_CONTENT, 0);
+    hue = getFloat(config, CONFIG_KEY_HUE, 0f);
+    saturation = getFloat(config, CONFIG_KEY_SATURATION, 1f);
+    brightness = getFloat(config, CONFIG_KEY_BRIGHTNESS, 1f);
+    speed = getFloat(config, CONFIG_KEY_SPEED, 1f);
 
-    //// get ethernet interface
-    ethernetInterface = config.getProperty(CONFIG_KEY_ETHERNET_INTERFACE, "eth0");
+    flipVertical = getString(config, CONFIG_KEY_FLIP_VERTICAL, "false").equals("true");
+    cycleDuration = getFloat(config, CONFIG_KEY_CYCLE_DURATION, 0f);
 
-    //// get settings
-    Properties settings = new Properties();
-    try {
-      settings.load(new FileReader(new File(SETTINGS_FILE).getAbsoluteFile()));
-      Log.info("Using settings file " + SETTINGS_FILE + ".");
-    } catch (IOException t) {
-      Log.info("Could not load settings file " + SETTINGS_FILE + ". Using defaults.");
-    }
-
-    selectedContentIndex = getInt(settings, SETTINGS_KEY_SELECTED_CONTENT, 0);
-    hue = getFloat(settings, SETTINGS_KEY_HUE, 0f);
-    saturation = getFloat(settings, SETTINGS_KEY_SATURATION, 1f);
-    brightness = getFloat(settings, SETTINGS_KEY_BRIGHTNESS, 1f);
-    speed = getFloat(settings, SETTINGS_KEY_SPEED, 1f);
-
-    flipVertical = settings.getProperty(SETTINGS_KEY_FLIP_VERTICAL, "false").equals("true");
-    cycleDuration = getFloat(settings, SETTINGS_KEY_CYCLE_DURATION, 0f);
-    ethernetInterface = settings.getProperty(SETTINGS_KEY_ETHERNET_INTERFACE, ethernetInterface);
-    module0Address = settings.getProperty(SETTINGS_KEY_ADDRESS, "1");
-
-    //// get available and enabled content
     availableContent.addAll(Content.createContent(this));
-    enabledContentIndices = settings.getProperty(SETTINGS_KEY_ENABLED_CONTENT, null);
+    enabledContentIndices = getString(config, CONFIG_KEY_ENABLED_CONTENT, null);
     if (enabledContentIndices == null) {
       enabledContentIndices = IntStream.range(0, availableContent.size())
         .mapToObj(Integer::toString)
         .collect(Collectors.joining(","));
     }
 
-    Log.info(
-      "Configured dimI=" +
-      dimI +
-      ", dimJ=" +
-      dimJ +
-      ", dimK=" +
-      getModuleDimK() +
-      (flipVertical ? " (upside down)." : ".")
+    String msg = String.format(
+      "Set up NOVA state with %dx%d modules (%dx%dx%d voxels), port %d, interface %s",
+      moduleDimI,
+      moduleDimJ,
+      dimI,
+      dimJ,
+      getModuleDimK(),
+      port,
+      ethernetInterface
     );
+    Log.info(msg);
   }
 
   public void restore() {
@@ -296,11 +277,12 @@ public final class State {
   }
 
   public String getModule0Address() {
-    return module0Address;
+    // to be implemented
+    return "0";
   }
 
   public void setModule0Address(String module0Address) {
-    this.module0Address = module0Address;
+    // to be implemented
   }
 
   public boolean isOperational() {
@@ -322,21 +304,30 @@ public final class State {
   }
 
   public void writeSettings() {
-    Properties props = new Properties();
-    props.setProperty(SETTINGS_KEY_SELECTED_CONTENT, Integer.toString(selectedContentIndex));
-    props.setProperty(SETTINGS_KEY_HUE, Float.toString(hue));
-    props.setProperty(SETTINGS_KEY_SATURATION, Float.toString(saturation));
-    props.setProperty(SETTINGS_KEY_BRIGHTNESS, Float.toString(brightness));
-    props.setProperty(SETTINGS_KEY_SPEED, Float.toString(speed));
-    props.setProperty(SETTINGS_KEY_ENABLED_CONTENT, enabledContentIndices);
-    props.setProperty(SETTINGS_KEY_FLIP_VERTICAL, Boolean.toString(flipVertical));
-    props.setProperty(SETTINGS_KEY_CYCLE_DURATION, Float.toString(cycleDuration));
-    props.setProperty(SETTINGS_KEY_ETHERNET_INTERFACE, ethernetInterface);
-    props.setProperty(SETTINGS_KEY_ADDRESS, module0Address);
-    try (FileWriter out = new FileWriter(new File(SETTINGS_FILE).getAbsoluteFile())) {
-      props.store(out, "NOVA settings");
+    StringBuilder s = new StringBuilder();
+    s.append("# NOVA settings\n");
+    for (int i = 0; i < moduleConfig.length; i++) {
+      for (int j = 0; j < moduleConfig[i].length; j++) {
+        if (moduleConfig[i][j] == 0) continue;
+        s.append(CONFIG_KEY_ADDRESS).append(i).append("_").append(j).append("=");
+        s.append(moduleConfig[i][j]).append("\n");
+      }
+    }
+    s.append(CONFIG_KEY_PORT).append("=").append(port).append("\n");
+    s.append(CONFIG_KEY_ETHERNET_INTERFACE).append("=").append(ethernetInterface).append("\n");
+    s.append(CONFIG_KEY_SELECTED_CONTENT).append("=").append(selectedContentIndex).append("\n");
+    s.append(CONFIG_KEY_HUE).append("=").append(hue).append("\n");
+    s.append(CONFIG_KEY_SATURATION).append("=").append(saturation).append("\n");
+    s.append(CONFIG_KEY_BRIGHTNESS).append("=").append(brightness).append("\n");
+    s.append(CONFIG_KEY_SPEED).append("=").append(speed).append("\n");
+    s.append(CONFIG_KEY_ENABLED_CONTENT).append("=").append(enabledContentIndices).append("\n");
+    s.append(CONFIG_KEY_FLIP_VERTICAL).append("=").append(flipVertical).append("\n");
+    s.append(CONFIG_KEY_CYCLE_DURATION).append("=").append(cycleDuration).append("\n");
+
+    try (FileWriter out = new FileWriter(new File(CONFIG_FILE).getAbsoluteFile())) {
+      out.write(s.toString());
     } catch (IOException e) {
-      Log.severe(e);
+      Log.error(e);
     }
   }
 
@@ -349,6 +340,10 @@ public final class State {
       }
     }
     throw new IllegalArgumentException("Invalid module number for getFrameOffset()");
+  }
+
+  private static String getString(Properties properties, String key, String defaultValue) {
+    return properties.getProperty(key, defaultValue);
   }
 
   private static int getInt(Properties properties, String key, int defaultValue) {

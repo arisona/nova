@@ -3,7 +3,6 @@ package org.corebounce.nova;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.corebounce.util.Log;
 import org.jnetpcap.PcapException;
 
 public final class SyncGenerator implements IConstants {
@@ -44,25 +43,25 @@ public final class SyncGenerator implements IConstants {
   }
 
   void startSync() {
-    Log.info("SyncGen: start");
+    Log.info("Starting sync generator");
     try {
       while ((seqNum.get() & 1) == 1) {
         Thread.sleep(1);
       }
     } catch (Throwable t) {
-      Log.severe(t);
+      Log.error(t);
     }
     running.set(true);
   }
 
   void stopSync() {
-    Log.info("SyncGen: stop");
+    Log.info("Stopping sync generator");
     try {
       while ((seqNum.get() & 1) == 1) {
         Thread.sleep(1);
       }
     } catch (Throwable t) {
-      Log.severe(t);
+      Log.error(t);
     }
     running.set(false);
   }
@@ -70,21 +69,21 @@ public final class SyncGenerator implements IConstants {
   public void handle(int cmd, byte[] status) throws IOException, PcapException {
     switch (cmd) {
       case CMD_START:
-        Log.info("\nSTART " + running + " " + Integer.toHexString((byte) (seqNum.get() >> 1)));
+        Log.info("Sync start: " + running + " " + Integer.toHexString((byte) (seqNum.get() >> 1)));
         running.set(true);
         seqNum.set(0);
         PacketUtils.statusReply(status, ADDR_LEN, STAT_RUN, 511);
         device.send(status);
         break;
       case CMD_STOP:
-        Log.info("\nSTOP " + running + " " + Integer.toHexString((byte) (seqNum.get() >> 1)));
+        Log.info("Sync stop: " + running + " " + Integer.toHexString((byte) (seqNum.get() >> 1)));
         running.set(false);
         seqNum.set(0);
         PacketUtils.statusReply(status, ADDR_LEN, STAT_STOP, 0);
         device.send(status);
         break;
       case CMD_STATUS:
-        Log.info("\nSTATUS " + running + " " + Integer.toHexString((byte) (seqNum.get() >> 1)));
+        Log.info("Sync status: " + running + " " + Integer.toHexString((byte) (seqNum.get() >> 1)));
         PacketUtils.statusReply(status, ADDR_LEN, running.get() ? STAT_RUN : STAT_STOP, seqNum.get());
         device.send(status);
         break;
@@ -125,7 +124,7 @@ public final class SyncGenerator implements IConstants {
         }
       }
     } catch (Throwable t) {
-      Log.severe(t);
+      Log.error(t);
     }
     running.set(false);
   }

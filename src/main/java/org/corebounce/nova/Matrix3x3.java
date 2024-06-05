@@ -1,4 +1,4 @@
-package org.corebounce.util;
+package org.corebounce.nova;
 
 public final class Matrix3x3 {
 

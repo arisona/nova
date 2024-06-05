@@ -1,7 +1,7 @@
 package org.corebounce.nova.content;
 
 import org.corebounce.nova.Content;
-import org.corebounce.util.Log;
+import org.corebounce.nova.Log;
 
 public class CellularAutomaton extends Content {
 
@@ -49,9 +49,7 @@ public class CellularAutomaton extends Content {
   }
 
   @Override
-  public void stop() {
-    Log.info("Stopping " + this);
-  }
+  public void stop() {}
 
   int count = 0;
 

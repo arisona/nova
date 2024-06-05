@@ -6,7 +6,6 @@ import java.net.Inet4Address;
 import java.net.SocketException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.corebounce.util.Log;
 import org.jnetpcap.PcapException;
 
 public final class NOVAControl implements IConstants {
@@ -43,7 +42,7 @@ public final class NOVAControl implements IConstants {
     state = new State();
 
     device = EnetInterface.getInterface(state.getEthernetInterface());
-    Log.info("Using interface " + device.getName());
+    Log.info("Using interface: " + device.getName());
     device.open();
 
     try (DatagramSocket socket = new DatagramSocket()) {
@@ -72,7 +71,7 @@ public final class NOVAControl implements IConstants {
     for (;;) {
       try {
         getStatus();
-        Log.info("NOVA Status: " + state.getNumOperational() + " of " + state.getNumModules() + " operational");
+        Log.info("NOVA status: " + state.getNumOperational() + " of " + state.getNumModules() + " operational");
         if (state.isOperational()) {
           if (!(isOn())) {
             novaOn();
@@ -81,13 +80,13 @@ public final class NOVAControl implements IConstants {
           // note: not sure if we want this (if nova behaves unstable, just comment out)
           if (isOn()) {
             novaOff();
-            Log.info("NOVA Off: exiting");
+            Log.info("NOVA was switched off: exiting");
             System.exit(0);
           }
         }
         Thread.sleep(isOn() ? 10000 : 1000);
       } catch (Throwable t) {
-        Log.severe(t);
+        Log.error(t);
       }
     }
   }
@@ -110,7 +109,7 @@ public final class NOVAControl implements IConstants {
 
   void novaOn() throws IOException, InterruptedException, PcapException {
     if (!(isOn()) && device != null) {
-      Log.info("NOVA ON");
+      Log.info("NOVA on");
       reset();
       syncGen = new SyncGenerator(device, dispatcher);
       for (int i = -MODULE_QUEUE_SIZE; i < 0; i++) {
@@ -123,7 +122,7 @@ public final class NOVAControl implements IConstants {
 
   void novaOff() {
     if (isOn()) {
-      Log.info("NOVA OFF");
+      Log.info("NOVA off");
       syncGen.setListener(null);
       syncGen.dispose();
       syncGen = null;
@@ -151,12 +150,12 @@ public final class NOVAControl implements IConstants {
           }
           selectedContentIndex = newContentIndex;
           if (selectedContentIndex >= 0) {
-            Log.info("setContent(" + selectedContentIndex + "): " + state.getContent(selectedContentIndex));
+            Log.info("Set content " + selectedContentIndex + ": " + state.getContent(selectedContentIndex));
             try {
               state.getContent(selectedContentIndex).start();
             } catch (Throwable t) {}
           } else {
-            Log.info("setContent(-1): Blank");
+            Log.info("Set content -1: blank");
           }
         }
         int[][] frame = frameQ.take();
@@ -219,13 +218,13 @@ public final class NOVAControl implements IConstants {
         }
         txQ.add(frame);
       } catch (Throwable t) {
-        Log.severe(t);
+        Log.error(t);
       }
     }
   }
 
   private void reset() throws IOException, InterruptedException, PcapException {
-    StringBuilder msg = new StringBuilder("Resetting Modules:");
+    StringBuilder msg = new StringBuilder("Resetting modules:");
     for (int m : state.getModules()) {
       msg.append(" ").append(m);
     }
@@ -245,7 +244,7 @@ public final class NOVAControl implements IConstants {
       send(packet, m);
     }
     Thread.sleep(1000);
-    Log.info("Reset done.");
+    Log.info("Reset complete");
   }
 
   private void getStatus() {
@@ -263,7 +262,7 @@ public final class NOVAControl implements IConstants {
         }
         // Log.info("No modules found, retry " + (1 + i));
       } catch (Throwable t) {
-        Log.severe(t);
+        Log.error(t);
       }
     }
   }
@@ -291,7 +290,7 @@ public final class NOVAControl implements IConstants {
       final byte[] packet = packet();
 
       if (frame == null) {
-        Log.info("Frame queue underrun");
+        Log.error("Frame queue underrun");
         return;
       }
 
@@ -302,7 +301,7 @@ public final class NOVAControl implements IConstants {
 
       frameQ.add(frame);
     } catch (Throwable t) {
-      Log.severe(t);
+      Log.error(t);
     }
   }
 }

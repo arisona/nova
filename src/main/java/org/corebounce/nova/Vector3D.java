@@ -1,4 +1,4 @@
-package org.corebounce.util;
+package org.corebounce.nova;
 
 import java.util.Arrays;
 

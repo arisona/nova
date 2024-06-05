@@ -1,8 +1,8 @@
 package org.corebounce.nova.content;
 
 import org.corebounce.nova.Content;
-import org.corebounce.util.Matrix3x3;
-import org.corebounce.util.Vector3D;
+import org.corebounce.nova.Matrix3x3;
+import org.corebounce.nova.Vector3D;
 
 public class Colorcube extends Content {
 

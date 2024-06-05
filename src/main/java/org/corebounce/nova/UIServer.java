@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.corebounce.util.Log;
 import org.json.JSONArray;
 
 public final class UIServer {
@@ -78,7 +77,7 @@ public final class UIServer {
 
   private void handleAPI(HttpExchange he) throws IOException {
     URI uri = he.getRequestURI();
-    Log.info("Handle " + uri);
+    Log.info("Handle api " + uri);
     String response = "";
     try {
       String param = uri.getPath().split("[/]")[2];
@@ -105,7 +104,7 @@ public final class UIServer {
         case "restore" -> state.restore();
         case "reset" -> NOVAControl.get().novaReset();
         case "reload" -> {
-          Log.info("User requested reload. Exiting.");
+          Log.info("User requested reload: exiting");
           System.exit(0);
         }
         case "get-state" -> {
@@ -162,7 +161,7 @@ public final class UIServer {
       state.getEthernetInterface(),
       state.getModule0Address()
     );
-    System.out.println(result);
+    Log.info(result);
     return result;
   }
 }

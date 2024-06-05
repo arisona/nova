@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.corebounce.nova.content.Test;
-import org.corebounce.util.Log;
 
 /**
  * Content base class for NOVA Server content.
@@ -234,7 +233,7 @@ public abstract class Content {
         }
       }
     } catch (Throwable t) {
-      Log.warning(t, "Could not load content");
+      Log.warning("Could not load content", t);
     }
     contents.sort(Comparator.comparing(Object::toString));
     return contents;
