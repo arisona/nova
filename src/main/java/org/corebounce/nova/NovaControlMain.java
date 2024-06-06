@@ -8,13 +8,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jnetpcap.PcapException;
 
-public final class NovaControl implements IConstants {
+public final class NovaControlMain implements IConstants {
 
   private static final int N_PACKET_BUFFERS = 1024;
   private static final int MODULE_QUEUE_SIZE = 4;
   private static final int FRAME_QUEUE_SIZE = MODULE_QUEUE_SIZE + 4;
 
-  private static NovaControl theControl;
+  private static NovaControlMain theControl;
 
   private final State state;
   private final EnetInterface device;
@@ -33,7 +33,7 @@ public final class NovaControl implements IConstants {
 
   private SyncGenerator syncGen;
 
-  public NovaControl() throws SocketException, IOException, PcapException {
+  public NovaControlMain() throws SocketException, IOException, PcapException {
     if (theControl != null) {
       throw new RuntimeException("Cannot instantiate multiple NOVAControl instances.");
     }
@@ -91,12 +91,12 @@ public final class NovaControl implements IConstants {
     }
   }
 
-  static NovaControl get() {
+  static NovaControlMain get() {
     return theControl;
   }
 
   public static void main(String[] args) throws IOException, InterruptedException, PcapException {
-    new NovaControl();
+    new NovaControlMain();
   }
 
   boolean isOn() {
@@ -140,12 +140,17 @@ public final class NovaControl implements IConstants {
   private void streamTask() {
     final float[] fframe = new float[state.getDimI() * state.getDimJ() * state.getDimK() * 3];
     int selectedContentIndex = -1;
+    int frameCount = 0;
 
     // note: the speed calculation is a bit weird, but made to match the original
     // implementation where speed was in the range [-3, 5] and now is [0, 1]
     for (double time = 0;; time += 0.04 * Math.pow(2, state.getSpeed() * 8 - 3)) {
       try {
         int newContentIndex = state.getSelectedContentIndex();
+        if (state.getCycleDuration() > 0 && frameCount++ >= state.getCycleDuration() * 25) {
+          newContentIndex = getNextEnabledContentIndex(selectedContentIndex);
+          frameCount = 0;
+        }
         if (newContentIndex != selectedContentIndex) {
           if (selectedContentIndex >= 0) {
             try {
@@ -172,6 +177,7 @@ public final class NovaControl implements IConstants {
           txQ.add(frame);
           continue;
         }
+
         state.getContent(selectedContentIndex).fillFrame(fframe, time);
 
         float[] rgb = ColorUtils.hsvToRgb(
@@ -224,6 +230,16 @@ public final class NovaControl implements IConstants {
       } catch (Throwable t) {
         Log.error(t);
       }
+    }
+  }
+
+  private int getNextEnabledContentIndex(int selectedContentIndex) {
+    try {
+      int index = state.getEnabledContentIndices().nextSetBit(selectedContentIndex + 1);
+      if (index == -1) index = state.getEnabledContentIndices().nextSetBit(0);
+      return index;
+    } catch (IndexOutOfBoundsException e) {
+      return -1;
     }
   }
 

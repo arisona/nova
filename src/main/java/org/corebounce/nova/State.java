@@ -5,10 +5,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public final class State {
 
@@ -56,7 +55,7 @@ public final class State {
   private float brightness;
   private float speed;
 
-  private String enabledContentIndices;
+  private BitSet enabledContentIndices;
   private boolean flipVertical;
   private float cycleDuration;
   private String ethernetInterface;
@@ -134,7 +133,7 @@ public final class State {
     cycleDuration = getFloat(config, CONFIG_KEY_CYCLE_DURATION, CONFIG_DEFAULT_CYCLE_DURATION);
 
     availableContent.addAll(Content.createContent(this));
-    enabledContentIndices = getString(config, CONFIG_KEY_ENABLED_CONTENT, getListIndices(availableContent));
+    enabledContentIndices = getBitSet(config, CONFIG_KEY_ENABLED_CONTENT, availableContent.size(), true);
 
     var msg = String.format(
       "Set up Nova state with %dx%d modules (%dx%dx%d voxels), port %d, interface %s",
@@ -165,7 +164,8 @@ public final class State {
     flipVertical = CONFIG_DEFAULT_FLIP_VERTICAL;
     cycleDuration = CONFIG_DEFAULT_CYCLE_DURATION;
 
-    enabledContentIndices = getListIndices(availableContent);
+    enabledContentIndices = new BitSet(availableContent.size());
+    enabledContentIndices.set(0, availableContent.size());
   }
 
   public int[] getModules() {
@@ -256,11 +256,11 @@ public final class State {
     this.speed = speed;
   }
 
-  public String getEnabledContentIndices() {
+  public BitSet getEnabledContentIndices() {
     return enabledContentIndices;
   }
 
-  public void setEnabledContentIndices(String enabledContentIndices) {
+  public void setEnabledContentIndices(BitSet enabledContentIndices) {
     this.enabledContentIndices = enabledContentIndices;
   }
 
@@ -302,14 +302,12 @@ public final class State {
   }
 
   public boolean isStatusOk() {
-    if (NovaControl.get().getDevice().isDummy()) return false;
-
-    if (!isOperational()) return false;
-    return true;
+    if (NovaControlMain.get().getDevice().isDummy()) return false;
+    return !isOperational();
   }
 
   public String getStatusMessage() {
-    if (NovaControl.get().getDevice().isDummy()) return "Cannot connect using interface " + ethernetInterface;
+    if (NovaControlMain.get().getDevice().isDummy()) return "Cannot connect using interface " + ethernetInterface;
     return "" + getNumOperational() + " of " + modulesFlat.length + " modules operational";
   }
 
@@ -390,7 +388,28 @@ public final class State {
     return Boolean.parseBoolean(properties.getProperty(key, Boolean.toString(defaultValue)));
   }
 
-  private static String getListIndices(List<?> list) {
-    return IntStream.range(0, list.size()).mapToObj(Integer::toString).collect(Collectors.joining(","));
+  private static BitSet getBitSet(Properties properties, String key, int numBits, boolean defaultValue) {
+    String property = properties.getProperty(key, null);
+    if (property == null) {
+      BitSet bitSet = new BitSet(numBits);
+      bitSet.set(0, numBits, defaultValue);
+      return bitSet;
+    } else {
+      return stringToBitSet(property, numBits);
+    }
+  }
+
+  public static BitSet stringToBitSet(String s, int numBits) {
+    BitSet bitSet = new BitSet(numBits);
+    if (!s.isEmpty()) {
+      String[] indices = s.split(",");
+      for (String index : indices) {
+        try {
+          int i = Integer.parseInt(index.trim());
+          if (i < numBits) bitSet.set(i);
+        } catch (NumberFormatException e) {}
+      }
+    }
+    return bitSet;
   }
 }

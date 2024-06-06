@@ -1,7 +1,6 @@
 package org.corebounce.nova.content;
 
 import org.corebounce.nova.Content;
-import org.corebounce.nova.Log;
 
 public class CellularAutomaton extends Content {
 

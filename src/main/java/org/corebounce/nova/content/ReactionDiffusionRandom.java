@@ -3,7 +3,6 @@ package org.corebounce.nova.content;
 import java.util.Random;
 import org.corebounce.nova.ColorUtils;
 import org.corebounce.nova.Content;
-import org.corebounce.nova.Log;
 
 public class ReactionDiffusionRandom extends Content {
 

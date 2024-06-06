@@ -5,8 +5,6 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.json.JSONArray;
@@ -86,7 +84,9 @@ public final class UIServer {
       }
 
       switch (param) {
-        case "enabled-content-indices" -> state.setEnabledContentIndices(value);
+        case "enabled-content-indices" -> state.setEnabledContentIndices(
+          State.stringToBitSet(value, state.getAvailableContent().size())
+        );
         case "selected-content-index" -> state.setSelectedContentIndex(Integer.parseInt(value));
         case "hue" -> state.setHue(Float.parseFloat(value));
         case "saturation" -> state.setSaturation(Float.parseFloat(value));
@@ -97,7 +97,7 @@ public final class UIServer {
         case "module0-address" -> state.setModule0Address(value);
         case "speed" -> state.setSpeed(Float.parseFloat(value));
         case "restore" -> state.restore();
-        case "reset" -> NovaControl.get().novaReset();
+        case "reset" -> NovaControlMain.get().novaReset();
         case "reload" -> {
           Log.info("User requested reload: exiting");
           System.exit(0);
@@ -124,10 +124,7 @@ public final class UIServer {
 
   private String getState() {
     var availableContent = state.getAvailableContent().stream().map(content -> content.name).toList();
-    var indices = state.getEnabledContentIndices();
-    var enabledContentIndices = indices.isEmpty()
-      ? Collections.emptySet()
-      : Arrays.stream(indices.split(",")).map(Integer::parseInt).collect(Collectors.toSet());
+    var enabledContentIndices = state.getEnabledContentIndices().stream().boxed().collect(Collectors.toList());
     var module0Address = state.getNumModules() == 1 ? state.getModule0Address() : "disabled";
     var result = String.format(
       """

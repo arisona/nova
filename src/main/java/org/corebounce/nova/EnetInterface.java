@@ -57,6 +57,7 @@ public final class EnetInterface implements IConstants {
     }
   }
 
+  @SuppressWarnings("unused")
   public void send(byte[] packet) throws IOException, PcapException {
     if (pcap != null) {
       pcap.sendPacket(packet);

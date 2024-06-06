@@ -181,7 +181,7 @@ public abstract class Content {
   }
 
   protected final float getSpeed() {
-    return NovaControl.get().getState().getSpeed();
+    return NovaControlMain.get().getState().getSpeed();
   }
 
   /**
@@ -239,6 +239,7 @@ public abstract class Content {
     return contents;
   }
 
+  @SuppressWarnings("unchecked")
   private static Set<Class<Content>> findAllContentClasses(String packageName) throws IOException, URISyntaxException {
     var packagePath = packageName.replace('.', '/');
     Path root;

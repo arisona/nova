@@ -90,6 +90,7 @@ public final class SyncGenerator implements IConstants {
     }
   }
 
+  @SuppressWarnings("unused")
   private void syncTask() {
     try {
       byte[] packet = new byte[ADDR_LEN + PROT_LEN + DATA_LEN];
