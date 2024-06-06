@@ -97,7 +97,7 @@ public final class UIServer {
         case "module0-address" -> state.setModule0Address(value);
         case "speed" -> state.setSpeed(Float.parseFloat(value));
         case "restore" -> state.restore();
-        case "reset" -> NovaControlMain.get().novaReset();
+        case "reset" -> NovaControl.get().novaReset();
         case "reload" -> {
           Log.info("User requested reload: exiting");
           System.exit(0);

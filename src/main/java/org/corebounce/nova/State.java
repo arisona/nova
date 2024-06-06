@@ -302,12 +302,12 @@ public final class State {
   }
 
   public boolean isStatusOk() {
-    if (NovaControlMain.get().getDevice().isDummy()) return false;
+    if (NovaControl.get().getDevice().isDummy()) return false;
     return !isOperational();
   }
 
   public String getStatusMessage() {
-    if (NovaControlMain.get().getDevice().isDummy()) return "Cannot connect using interface " + ethernetInterface;
+    if (NovaControl.get().getDevice().isDummy()) return "Cannot connect using interface " + ethernetInterface;
     return "" + getNumOperational() + " of " + modulesFlat.length + " modules operational";
   }
 

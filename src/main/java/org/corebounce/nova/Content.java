@@ -181,7 +181,7 @@ public abstract class Content {
   }
 
   protected final float getSpeed() {
-    return NovaControlMain.get().getState().getSpeed();
+    return NovaControl.get().getState().getSpeed();
   }
 
   /**

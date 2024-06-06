@@ -8,13 +8,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jnetpcap.PcapException;
 
-public final class NovaControlMain implements IConstants {
+public final class NovaControl implements IConstants {
 
   private static final int N_PACKET_BUFFERS = 1024;
   private static final int MODULE_QUEUE_SIZE = 4;
   private static final int FRAME_QUEUE_SIZE = MODULE_QUEUE_SIZE + 4;
 
-  private static NovaControlMain theControl;
+  private static NovaControl theControl;
 
   private final State state;
   private final EnetInterface device;
@@ -33,7 +33,7 @@ public final class NovaControlMain implements IConstants {
 
   private SyncGenerator syncGen;
 
-  public NovaControlMain() throws SocketException, IOException, PcapException {
+  public NovaControl() throws SocketException, IOException, PcapException {
     if (theControl != null) {
       throw new RuntimeException("Cannot instantiate multiple NOVAControl instances.");
     }
@@ -91,12 +91,12 @@ public final class NovaControlMain implements IConstants {
     }
   }
 
-  static NovaControlMain get() {
+  static NovaControl get() {
     return theControl;
   }
 
   public static void main(String[] args) throws IOException, InterruptedException, PcapException {
-    new NovaControlMain();
+    new NovaControl();
   }
 
   boolean isOn() {
