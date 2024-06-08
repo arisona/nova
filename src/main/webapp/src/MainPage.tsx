@@ -3,7 +3,6 @@ import {
   Palette,
   Settings,
   Speed,
-  Sync,
   WbSunny,
 } from "@mui/icons-material";
 import {
@@ -29,11 +28,9 @@ import { Status } from "./Status";
 export const MainPage = ({
   state,
   setState,
-  handleRefresh,
 }: {
   state: NovaState;
   setState: React.Dispatch<React.SetStateAction<NovaState>>;
-  handleRefresh: () => void;
 }) => {
   const navigate = useNavigate();
 
@@ -108,9 +105,6 @@ export const MainPage = ({
           NOVA
         </Typography>
         <Stack direction="row" alignItems="center">
-          <IconButton aris-able="Refresh" onClick={handleRefresh}>
-            <Sync />
-          </IconButton>
           <IconButton aris-able="Settings" onClick={handleSettings}>
             <Settings />
           </IconButton>

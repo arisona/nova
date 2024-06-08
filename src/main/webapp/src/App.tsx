@@ -37,6 +37,8 @@ export const defaultNovaState: NovaState = {
   statusMessage: "Unkown error",
 };
 
+const pollInterval = 500;
+
 export const App = () => {
   const [state, setState] = React.useState<NovaState>(defaultNovaState);
 
@@ -44,7 +46,10 @@ export const App = () => {
     apiGetState(state).then((state) => setState(state));
   };
 
-  React.useEffect(() => handleRefresh(), []);
+  React.useEffect(() => {
+    const intervalId = setInterval(handleRefresh, pollInterval);
+    return () => clearInterval(intervalId);
+  }, []);
 
   return (
     <Container maxWidth="sm">
@@ -53,23 +58,11 @@ export const App = () => {
           <Routes>
             <Route
               path="/"
-              element={
-                <MainPage
-                  state={state}
-                  setState={setState}
-                  handleRefresh={handleRefresh}
-                />
-              }
+              element={<MainPage state={state} setState={setState} />}
             />
             <Route
               path="/settings"
-              element={
-                <SettingsPage
-                  state={state}
-                  setState={setState}
-                  handleRefresh={handleRefresh}
-                />
-              }
+              element={<SettingsPage state={state} setState={setState} />}
             />
           </Routes>
         </Router>

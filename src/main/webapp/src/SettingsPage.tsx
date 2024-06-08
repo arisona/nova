@@ -1,4 +1,4 @@
-import { NavigateBefore, Sync } from "@mui/icons-material";
+import { NavigateBefore } from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -20,17 +20,15 @@ import {
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { NovaState } from "./App";
-import { apiSet, apiSetValue } from "./api";
 import { Status } from "./Status";
+import { apiSet, apiSetValue } from "./api";
 
 export const SettingsPage = ({
   state,
   setState,
-  handleRefresh,
 }: {
   state: NovaState;
   setState: React.Dispatch<React.SetStateAction<NovaState>>;
-  handleRefresh: () => void;
 }) => {
   const navigate = useNavigate();
 
@@ -91,7 +89,6 @@ export const SettingsPage = ({
 
   const handleRestore = () => {
     apiSet("restore");
-    handleRefresh();
   };
 
   const handleReset = () => {
@@ -122,9 +119,6 @@ export const SettingsPage = ({
           SETTINGS
         </Typography>
         <Stack direction="row">
-          <IconButton aris-able="Refresh" onClick={handleRefresh}>
-            <Sync />
-          </IconButton>
           <IconButton aria-label="Back" onClick={handleBack}>
             <NavigateBefore />
           </IconButton>
