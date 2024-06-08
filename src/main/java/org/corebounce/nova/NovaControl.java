@@ -149,6 +149,7 @@ public final class NovaControl implements IConstants {
         int newContentIndex = state.getSelectedContentIndex();
         if (state.getCycleDuration() > 0 && frameCount++ >= state.getCycleDuration() * 25) {
           newContentIndex = getNextEnabledContentIndex(selectedContentIndex);
+          state.setSelectedContentIndex(newContentIndex);
           frameCount = 0;
         }
         if (newContentIndex != selectedContentIndex) {
