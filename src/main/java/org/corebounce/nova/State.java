@@ -342,7 +342,7 @@ public final class State {
     s.append(CONFIG_KEY_SATURATION).append("=").append(saturation).append("\n");
     s.append(CONFIG_KEY_BRIGHTNESS).append("=").append(brightness).append("\n");
     s.append(CONFIG_KEY_SPEED).append("=").append(speed).append("\n");
-    s.append(CONFIG_KEY_ENABLED_CONTENT).append("=").append(enabledContentIndices).append("\n");
+    s.append(CONFIG_KEY_ENABLED_CONTENT).append("=").append(bitSetToString(enabledContentIndices)).append("\n");
     s.append(CONFIG_KEY_FLIP_VERTICAL).append("=").append(flipVertical).append("\n");
     s.append(CONFIG_KEY_CYCLE_DURATION).append("=").append(cycleDuration).append("\n");
 
@@ -411,5 +411,14 @@ public final class State {
       }
     }
     return bitSet;
+  }
+
+  public static String bitSetToString(BitSet bitSet) {
+    StringBuilder s = new StringBuilder();
+    for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
+      if (s.length() > 0) s.append(",");
+      s.append(i);
+    }
+    return s.toString();
   }
 }

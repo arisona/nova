@@ -158,7 +158,7 @@ public final class UIServer {
       state.isStatusOk(),
       state.getStatusMessage()
     );
-    Log.info(result);
+    //Log.info(result);
     return result;
   }
 }
