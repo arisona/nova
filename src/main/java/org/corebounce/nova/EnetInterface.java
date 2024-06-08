@@ -117,7 +117,7 @@ public final class EnetInterface implements IConstants {
   private final class RxThread implements OfArray<LinkedBlockingQueue<byte[]>> {
 
     RxThread() {
-      Thread t = new Thread(this::dispatch);
+      Thread t = new Thread(this::dispatch, "Nova Pcap Receive");
       t.setDaemon(true);
       t.start();
     }

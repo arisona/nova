@@ -10,7 +10,7 @@ public final class SyncGenerator implements IConstants {
   private static final boolean DBG = false;
 
   private static final long PLL_TIME = 20L * 1000L * 1000L;
-  private static final boolean NOSLEEP = true;
+  private static final boolean NOSLEEP = false;
 
   private final EnetInterface device;
   private final Dispatcher dispatcher;
@@ -23,7 +23,7 @@ public final class SyncGenerator implements IConstants {
     this.device = device;
     this.dispatcher = dispatcher;
     dispatcher.setSyncGen(this);
-    Thread thread = new Thread(this::syncTask);
+    Thread thread = new Thread(this::syncTask, "Nova Sync Generator");
     thread.setPriority(Thread.MAX_PRIORITY);
     thread.setDaemon(true);
     thread.start();

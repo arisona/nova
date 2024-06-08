@@ -10,7 +10,7 @@ public final class Dispatcher implements IConstants {
     this.device = device;
     this.state = state;
     if (!device.isDummy()) {
-      Thread thread = new Thread(this::dispatchTask);
+      Thread thread = new Thread(this::dispatchTask, "Nova Dispatcher");
       thread.setPriority(Thread.MIN_PRIORITY);
       thread.start();
     }

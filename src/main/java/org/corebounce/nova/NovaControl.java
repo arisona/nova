@@ -64,7 +64,7 @@ public final class NovaControl implements IConstants {
 
     new UIServer(state);
 
-    Thread thread = new Thread(this::streamTask, "Voxel Streamer");
+    Thread thread = new Thread(this::streamTask, "Nova Voxel Streamer");
     thread.setPriority(Thread.MIN_PRIORITY);
     thread.start();
 
