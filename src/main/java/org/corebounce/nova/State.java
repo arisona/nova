@@ -60,6 +60,8 @@ public final class State {
   private float cycleDuration;
   private String ethernetInterface;
 
+  private final String startupEthernetInterface;
+
   // internal state
   private final DMUXStatus[] status = new DMUXStatus[101];
 
@@ -135,6 +137,9 @@ public final class State {
     availableContent.addAll(Content.createContent(this));
     enabledContentIndices = getBitSet(config, CONFIG_KEY_ENABLED_CONTENT, availableContent.size(), true);
 
+    // note that we can get rid of this once we can reconfigure ethernet interface on the fly
+    startupEthernetInterface = ethernetInterface;
+
     var msg = String.format(
       "Set up Nova state with %dx%d modules (%dx%dx%d voxels), port %d, interface %s",
       moduleDimI,
@@ -143,7 +148,7 @@ public final class State {
       dimJ,
       getModuleDimK(),
       port,
-      ethernetInterface
+      startupEthernetInterface
     );
     Log.info(msg);
 
@@ -285,7 +290,7 @@ public final class State {
   }
 
   public void setEthernetInterface(String ethernetInterface) {
-    this.ethernetInterface = ethernetInterface;
+    this.ethernetInterface = ethernetInterface.isEmpty() ? CONFIG_DEFAULT_ETHERNET_INTERFACE : ethernetInterface;
   }
 
   public String getModule0Address() {
@@ -293,8 +298,13 @@ public final class State {
   }
 
   public void setModule0Address(String module0Address) {
-    if (getNumModules() == 1) moduleConfig[0][0] = Integer.parseInt(module0Address);
-    else Log.warning("Cannot set module 0 address for multiple modules");
+    if (getNumModules() == 1) {
+      try {
+        moduleConfig[0][0] = Integer.parseInt(module0Address);
+      } catch (NumberFormatException e) {
+        moduleConfig[0][0] = CONFIG_DEFAULT_ADDRESS;
+      }
+    } else Log.warning("Cannot set module 0 address for multiple modules");
   }
 
   public boolean isOperational() {
@@ -307,7 +317,7 @@ public final class State {
   }
 
   public String getStatusMessage() {
-    if (NovaControl.get().getDevice().isDummy()) return "Cannot connect using interface " + ethernetInterface;
+    if (NovaControl.get().getDevice().isDummy()) return "Cannot connect using interface " + startupEthernetInterface;
     return "" + getNumOperational() + " of " + modulesFlat.length + " modules operational";
   }
 

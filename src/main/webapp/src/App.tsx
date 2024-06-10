@@ -41,9 +41,18 @@ const pollInterval = 500;
 
 export const App = () => {
   const [state, setState] = React.useState<NovaState>(defaultNovaState);
+  const stateRef = React.useRef(state);
+
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const handleRefresh = () => {
-    apiGetState(state).then((state) => setState(state));
+    apiGetState(stateRef.current).then((newState) => {
+      if (newState) {
+        setState(newState);
+      }
+    });
   };
 
   React.useEffect(() => {

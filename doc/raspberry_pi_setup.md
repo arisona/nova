@@ -98,6 +98,8 @@ cd /home/pi/nova
 ./scripts/novaraspi.sh > /dev/null 2>&1 &
 ```
 
+Again, you make sure to set `JDK_HOME` to point to the correct JDK path.
+
 - Plug in Nova via ethernet and reboot
 
 ```

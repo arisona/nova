@@ -8,7 +8,9 @@ export const apiSetValue = (id: string, value: string | number | boolean) => {
   fetch(`/api/${id}?value=${value}`);
 };
 
-export const apiGetState = async (oldState: NovaState): Promise<NovaState> => {
+export const apiGetState = async (
+  currentState: NovaState,
+): Promise<NovaState | undefined> => {
   return fetch("/api/get-state")
     .then((response) => {
       if (!response.ok) throw new Error(response.status.toString());
@@ -44,13 +46,12 @@ export const apiGetState = async (oldState: NovaState): Promise<NovaState> => {
         statusOk: data["status-ok"] as boolean,
         statusMessage: data["status-message"] as string,
       };
-      console.log(state);
-      return state;
+      if (JSON.stringify(state) !== JSON.stringify(currentState)) return state;
     })
     .catch((error) => {
       console.error("Request failed: ", error);
       return {
-        ...oldState,
+        ...currentState,
         statusOk: false,
         statusMessage: "Cannot connect to Nova server.",
       };
