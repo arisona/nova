@@ -1,20 +1,16 @@
 package org.corebounce.nova.content;
 
 import java.util.Arrays;
-
 import org.corebounce.nova.Content;
 
-@SuppressWarnings("nls")
 public class Solid extends Content {
 
-	public Solid(int dimI, int dimJ, int dimK, int numFrames) {
-		super("Solid", dimI, dimJ, dimK, numFrames);
-	}
+  public Solid(int dimI, int dimJ, int dimK) {
+    super("Solid", dimI, dimJ, dimK);
+  }
 
-	@Override
-	public boolean fillFrame(float[] rgbFrame, double timeInSec) {
-		Arrays.fill(rgbFrame, 1f);
-		return --frames > 0;
-	}
-
+  @Override
+  public void fillFrame(float[] rgbFrame, double timeInSec) {
+    Arrays.fill(rgbFrame, 1f);
+  }
 }

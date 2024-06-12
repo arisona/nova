@@ -1,0 +1,10 @@
+{
+  "name": "nova",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Nova Java Server Application",
+  "scripts": {},
+  "devDependencies": {
+    "prettier-plugin-java": "^2.6.0"
+  }
+}

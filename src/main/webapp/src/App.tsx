@@ -1,146 +1,86 @@
-import { Contrast, Palette, Speed, WbSunny } from "@mui/icons-material";
-import {
-  Box,
-  Button,
-  Container,
-  SelectChangeEvent,
-  Stack,
-  Typography,
-} from "@mui/material";
-import * as React from "react";
-
-import NovaColor from "./NovaColor";
-import NovaContent from "./NovaContent";
-import NovaSlider from "./NovaSlider";
-import { apiGetState, apiSet, apiSetValue } from "./api";
-import { hsvToRgb } from "./color";
-
-// icons: https://fonts.google.com/icons?icon.set=Material+Icons
+import { Box, Container } from '@mui/material';
+import React from 'react';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { MainPage } from './MainPage';
+import { SettingsPage } from './SettingsPage';
+import { apiGetState, apiGetStatus } from './api';
+import { Status } from './Status';
 
 export interface NovaState {
-  availableContent: string[];
-  selectedContent: string;
-  brightness: number;
+  availableContent: { index: number; name: string }[];
+  enabledContent: { index: number; name: string }[];
+  selectedContentIndex: number;
   hue: number;
   saturation: number;
+  brightness: number;
   speed: number;
+  flip: boolean;
+  cycleDuration: string;
+  ethernetInterface: string;
+  module0Address: string;
 }
 
 export const defaultNovaState: NovaState = {
-  availableContent: ["No Content"],
-  selectedContent: "0",
-  brightness: 1,
+  availableContent: [],
+  enabledContent: [],
+  selectedContentIndex: -1,
   hue: 0.5,
   saturation: 1,
+  brightness: 0.5,
   speed: 0.5,
+  flip: false,
+  cycleDuration: '0',
+  ethernetInterface: 'eth0',
+  module0Address: '1',
 };
 
-export default function App() {
+export interface NovaStatus {
+  statusOk: boolean;
+  statusMessage: string;
+}
+
+export const defaultNovaStatus: NovaStatus = {
+  statusOk: false,
+  statusMessage: 'Unkown error',
+};
+
+const pollInterval = 500;
+
+export const App = () => {
   const [state, setState] = React.useState<NovaState>(defaultNovaState);
+  const [status, setStatus] = React.useState<NovaStatus>(defaultNovaStatus);
 
-  const handleSelectedContentChange = (event: SelectChangeEvent) => {
-    const selectedContent = event.target.value as string;
-    apiSetValue("selected-content", selectedContent);
-    setState((prevState) => ({
-      ...prevState,
-      selectedContent: selectedContent,
-    }));
-  };
+  React.useEffect(() => {
+    apiGetState().then((newState) => setState(newState));
+  }, []);
 
-  const handleBrightnessChange = (
-    _event: Event,
-    newValue: number | number[],
-  ) => {
-    apiSetValue("brightness", newValue as number);
-    setState((prevState) => ({ ...prevState, brightness: newValue as number }));
-  };
-
-  const handleHueChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue("hue", newValue as number);
-    setState((prevState) => ({ ...prevState, hue: newValue as number }));
-  };
-
-  const handleSaturationChange = (
-    _event: Event,
-    newValue: number | number[],
-  ) => {
-    apiSetValue("saturation", newValue as number);
-    setState((prevState) => ({ ...prevState, saturation: newValue as number }));
-  };
-
-  const handleSpeedChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue("speed", newValue as number);
-    setState((prevState) => ({ ...prevState, speed: newValue as number }));
-  };
+  React.useEffect(() => {
+    const intervalId = setInterval(handleRefresh, pollInterval);
+    return () => clearInterval(intervalId);
+  }, []);
 
   const handleRefresh = () => {
-    apiGetState().then((state) => setState(state));
+    apiGetStatus().then((newStatus) => setStatus(newStatus));
   };
-
-  const handleReset = () => {
-    apiSet("reset");
-  };
-
-  const handleReload = () => {
-    apiSet("reload");
-  };
-
-  const rgb = hsvToRgb(state.hue, state.saturation, state.brightness);
-
-  React.useEffect(() => handleRefresh(), []);
 
   return (
     <Container maxWidth="sm">
       <Box sx={{ my: 4 }}>
-        <Typography variant="h3" component="h3" align="center" sx={{ mb: 2 }}>
-          NOVA
-        </Typography>
-
-        <NovaContent
-          availableContent={state.availableContent}
-          selectedContent={state.selectedContent}
-          handleContentChange={handleSelectedContentChange}
-        />
-
-        <NovaColor r={rgb[0]} g={rgb[1]} b={rgb[2]} />
-
-        <NovaSlider
-          icon={<WbSunny />}
-          label="Brightness"
-          value={state.brightness}
-          onChange={handleBrightnessChange}
-        />
-        <NovaSlider
-          icon={<Palette />}
-          label="Hue"
-          value={state.hue}
-          onChange={handleHueChange}
-        />
-        <NovaSlider
-          icon={<Contrast />}
-          label="Saturation"
-          value={state.saturation}
-          onChange={handleSaturationChange}
-        />
-        <NovaSlider
-          icon={<Speed />}
-          label="Speed"
-          value={state.speed}
-          onChange={handleSpeedChange}
-        />
-
-        <Stack spacing={2} direction="row" sx={{ mb: 4 }} alignItems="center">
-          <Button fullWidth variant="outlined" onClick={handleRefresh}>
-            Refresh Content
-          </Button>
-          <Button fullWidth variant="outlined" onClick={handleReset}>
-            Reset Server
-          </Button>
-          <Button fullWidth variant="outlined" onClick={handleReload}>
-            Reload Server
-          </Button>
-        </Stack>
+        <Router>
+          <Routes>
+            <Route
+              path="/"
+              element={<MainPage state={state} setState={setState} />}
+            />
+            <Route
+              path="/settings"
+              element={<SettingsPage state={state} setState={setState} />}
+            />
+          </Routes>
+        </Router>
       </Box>
+
+      <Status ok={status.statusOk} message={status.statusMessage} />
     </Container>
   );
-}
+};
