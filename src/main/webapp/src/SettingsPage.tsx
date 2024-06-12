@@ -1,4 +1,4 @@
-import { NavigateBefore } from "@mui/icons-material";
+import { NavigateBefore } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -16,12 +16,11 @@ import {
   Switch,
   TextField,
   Typography,
-} from "@mui/material";
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import { NovaState } from "./App";
-import { Status } from "./Status";
-import { apiSet, apiSetValue } from "./api";
+} from '@mui/material';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { NovaState } from './App';
+import { apiSet, apiSetValue } from './api';
 
 export const SettingsPage = ({
   state,
@@ -33,7 +32,7 @@ export const SettingsPage = ({
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate("/");
+    navigate('/');
   };
 
   const handleEnabledContentChange = (value: {
@@ -41,62 +40,91 @@ export const SettingsPage = ({
     name: string;
   }) => {
     const add = !state.enabledContent.some(
-      (item) => item.index === value.index,
+      (item) => item.index === value.index
     );
     const enabledContent = add
       ? state.enabledContent.concat(value).sort((a, b) => a.index - b.index)
       : state.enabledContent.filter((item) => item.index !== value.index);
-    const indices = enabledContent.map((value) => value.index).join(",");
-    apiSetValue("enabled-content-indices", indices);
+    const indices = enabledContent.map((value) => value.index).join(',');
+    apiSetValue('enabled-content-indices', indices);
     setState((prevState) => ({ ...prevState, enabledContent: enabledContent }));
   };
 
   const handleFlipChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const flip = event.target.checked;
-    apiSetValue("flip-vertical", flip);
+    apiSetValue('flip-vertical', flip);
     setState((prevState) => ({ ...prevState, flip: flip }));
   };
 
+  const [cycleDurationInputState, setCycleDurationInputState] =
+    React.useState<string>('');
+
   const handleCycleDurationChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    let duration = +event.target.value;
-    if (duration < 0 || isNaN(duration)) {
-      duration = 0;
+    const duration = event.target.value;
+    if (duration === '' || isNaN(+duration) || +duration < 0) {
+      setCycleDurationInputState('Enter a valid duration (0 to disable)');
+    } else {
+      setCycleDurationInputState('');
+      apiSetValue('cycle-duration', +duration);
     }
-    apiSetValue("cycle-duration", duration);
     setState((prevState) => ({
       ...prevState,
       cycleDuration: duration,
     }));
   };
 
+  const [ethernetInterfaceInputState, setEthernetInterfaceInputState] =
+    React.useState<string>('');
+
   const handleEthernetInterfaceChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const eif = event.target.value;
-    apiSetValue("ethernet-interface", eif);
+    if (eif === '') {
+      setEthernetInterfaceInputState(
+        'Enter a valid interface name (e.g. eth0)'
+      );
+    } else {
+      setEthernetInterfaceInputState('');
+      apiSetValue('ethernet-interface', eif);
+    }
     setState((prevState) => ({ ...prevState, ethernetInterface: eif }));
   };
 
+  const [ethernetAddressInputState, setEthernetAddressInputState] =
+    React.useState<string>('');
+
   const handleEthernetAddressChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const eaddr = event.target.value;
-    apiSetValue("module0-address", eaddr);
-    setState((prevState) => ({ ...prevState, module0Address: eaddr }));
+    if (+state.module0Address === -1) {
+      setEthernetAddressInputState('Not configurable');
+      return;
+    }
+
+    if (eaddr === '' || isNaN(+eaddr) || +eaddr < 1 || +eaddr > 255) {
+      setEthernetAddressInputState('Enter a valid module address (e.g. 1)');
+    } else {
+      setEthernetAddressInputState('');
+      apiSetValue('module0-address', +eaddr);
+    }
+    if (+eaddr !== -1)
+      setState((prevState) => ({ ...prevState, module0Address: eaddr }));
   };
 
   const handleRestore = () => {
-    apiSet("restore");
+    apiSet('restore');
   };
 
   const handleReset = () => {
-    apiSet("reset");
+    apiSet('reset');
   };
 
   const handleReload = () => {
-    apiSet("reload");
+    apiSet('reload');
   };
 
   const getEnabledContent = () => {
@@ -130,14 +158,14 @@ export const SettingsPage = ({
       </InputLabel>
       <Box
         sx={{
-          border: "1px solid",
-          borderColor: "divider",
+          border: '1px solid',
+          borderColor: 'divider',
           borderRadius: 1,
           px: 1,
           py: 0,
-          minHeight: "16em",
-          maxHeight: "16em",
-          overflow: "auto",
+          minHeight: '16em',
+          maxHeight: '16em',
+          overflow: 'auto',
           mb: 3,
         }}
       >
@@ -154,7 +182,7 @@ export const SettingsPage = ({
                     disableRipple
                     checked={getEnabledContent().some(
                       (item: { index: number; name: string }) =>
-                        item.index === option.index,
+                        item.index === option.index
                     )}
                   />
                 </ListItemIcon>
@@ -162,7 +190,7 @@ export const SettingsPage = ({
               </ListItemButton>
             </ListItem>
           ))}
-        </List>{" "}
+        </List>{' '}
       </Box>
 
       <Stack
@@ -171,7 +199,7 @@ export const SettingsPage = ({
         direction="row"
         sx={{ mb: 8 }}
       >
-        <FormGroup sx={{ width: "100%", pt: 1 }}>
+        <FormGroup sx={{ width: '100%', pt: 1 }}>
           <FormControlLabel
             control={
               <Switch checked={state.flip} onChange={handleFlipChange} />
@@ -184,6 +212,8 @@ export const SettingsPage = ({
           label="Cycle duration (0 to disable)"
           value={state.cycleDuration}
           onChange={handleCycleDurationChange}
+          error={cycleDurationInputState !== ''}
+          helperText={cycleDurationInputState}
         />
       </Stack>
 
@@ -196,17 +226,21 @@ export const SettingsPage = ({
           label="Ethernet interface"
           value={state.ethernetInterface}
           onChange={handleEthernetInterfaceChange}
+          error={ethernetInterfaceInputState !== ''}
+          helperText={ethernetInterfaceInputState}
         />
         <TextField
           fullWidth
           label="Module address"
           value={
-            state.module0Address === "disabled"
-              ? "Not configurable"
+            +state.module0Address === -1
+              ? 'Not configurable'
               : state.module0Address
           }
           onChange={handleEthernetAddressChange}
-          disabled={state.module0Address === "disabled"}
+          disabled={+state.module0Address === -1}
+          error={ethernetAddressInputState !== ''}
+          helperText={ethernetAddressInputState}
         />
       </Stack>
 
@@ -221,8 +255,6 @@ export const SettingsPage = ({
           Reload server
         </Button>
       </Stack>
-
-      <Status ok={state.statusOk} message={state.statusMessage} />
     </>
   );
 };

@@ -1,5 +1,5 @@
-import { Box } from "@mui/material";
-import { rgbToHex } from "./color";
+import { Box } from '@mui/material';
+import { rgbToHex } from './color';
 
 interface ColorBoxProps {
   r: number;
@@ -14,7 +14,7 @@ export const ColorBox = ({ r, g, b }: ColorBoxProps) => {
     <Box
       sx={{
         mb: 4,
-        width: "100%",
+        width: '100%',
         height: 40,
         bgcolor: color,
         border: `1px solid ${border}`,

@@ -1,5 +1,5 @@
-import { Slider as MuiSlider, Stack } from "@mui/material";
-import * as React from "react";
+import { Slider as MuiSlider, Stack } from '@mui/material';
+import * as React from 'react';
 
 interface SliderProps {
   icon: React.ReactNode;
@@ -11,7 +11,7 @@ interface SliderProps {
   onChange: (
     event: Event,
     value: number | number[],
-    activeThumb: number,
+    activeThumb: number
   ) => void;
 }
 

@@ -106,6 +106,10 @@ public final class UIServer {
           response = getState();
           he.getResponseHeaders().set("Content-Type", CONTENT_TYPES.get("json"));
         }
+        case "get-status" -> {
+          response = getStatus();
+          he.getResponseHeaders().set("Content-Type", CONTENT_TYPES.get("json"));
+        }
         default -> {
           response = "Invalid parameter " + param;
           throw new IllegalArgumentException(response);
@@ -125,7 +129,6 @@ public final class UIServer {
   private String getState() {
     var availableContent = state.getAvailableContent().stream().map(content -> content.name).toList();
     var enabledContentIndices = state.getEnabledContentIndices().stream().boxed().collect(Collectors.toList());
-    var module0Address = state.getNumModules() == 1 ? state.getModule0Address() : "disabled";
     var result = String.format(
       """
       {
@@ -139,9 +142,7 @@ public final class UIServer {
           "flip-vertical": %b,
           "cycle-duration": %f,
           "ethernet-interface": "%s",
-          "module0-address": "%s",
-          "status-ok": %b,
-          "status-message": "%s"
+          "module0-address": "%d"
       }
       """,
       new JSONArray(availableContent),
@@ -154,11 +155,23 @@ public final class UIServer {
       state.isFlipVertical(),
       state.getCycleDuration(),
       state.getEthernetInterface(),
-      module0Address,
+      state.getModule0Address()
+    );
+    //Log.info(result);
+    return result;
+  }
+
+  private String getStatus() {
+    var result = String.format(
+      """
+      {
+          "status-ok": %b,
+          "status-message": "%s"
+      }
+      """,
       state.isStatusOk(),
       state.getStatusMessage()
     );
-    //Log.info(result);
     return result;
   }
 }

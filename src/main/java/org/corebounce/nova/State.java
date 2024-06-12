@@ -293,8 +293,9 @@ public final class State {
     this.ethernetInterface = ethernetInterface.isEmpty() ? CONFIG_DEFAULT_ETHERNET_INTERFACE : ethernetInterface;
   }
 
-  public String getModule0Address() {
-    return Integer.toString(moduleConfig[0][0]);
+  public int getModule0Address() {
+    if (getNumModules() == 1) return moduleConfig[0][0];
+    else return -1;
   }
 
   public void setModule0Address(String module0Address) {

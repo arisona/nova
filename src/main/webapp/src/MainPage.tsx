@@ -4,24 +4,23 @@ import {
   Settings,
   Speed,
   WbSunny,
-} from "@mui/icons-material";
+} from '@mui/icons-material';
 import {
   Autocomplete,
   IconButton,
   Stack,
   TextField,
   Typography,
-} from "@mui/material";
-import * as React from "react";
+} from '@mui/material';
+import * as React from 'react';
 
-import { NovaState } from "./App";
-import { ColorBox } from "./ColorBox";
-import { Slider } from "./Slider";
-import { apiSetValue } from "./api";
-import { hsvToRgb } from "./color";
+import { NovaState } from './App';
+import { ColorBox } from './ColorBox';
+import { Slider } from './Slider';
+import { apiSetValue } from './api';
+import { hsvToRgb } from './color';
 
-import { useNavigate } from "react-router-dom";
-import { Status } from "./Status";
+import { useNavigate } from 'react-router-dom';
 
 // icons: https://fonts.google.com/icons?icon.set=Material+Icons
 
@@ -35,14 +34,14 @@ export const MainPage = ({
   const navigate = useNavigate();
 
   const handleSettings = () => {
-    navigate("/settings");
+    navigate('/settings');
   };
 
   const handleContentChange = (
-    value: { index: number; name: string } | null,
+    value: { index: number; name: string } | null
   ) => {
     const index = value ? value.index : -1;
-    apiSetValue("selected-content-index", index);
+    apiSetValue('selected-content-index', index);
     setState((prevState) => ({
       ...prevState,
       selectedContentIndex: index,
@@ -51,9 +50,9 @@ export const MainPage = ({
 
   const handleBrightnessChange = (
     _event: Event,
-    newValue: number | number[],
+    newValue: number | number[]
   ) => {
-    apiSetValue("brightness", newValue as number);
+    apiSetValue('brightness', newValue as number);
     setState((prevState) => ({
       ...prevState,
       brightness: newValue as number,
@@ -61,15 +60,15 @@ export const MainPage = ({
   };
 
   const handleHueChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue("hue", newValue as number);
+    apiSetValue('hue', newValue as number);
     setState((prevState) => ({ ...prevState, hue: newValue as number }));
   };
 
   const handleSaturationChange = (
     _event: Event,
-    newValue: number | number[],
+    newValue: number | number[]
   ) => {
-    apiSetValue("saturation", newValue as number);
+    apiSetValue('saturation', newValue as number);
     setState((prevState) => ({
       ...prevState,
       saturation: newValue as number,
@@ -77,7 +76,7 @@ export const MainPage = ({
   };
 
   const handleSpeedChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue("speed", newValue as number);
+    apiSetValue('speed', newValue as number);
     setState((prevState) => ({
       ...prevState,
       speed: newValue as number,
@@ -86,7 +85,7 @@ export const MainPage = ({
 
   const getSelectedContent = () => {
     const selectedContent = state.enabledContent.find(
-      (value) => value.index === state.selectedContentIndex,
+      (value) => value.index === state.selectedContentIndex
     );
     return selectedContent ? selectedContent : null;
   };
@@ -160,8 +159,6 @@ export const MainPage = ({
         value={state.speed}
         onChange={handleSpeedChange}
       />
-
-      <Status ok={state.statusOk} message={state.statusMessage} />
     </>
   );
 };

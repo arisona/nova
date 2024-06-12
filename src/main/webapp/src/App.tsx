@@ -1,9 +1,10 @@
-import { Box, Container } from "@mui/material";
-import React from "react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
-import { MainPage } from "./MainPage";
-import { SettingsPage } from "./SettingsPage";
-import { apiGetState } from "./api";
+import { Box, Container } from '@mui/material';
+import React from 'react';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { MainPage } from './MainPage';
+import { SettingsPage } from './SettingsPage';
+import { apiGetState, apiGetStatus } from './api';
+import { Status } from './Status';
 
 export interface NovaState {
   availableContent: { index: number; name: string }[];
@@ -14,11 +15,9 @@ export interface NovaState {
   brightness: number;
   speed: number;
   flip: boolean;
-  cycleDuration: number;
+  cycleDuration: string;
   ethernetInterface: string;
   module0Address: string;
-  statusOk: boolean;
-  statusMessage: string;
 }
 
 export const defaultNovaState: NovaState = {
@@ -30,35 +29,39 @@ export const defaultNovaState: NovaState = {
   brightness: 0.5,
   speed: 0.5,
   flip: false,
-  cycleDuration: 0,
-  ethernetInterface: "eth0",
-  module0Address: "1",
+  cycleDuration: '0',
+  ethernetInterface: 'eth0',
+  module0Address: '1',
+};
+
+export interface NovaStatus {
+  statusOk: boolean;
+  statusMessage: string;
+}
+
+export const defaultNovaStatus: NovaStatus = {
   statusOk: false,
-  statusMessage: "Unkown error",
+  statusMessage: 'Unkown error',
 };
 
 const pollInterval = 500;
 
 export const App = () => {
   const [state, setState] = React.useState<NovaState>(defaultNovaState);
-  const stateRef = React.useRef(state);
+  const [status, setStatus] = React.useState<NovaStatus>(defaultNovaStatus);
 
   React.useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
-  const handleRefresh = () => {
-    apiGetState(stateRef.current).then((newState) => {
-      if (newState) {
-        setState(newState);
-      }
-    });
-  };
+    apiGetState().then((newState) => setState(newState));
+  }, []);
 
   React.useEffect(() => {
     const intervalId = setInterval(handleRefresh, pollInterval);
     return () => clearInterval(intervalId);
   }, []);
+
+  const handleRefresh = () => {
+    apiGetStatus().then((newStatus) => setStatus(newStatus));
+  };
 
   return (
     <Container maxWidth="sm">
@@ -76,6 +79,8 @@ export const App = () => {
           </Routes>
         </Router>
       </Box>
+
+      <Status ok={status.statusOk} message={status.statusMessage} />
     </Container>
   );
 };

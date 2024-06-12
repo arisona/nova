@@ -5,13 +5,13 @@ export function rgbToHex(r: number, g: number, b: number): string {
   const green = Math.round(g * 255);
   const blue = Math.round(b * 255);
 
-  return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}${blue.toString(16).padStart(2, "0")}`;
+  return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
 }
 
 export function hsvToRgb(
   h: number,
   s: number,
-  v: number,
+  v: number
 ): [number, number, number] {
   const i = Math.floor(h * 6);
   const f = h * 6 - i;
@@ -38,7 +38,7 @@ export function hsvToRgb(
 export function rgbToHsv(
   r: number,
   g: number,
-  b: number,
+  b: number
 ): [number, number, number] {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);

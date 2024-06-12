@@ -1,5 +1,5 @@
-import { CheckCircle, OfflineBolt } from "@mui/icons-material";
-import { Box, Stack, Typography } from "@mui/material";
+import { CheckCircle, OfflineBolt } from '@mui/icons-material';
+import { Box, Stack, Typography } from '@mui/material';
 
 interface StatusProps {
   ok: boolean;
@@ -11,8 +11,8 @@ export const Status = ({ ok, message }: StatusProps) => {
     <>
       <Box
         sx={{
-          border: "1px dashed",
-          borderColor: "divider",
+          border: '1px dashed',
+          borderColor: 'divider',
           mt: 3,
           mb: 3,
         }}
@@ -22,7 +22,7 @@ export const Status = ({ ok, message }: StatusProps) => {
         <Typography variant="body2" align="left">
           {message}
         </Typography>
-      </Stack>{" "}
+      </Stack>{' '}
     </>
   );
 };
