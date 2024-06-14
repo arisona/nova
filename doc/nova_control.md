@@ -6,7 +6,7 @@ The Nova control software is a Java application that controls the Nova hardware 
 
 ### Nova server
 
-The Nova server project is a Java project and can easily be imported into IDEs like Visual Studio Code or Eclipse for development. Jar files can be built from command line using Maven (`mvn install`). The application launches via `NovaControl.main()`, and and creates `settings.conf` containing default settings, that can later be edited by the user.
+The Nova server project is a Java project and can easily be imported into IDEs like Visual Studio Code (preferred) or Eclipse for development. Jar files can be built from command line using Maven (`mvn install`). The application launches via `NovaControl.main()`, and and creates `settings.conf` containing default settings, that can later be edited by the user.
 
 Requirements:
 

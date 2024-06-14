@@ -71,7 +71,15 @@ tar xzf openjdk-22.0.1_linux-aarch64_bin.tar.gz
 
 ### Nova software setup and configuration
 
-- Get and compile Nova code:
+- Get the Nova control software release build and the launch script:
+
+```
+cd /home/pi
+wget https://github.com/arisona/nova/releases/download/release_2_0_0/novacontrol-2.0.0-RELEASE.jar
+wget https://github.com/arisona/nova/releases/download/release_2_0_0/novaraspi.sh
+```
+
+- Alternatively, if you want to build from source, here is how to get and compile the Nova code:
 
 ```
 cd /home/pi
@@ -81,24 +89,13 @@ export JAVA_HOME=/home/pi/jdk-22.0.1/
 mvn install
 ```
 
-- Edit `config/nova.properties`. Importantly, set the correct Ethernet interface and the correct module setup for communication with Nova. Typically this will be as follows (depending on jumper setting on your module, see [here](nova_control.md)).
-
-```
-ethernet_interface=eth0
-address_0_0=1
-```
-
 ### Configure startup script and reboot
 
-- Edit /etc/rc.local (e.g. `sudo nano /etc/rc.local`), add (before `exit 0`):
+- Edit `/etc/rc.local` (e.g. `sudo nano /etc/rc.local`), add (before `exit 0`):
 
 ```
-export JAVA_HOME=/home/pi/jdk-22.0.1/
-cd /home/pi/nova
-./scripts/novaraspi.sh > /dev/null 2>&1 &
+sh /home/pi/novaraspi.sh > /dev/null 2>&1 &
 ```
-
-Again, you make sure to set `JDK_HOME` to point to the correct JDK path.
 
 - Plug in Nova via ethernet and reboot
 
@@ -106,5 +103,11 @@ Again, you make sure to set `JDK_HOME` to point to the correct JDK path.
 sudo shutdown -r now
 ```
 
-- After 10 seconds, the random lights should go on
+- After about a minute, the Nova should go on
 - Connect to web interface via your web browser: http://nova.local
+
+### Changing default options
+
+By default, the control software assumes `eth0` as ethernet interface to communicate, with one module connected and its jumper set to address 1. To change these settings, connect using the web app and adjust interface or module 0 address as needed.
+
+If you have multiple modules, the configuration need to be manually edited. After launching the Nova server once, you will find a file `settings.conf` in your home directory. Refer to the [settings example](doc/settings_example.txt) to find instructions to configure multiple modules.
