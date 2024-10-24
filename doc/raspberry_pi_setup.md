@@ -45,7 +45,7 @@ sudo reboot
 - Install required software:
 
 ```
-sudo apt-get install git libcap0.8 maven
+sudo apt-get install git libpcap0.8 maven
 ```
 
 ### Install OpenJDK 22 or later
