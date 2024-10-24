@@ -56,6 +56,7 @@ Note: once OpenJDK 22 or later becomes available via apt-get, you can install th
 - In terminal on your Raspberry Pi, issue commands (make sure to update latest link and package name):
 
 ```
+cd /home/pi
 wget https://download.java.net/java/GA/jdk22.0.1/c7ec1332f7bb44aeba2eb341ae18aca4/8/GPL/openjdk-22.0.1_linux-aarch64_bin.tar.gz
 tar xzf openjdk-22.0.1_linux-aarch64_bin.tar.gz
 ```
