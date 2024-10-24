@@ -34,13 +34,6 @@ sudo raspi-config
 
 ### Update and install software
 
-- Update the Raspberry Pi firmware (optional):
-
-```
-sudo rpi-update
-sudo reboot
-```
-
 - Update the Raspberry Pi:
 
 ```
