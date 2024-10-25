@@ -1,7 +1,10 @@
 module org.corebounce.nova {
-	requires java.logging;
-	requires jdk.httpserver;
-	requires org.json;
+  requires java.logging;
+  requires jdk.httpserver;
+  requires org.json;
 
-	uses org.jnetpcap.spi.PcapMessagesProvider;
+  // add this when switching back to Maven jnetpcap, and remove 'uses...' below
+  //requires org.jnetpcap;
+
+  uses org.jnetpcap.spi.PcapMessagesProvider;
 }
