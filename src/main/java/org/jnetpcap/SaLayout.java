@@ -247,16 +247,15 @@ enum SaLayout {
 	 * @param path     the path
 	 * @param elements the elements
 	 */
+	// patching this for JDK 23, see: https://github.com/slytechs-repos/jnetpcap-wrapper/pull/57/files
 	SaLayout(String path, PathElement... elements) {
-		PathElement[] parsed = path(path);
 		fullPaths = Stream.concat(Stream.of(path(path)), Stream.of(elements))
 				.toArray(PathElement[]::new);
 
 		if (path.endsWith(".last"))
 			this.varHandle = null;
 		else
-			this.varHandle = Initializer.SOCK_ADDR_LAYOUT.varHandle(fullPaths);
-
+			this.varHandle = Initializer.SOCK_ADDR_LAYOUT.select(fullPaths).varHandle();
 	}
 
 	/**
