@@ -13,7 +13,6 @@ import org.jnetpcap.PcapIf;
 
 public final class EnetInterface implements IConstants {
 
-  private static final String HEXTAB = "0123456789ABCDEF";
   private static final int SEND_DELAY = 0;
 
   private final PcapIf device;
@@ -38,7 +37,7 @@ public final class EnetInterface implements IConstants {
       int timeout = 1;
       pcap = Pcap.openLive(device, snaplen, true, timeout, TimeUnit.MILLISECONDS);
       if (pcap == null) {
-        throw new IOException("Could not open " + this);
+        throw new IOException("Could not open device " + this);
       }
 
       String expression = "ether proto " + PROT_SYNC + " and ether dst " + toEnet(addr) + " or ether broadcast";
@@ -89,7 +88,7 @@ public final class EnetInterface implements IConstants {
 
   @Override
   public String toString() {
-    return getName();
+    return getName() + " (" + toEnet(addr) + ")";
   }
 
   static EnetInterface getInterface(String name) throws IOException, PcapException {
@@ -103,15 +102,10 @@ public final class EnetInterface implements IConstants {
   }
 
   private static String toEnet(byte[] addr) {
-    StringBuilder result = new StringBuilder();
-    for (int i = 0; i < 6; i++) {
-      if (i != 0) {
-        result.append('-');
-      }
-      result.append(HEXTAB.charAt((addr[i] >> 4) & 0xF));
-      result.append(HEXTAB.charAt((addr[i]) & 0xF));
+    if (addr == null || addr.length != 6) {
+      throw new IllegalArgumentException("Invalid MAC address");
     }
-    return result.toString();
+    return String.format("%02x:%02x:%02x:%02x:%02x:%02x", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
   }
 
   private final class RxThread implements OfArray<LinkedBlockingQueue<byte[]>> {

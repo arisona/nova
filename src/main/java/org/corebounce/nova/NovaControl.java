@@ -42,7 +42,7 @@ public final class NovaControl implements IConstants {
     state = new State();
 
     device = EnetInterface.getInterface(state.getEthernetInterface());
-    Log.info("Using interface: " + device.getName());
+    Log.info("Using interface: " + device);
     device.open();
 
     try (DatagramSocket socket = new DatagramSocket()) {
