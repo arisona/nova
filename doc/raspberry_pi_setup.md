@@ -48,20 +48,20 @@ sudo reboot
 sudo apt-get install git libpcap0.8 maven
 ```
 
-### Install OpenJDK 22 or later
+### Install OpenJDK 23 or later
 
-Note: once OpenJDK 22 or later becomes available via apt-get, you can install the package via apt-get, and skip to the next section.
+Note: once OpenJDK 23 or later becomes available via apt-get, you can install the package via apt-get, and skip to the next section.
 
-- Get latest OpenJDK package via wget: go to https://jdk.java.net, select JDK 22 or later ("Ready for Use"), and copy link to Linux/AArch64 `.tar.gz` package.
+- Get latest OpenJDK package via wget: go to https://jdk.java.net, select JDK 23 or later ("Ready for Use"), and copy link to Linux/AArch64 `.tar.gz` package.
 - In terminal on your Raspberry Pi, issue commands (make sure to update latest link and package name):
 
 ```
 cd /home/pi
-wget https://download.java.net/java/GA/jdk22.0.1/c7ec1332f7bb44aeba2eb341ae18aca4/8/GPL/openjdk-22.0.1_linux-aarch64_bin.tar.gz
-tar xzf openjdk-22.0.1_linux-aarch64_bin.tar.gz
+wget https://download.java.net/java/GA/jdk23.0.1/c28985cbf10d4e648e4004050f8781aa/11/GPL/openjdk-23.0.1_linux-aarch64_bin.tar.gz
+tar xzf openjdk-23.0.1_linux-aarch64_bin.tar.gz
 ```
 
-- This will result in your JDK being unpacked in your home directory at `/home/pi/jdk-22.0.1` You will need this path later for the automatic startup. Again, the exact path will be different for later JDK versions.
+- This will result in your JDK being unpacked in your home directory at `/home/pi/jdk-23.0.1` You will need this path later for the automatic startup. Again, the exact path will be different for later JDK versions.
 
 ### Nova software setup and configuration
 
@@ -69,8 +69,8 @@ tar xzf openjdk-22.0.1_linux-aarch64_bin.tar.gz
 
 ```
 cd /home/pi
-wget https://github.com/arisona/nova/releases/download/release_2_0_0/novacontrol-2.0.0-RELEASE.jar
-wget https://github.com/arisona/nova/releases/download/release_2_0_0/novaraspi.sh
+wget https://github.com/arisona/nova/releases/download/release_2_1_0/novacontrol-2.1.0-RELEASE.jar
+wget https://github.com/arisona/nova/releases/download/release_2_1_0/novaraspi.sh
 ```
 
 - Alternatively, if you want to build from source, here is how to get and compile the Nova code:
@@ -79,12 +79,13 @@ wget https://github.com/arisona/nova/releases/download/release_2_0_0/novaraspi.s
 cd /home/pi
 git clone https://github.com/arisona/nova.git
 cd nova
-export JAVA_HOME=/home/pi/jdk-22.0.1/
+export JAVA_HOME=/home/pi/jdk-23.0.1/
 mvn install
 ```
 
 ### Configure startup script and reboot
 
+- Your `novaraspi.sh` script (either in `/home/pi` if you downloaded the release or `/home/pi/nova/scripts` if you cloned the repository) will require some adjustments depending on your JDK version.
 - Edit `/etc/rc.local` (e.g. `sudo nano /etc/rc.local`), add (before `exit 0`):
 
 ```
