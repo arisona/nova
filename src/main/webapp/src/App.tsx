@@ -41,14 +41,14 @@ export interface NovaStatus {
 
 export const defaultNovaStatus: NovaStatus = {
   statusOk: false,
-  statusMessage: 'Unkown error',
+  statusMessage: 'Unknown error',
 };
 
 const pollInterval = 500;
 
 export const App = () => {
-  const [state, setState] = React.useState<NovaState>(defaultNovaState);
-  const [status, setStatus] = React.useState<NovaStatus>(defaultNovaStatus);
+  const [state, setState] = React.useState(defaultNovaState);
+  const [status, setStatus] = React.useState(defaultNovaStatus);
 
   React.useEffect(() => {
     apiGetState().then((newState) => setState(newState));

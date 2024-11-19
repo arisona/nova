@@ -11,6 +11,8 @@ import '@fontsource/roboto/latin-400.css';
 import '@fontsource/roboto/latin-500.css';
 import '@fontsource/roboto/latin-700.css';
 
+import './main.css';
+
 import { App } from './App';
 
 // A custom theme for this app

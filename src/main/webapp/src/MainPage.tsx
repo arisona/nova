@@ -100,7 +100,7 @@ export const MainPage = ({
         alignItems="center"
         sx={{ mb: 2 }}
       >
-        <Typography variant="h3" component="h3" align="left">
+        <Typography variant="h6" align="left">
           NOVA
         </Typography>
         <Stack direction="row" alignItems="center">

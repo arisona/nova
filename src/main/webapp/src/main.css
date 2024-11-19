@@ -1,0 +1,7 @@
+body {
+  /* Apply user-select properties to disable text selection */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}

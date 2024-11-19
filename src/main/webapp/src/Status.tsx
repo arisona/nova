@@ -17,7 +17,12 @@ export const Status = ({ ok, message }: StatusProps) => {
           mb: 3,
         }}
       />
-      <Stack spacing={2} direction="row" alignItems="center" sx={{ mt: 2 }}>
+      <Stack
+        spacing={2}
+        direction="row"
+        alignItems="center"
+        sx={{ mt: 2, mb: 2 }}
+      >
         {ok ? <CheckCircle /> : <OfflineBolt />}
         <Typography variant="body2" align="left">
           {message}

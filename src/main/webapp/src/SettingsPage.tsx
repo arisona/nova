@@ -143,7 +143,7 @@ export const SettingsPage = ({
         alignItems="center"
         sx={{ mb: 2 }}
       >
-        <Typography variant="h3" component="h3" align="left">
+        <Typography variant="h6" align="left">
           SETTINGS
         </Typography>
         <Stack direction="row">
