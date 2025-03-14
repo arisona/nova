@@ -1,10 +1,19 @@
-target/
-node_modules/
-3dd/
+# Frontend dependencies
+frontend/node_modules/
+
+# Rust build output
+backend-rust/target/
+backend-rust/src/static
+
+# Java build output (to be removed)
+backend-java/target/
+backend-java/.idea/
+backend-java/.classpath
+backend-java/.project
+backend-java/.settings/
+
+# NOVA configuration files
 settings.conf
-dependency-reduced-pom.xml
-.classpath
-.project
-.settings/
-.vscode/
+
+# macOS specific files
 .DS_Store

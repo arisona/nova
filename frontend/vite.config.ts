@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
 
   build: {
-    outDir: '../resources/www',
+    outDir: '../backend-rust/src/static',
     emptyOutDir: true,
     rollupOptions: {
       output: {
