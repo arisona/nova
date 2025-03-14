@@ -7,7 +7,7 @@
 
     <groupId>org.corebounce.nova</groupId>
     <artifactId>novacontrol</artifactId>
-    <version>2.1.0-RELEASE</version>
+    <version>2.1.1-SNAPSHOT</version>
 
     <name>novacontrol</name>
     <url>https://github.com/arisona/nova</url>

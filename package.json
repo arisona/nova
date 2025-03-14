@@ -5,6 +5,6 @@
   "description": "Nova Java Server Application",
   "scripts": {},
   "devDependencies": {
-    "prettier-plugin-java": "^2.6.0"
+    "prettier-plugin-java": "^2.6.7"
   }
 }
