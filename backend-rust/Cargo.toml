@@ -6,3 +6,12 @@ edition = "2024"
 [dependencies]
 actix-web = "4"
 actix-files = "0.6"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+
+macroquad = { version = "0.4", optional = true }
+
+[features]
+# Comment out the following line if you want to use the Nova hardware
+default = ["use_simulator"]
+use_simulator = ["macroquad"]

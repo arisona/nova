@@ -12,7 +12,8 @@ backend-java/.classpath
 backend-java/.project
 backend-java/.settings/
 
-# NOVA configuration files
+# Nova configuration files
+backend-rust/nova_settings.json
 settings.conf
 
 # macOS specific files
