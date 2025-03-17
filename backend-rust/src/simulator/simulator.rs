@@ -1,41 +1,250 @@
-#![cfg(feature = "use_simulator")]
-
 use std::sync::{Arc, Mutex};
 
-use macroquad::miniquad::conf::Icon;
-use macroquad::prelude::*;
+use glam::{Mat3, Mat4, Vec3, Vec4, vec3};
+use miniquad::*;
 
 use super::super::app_state::AppState;
 use super::super::renderer::renderer::Renderer;
+use super::super::renderer::voxel_image::VoxelImage;
 
-pub fn window_conf() -> Conf {
-    Conf {
-        window_title: "Nova Simulator".to_owned(),
-        window_width: 720,
-        window_height: 720,
-        icon: Some(Icon {
-            small: [128; 1024],
-            medium: [128; 4096],
-            big: [128; 16384],
-        }),
+pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
+    println!("Starting Nova simulator.");
+
+    miniquad::start(conf(), move || Box::new(Stage::new(state, renderer)));
+}
+
+const DX: usize = 5;
+const DY: usize = 10;
+const DZ: usize = 5;
+
+struct Stage {
+    state: Arc<Mutex<AppState>>,
+    renderer: Renderer,
+
+    ctx: Box<dyn RenderingBackend>,
+
+    pipeline: Pipeline,
+    bindings: Bindings,
+
+    instances: Vec<(f32, f32, f32, f32, f32, f32, f32)>,
+    ry: f32,
+}
+
+impl Stage {
+    pub fn new(state: Arc<Mutex<AppState>>, renderer: Renderer) -> Stage {
+        let mut ctx: Box<dyn RenderingBackend> = window::new_rendering_backend();
+
+        let r = 1.0;
+        #[rustfmt::skip]
+        let vertices: &[f32] = &[
+            -r, -r, 0.0,
+             r, -r, 0.0,
+             r,  r, 0.0,
+            -r,  r, 0.0,
+        ];
+        // vertex buffer for static geometry
+        let geometry_vertex_buffer = ctx.new_buffer(
+            BufferType::VertexBuffer,
+            BufferUsage::Immutable,
+            BufferSource::slice(&vertices),
+        );
+
+        #[rustfmt::skip]
+        let indices: &[u32] = &[
+            0, 1, 2,
+            0, 2, 3,
+        ];
+        let index_buffer = ctx.new_buffer(
+            BufferType::IndexBuffer,
+            BufferUsage::Immutable,
+            BufferSource::slice(&indices),
+        );
+
+        // empty, dynamic instance data vertex buffer
+        let instance_vertex_buffer = ctx.new_buffer(
+            BufferType::VertexBuffer,
+            BufferUsage::Stream,
+            BufferSource::empty::<u8>(28 * DX * DY * DZ),
+        );
+
+        let bindings = Bindings {
+            vertex_buffers: vec![geometry_vertex_buffer, instance_vertex_buffer],
+            index_buffer: index_buffer,
+            images: vec![],
+        };
+
+        let shader = ctx
+            .new_shader(
+                match ctx.info().backend {
+                    Backend::OpenGl => ShaderSource::Glsl {
+                        vertex: shader::VERTEX,
+                        fragment: shader::FRAGMENT,
+                    },
+                    Backend::Metal => ShaderSource::Msl {
+                        program: shader::METAL,
+                    },
+                },
+                shader::meta(),
+            )
+            .unwrap();
+
+        let pipeline = ctx.new_pipeline(
+            &[
+                BufferLayout::default(),
+                BufferLayout {
+                    step_func: VertexStep::PerInstance,
+                    ..Default::default()
+                },
+            ],
+            &[
+                VertexAttribute::with_buffer("in_pos", VertexFormat::Float3, 0),
+                VertexAttribute::with_buffer("in_inst_pos", VertexFormat::Float3, 1),
+                VertexAttribute::with_buffer("in_inst_color", VertexFormat::Float4, 1),
+            ],
+            shader,
+            PipelineParams {
+                depth_write: true,
+                depth_test: Comparison::Less,
+                ..Default::default()
+            },
+        );
+
+        Stage {
+            state,
+            renderer,
+            ctx,
+            pipeline,
+            bindings,
+            instances: Vec::with_capacity(DX * DY * DZ),
+            ry: 0.0,
+        }
+    }
+}
+
+impl EventHandler for Stage {
+    fn update(&mut self) {
+        let frame_time = 1. / 60.;
+        let rot = Mat3::from_rotation_y(self.ry);
+        self.ry += 0.001;
+
+        // create grid
+        self.instances.clear();
+        for x in 0..DX {
+            for y in 0..DY {
+                for z in 0..DZ {
+                    let p = 4.0
+                        * rot
+                        * vec3(
+                            x as f32 - (DX as f32 - 1.0) / 2.0,
+                            y as f32 - (DY as f32 - 1.0) / 2.0,
+                            z as f32 - (DZ as f32 - 1.0) / 2.0,
+                        );
+                    let c = Vec4 {
+                        x: x as f32 / DX as f32,
+                        y: y as f32 / DY as f32,
+                        z: z as f32 / DZ as f32,
+                        w: 1.0,
+                    };
+                    self.instances.push((p.x, p.y, p.z, c.x, c.y, c.z, c.w));
+                }
+            }
+        }
+    }
+
+    fn draw(&mut self) {
+        // by default glam-rs can vec3 as u128 or #[reprc(C)](f32, f32, f32). need to ensure that the second option was used
+        assert_eq!(std::mem::size_of::<Vec3>(), 12);
+
+        self.ctx.buffer_update(
+            self.bindings.vertex_buffers[1],
+            BufferSource::slice(&self.instances[..]),
+        );
+
+        // model-view-projection matrix
+        let (width, height) = window::screen_size();
+
+        let proj = Mat4::perspective_rh_gl(60.0f32.to_radians(), width / height, 0.01, 100.0);
+        let view = Mat4::look_at_rh(
+            vec3(0.0, 5.0, 50.0),
+            vec3(0.0, 0.0, 0.0),
+            vec3(0.0, 1.0, 0.0),
+        );
+
+        self.ctx.begin_default_pass(Default::default());
+
+        self.ctx.apply_pipeline(&self.pipeline);
+        self.ctx.apply_bindings(&self.bindings);
+        self.ctx
+            .apply_uniforms(UniformsSource::table(&shader::Uniforms { view, proj }));
+        self.ctx.draw(0, 6, self.instances.len() as i32);
+        self.ctx.end_render_pass();
+
+        self.ctx.commit_frame();
+    }
+}
+
+fn conf() -> conf::Conf {
+    conf::Conf {
+        window_title: "Nova Simulator".to_string(),
+        window_width: 1024,
+        window_height: 768,
         ..Default::default()
     }
 }
 
-pub async fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Arc<Renderer>) {
-    println!("Starting GPU simulator.");
+mod shader {
+    use miniquad::*;
 
-    loop {
-        clear_background(BLACK);
+    pub const VERTEX: &str = r#"#version 100
+    attribute vec3 in_pos;
+    attribute vec3 in_inst_pos;
+    attribute vec4 in_inst_color;
 
-        set_camera(&Camera3D {
-            position: vec3(-20., 15., 0.),
-            up: vec3(0., 1., 0.),
-            target: vec3(0., 0., 0.),
-            ..Default::default()
-        });
+    varying lowp vec4 color;
+    varying mediump vec2 frag_uv;
 
-        draw_grid(20, 1., BLACK, GRAY);
-        next_frame().await
+    uniform mat4 view;
+    uniform mat4 proj;
+
+    void main() {
+        vec4 pos = vec4(in_pos + in_inst_pos, 1.0);
+        gl_Position = proj * view * pos;
+        frag_uv = in_pos.xy * 0.5 + 0.5;
+        color = in_inst_color;
+    }
+    "#;
+
+    pub const FRAGMENT: &str = r#"#version 100
+    precision mediump float;
+
+    varying lowp vec4 color;
+    varying mediump vec2 frag_uv;
+
+    void main() {
+        float dist = length(frag_uv - vec2(0.5, 0.5));
+        if (dist > 0.5) discard; // Discard pixels outside the circle
+        gl_FragColor = color;
+    }
+    "#;
+
+    // metal currently not supported
+    pub const METAL: &str = "";
+
+    pub fn meta() -> ShaderMeta {
+        ShaderMeta {
+            images: vec![],
+            uniforms: UniformBlockLayout {
+                uniforms: vec![
+                    UniformDesc::new("view", UniformType::Mat4),
+                    UniformDesc::new("proj", UniformType::Mat4),
+                ],
+            },
+        }
+    }
+
+    #[repr(C)]
+    pub struct Uniforms {
+        pub view: glam::Mat4,
+        pub proj: glam::Mat4,
     }
 }

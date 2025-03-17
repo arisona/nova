@@ -1,17 +1,15 @@
-#![cfg(not(feature = "use_simulator"))]
-
 use std::sync::{Arc, Mutex};
 
 use super::super::app_state::AppState;
 use super::super::renderer::renderer::Renderer;
 use super::super::renderer::voxel_image::VoxelImage;
 
-pub fn run_nova_hardware(state: Arc<Mutex<AppState>>, renderer: Arc<Renderer>) {
+pub fn run_nova_hardware(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     println!("Starting Nova hardware driver.");
 
     let frame_duration = std::time::Duration::from_millis(40); // 25 frames per second
 
-    let mut image = VoxelImage::new(8, 8, 8);
+    let mut image = VoxelImage::new(5, 5, 10);
     let mut time = std::time::Instant::now();
     loop {
         {
