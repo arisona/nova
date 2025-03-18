@@ -1,5 +1,5 @@
 pub struct VoxelImage {
-    data: Vec<f32>, // Stores RGB values in a flat layout
+    data: Vec<f32>, // Store RGB values in a flat layout
     dx: usize,
     dy: usize,
     dz: usize,
@@ -8,7 +8,7 @@ pub struct VoxelImage {
 impl VoxelImage {
     pub fn new(dx: usize, dy: usize, dz: usize) -> Self {
         Self {
-            data: vec![0.0; dx * dy * dz * 3], // Initialize with zeros
+            data: vec![0.0; dx * dy * dz * 3],
             dx,
             dy,
             dz,
@@ -20,27 +20,23 @@ impl VoxelImage {
     }
 
     pub fn dy(&self) -> usize {
-        self.dx
+        self.dy
     }
 
     pub fn dz(&self) -> usize {
-        self.dx
+        self.dz
     }
 
     pub fn get(&self, x: usize, y: usize, z: usize) -> (f32, f32, f32) {
         let index = (z * self.dx * self.dy + y * self.dx + x) * 3;
-        (
-            self.data[index],     // R
-            self.data[index + 1], // G
-            self.data[index + 2], // B
-        )
+        (self.data[index], self.data[index + 1], self.data[index + 2])
     }
 
     pub fn set(&mut self, x: usize, y: usize, z: usize, color: (f32, f32, f32)) {
         let index = (z * self.dx * self.dy + y * self.dx + x) * 3;
-        self.data[index] = color.0; // R
-        self.data[index + 1] = color.1; // G
-        self.data[index + 2] = color.2; // B
+        self.data[index] = color.0;
+        self.data[index + 1] = color.1;
+        self.data[index + 2] = color.2;
     }
 
     pub fn clear(&mut self) {
@@ -49,9 +45,57 @@ impl VoxelImage {
 
     pub fn fill(&mut self, color: (f32, f32, f32)) {
         self.data.chunks_exact_mut(3).for_each(|chunk| {
-            chunk[0] = color.0; // R
-            chunk[1] = color.1; // G
-            chunk[2] = color.2; // B
+            chunk[0] = color.0;
+            chunk[1] = color.1;
+            chunk[2] = color.2;
         });
     }
+}
+
+pub fn rgb_to_hsb(rgb: (f32, f32, f32)) -> (f32, f32, f32) {
+    let (r, g, b) = rgb;
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let delta = max - min;
+
+    let h = if delta == 0.0 {
+        0.0
+    } else if max == r {
+        60.0 * (((g - b) / delta) % 6.0)
+    } else if max == g {
+        60.0 * (((b - r) / delta) + 2.0)
+    } else {
+        60.0 * (((r - g) / delta) + 4.0)
+    };
+
+    let h = if h < 0.0 { h + 360.0 } else { h };
+    let s = if max == 0.0 { 0.0 } else { delta / max };
+    let b = max;
+
+    (h, s, b)
+}
+
+pub(crate) fn hsb_to_rgb(hsb: (f32, f32, f32)) -> (f32, f32, f32) {
+    let (h, s, b) = hsb;
+    let h = h * 360.0;
+
+    let c = b * s;
+    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+    let m = b - c;
+
+    let (r, g, b) = if h < 60.0 {
+        (c, x, 0.0)
+    } else if h < 120.0 {
+        (x, c, 0.0)
+    } else if h < 180.0 {
+        (0.0, c, x)
+    } else if h < 240.0 {
+        (0.0, x, c)
+    } else if h < 300.0 {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
+
+    (r + m, g + m, b + m)
 }

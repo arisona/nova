@@ -1,11 +1,12 @@
 use std::sync::{Arc, Mutex};
 
 use glam::{Mat3, Mat4, Vec3, Vec4, vec3};
+use miniquad::conf::Icon;
 use miniquad::*;
 
-use super::super::app_state::AppState;
-use super::super::renderer::renderer::Renderer;
-use super::super::renderer::voxel_image::VoxelImage;
+use crate::app_state::AppState;
+use crate::renderer::renderer::Renderer;
+use crate::renderer::voxel_image::VoxelImage;
 
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     println!("Starting Nova simulator.");
@@ -14,12 +15,13 @@ pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
 }
 
 const DX: usize = 5;
-const DY: usize = 10;
-const DZ: usize = 5;
+const DY: usize = 5;
+const DZ: usize = 10;
 
 struct Stage {
     state: Arc<Mutex<AppState>>,
     renderer: Renderer,
+    image: VoxelImage,
 
     ctx: Box<dyn RenderingBackend>,
 
@@ -27,7 +29,7 @@ struct Stage {
     bindings: Bindings,
 
     instances: Vec<(f32, f32, f32, f32, f32, f32, f32)>,
-    ry: f32,
+    rot: f32,
 }
 
 impl Stage {
@@ -109,40 +111,48 @@ impl Stage {
             },
         );
 
+        let image = VoxelImage::new(DX, DY, DZ);
+
         Stage {
             state,
             renderer,
+            image,
             ctx,
             pipeline,
             bindings,
             instances: Vec::with_capacity(DX * DY * DZ),
-            ry: 0.0,
+            rot: 0.0,
         }
     }
 }
 
 impl EventHandler for Stage {
     fn update(&mut self) {
-        let frame_time = 1. / 60.;
-        let rot = Mat3::from_rotation_y(self.ry);
-        self.ry += 0.001;
+        let delta_time: f32 = 1.0 / 60.0;
+        let rot = Mat3::from_rotation_y(self.rot);
+        self.rot += 0.001;
+
+        let state = &self.state.lock().unwrap();
+        self.renderer.update(state);
+        self.renderer.render(state, &mut self.image, delta_time);
 
         // create grid
         self.instances.clear();
         for x in 0..DX {
             for y in 0..DY {
                 for z in 0..DZ {
-                    let p = 4.0
-                        * rot
-                        * vec3(
-                            x as f32 - (DX as f32 - 1.0) / 2.0,
-                            y as f32 - (DY as f32 - 1.0) / 2.0,
-                            z as f32 - (DZ as f32 - 1.0) / 2.0,
-                        );
+                    let p = vec3(
+                        x as f32 - (DX as f32 - 1.0) / 2.0,
+                        y as f32 - (DY as f32 - 1.0) / 2.0,
+                        z as f32 - (DZ as f32 - 1.0) / 2.0,
+                    );
+                    let p = vec3(p.x, p.z, -p.y); // convert z-up to y-up
+                    let p = 4.0 * rot * p;
+                    let rgb = self.image.get(x, y, z);
                     let c = Vec4 {
-                        x: x as f32 / DX as f32,
-                        y: y as f32 / DY as f32,
-                        z: z as f32 / DZ as f32,
+                        x: rgb.0,
+                        y: rgb.1,
+                        z: rgb.2,
                         w: 1.0,
                     };
                     self.instances.push((p.x, p.y, p.z, c.x, c.y, c.z, c.w));
@@ -188,6 +198,11 @@ fn conf() -> conf::Conf {
         window_title: "Nova Simulator".to_string(),
         window_width: 1024,
         window_height: 768,
+        icon: Some(Icon {
+            small: [128; 16 * 16 * 4],
+            medium: [128; 32 * 32 * 4],
+            big: [128; 64 * 64 * 4],
+        }),
         ..Default::default()
     }
 }

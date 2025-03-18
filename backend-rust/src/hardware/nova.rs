@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use super::super::app_state::AppState;
-use super::super::renderer::renderer::Renderer;
-use super::super::renderer::voxel_image::VoxelImage;
+use crate::app_state::AppState;
+use crate::renderer::renderer::Renderer;
+use crate::renderer::voxel_image::VoxelImage;
 
 pub fn run_nova_hardware(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     println!("Starting Nova hardware driver.");
@@ -15,7 +15,7 @@ pub fn run_nova_hardware(state: Arc<Mutex<AppState>>, renderer: Renderer) {
         {
             let now = std::time::Instant::now();
             let delta = now.duration_since(time);
-            renderer.render_frame(&state.lock().unwrap(), &mut image, delta.as_secs_f32());
+            renderer.render(&state.lock().unwrap(), &mut image, delta.as_secs_f32());
             time = std::time::Instant::now();
         }
         // TODO: we need to compensate the time used for rendering here

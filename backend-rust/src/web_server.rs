@@ -4,7 +4,7 @@ use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use super::app_state::AppState;
+use crate::app_state::AppState;
 
 #[get("/api/get-state")]
 async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
@@ -13,27 +13,27 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
 
     // do not expose all fields to client
     HttpResponse::Ok().json(serde_json::json!({
-        "available-content": state.available_content,
-        "enabled-content-indices": state.enabled_content_indices,
-        "selected-content-index": state.selected_content_index,
-        "hue": state.hue,
-        "saturation": state.saturation,
-        "brightness": state.brightness,
-        "speed": state.speed,
-        "flip-vertical": state.flip_vertical,
-        "cycle-duration": state.cycle_duration,
-        "ethernet-interface": state.ethernet_interface,
-        "module0-address": state.module0_address,
+        "available-content": state.available_content(),
+        "enabled-content-indices": state.enabled_content_indices(),
+        "selected-content-index": state.selected_content_index(),
+        "hue": state.hue(),
+        "saturation": state.saturation(),
+        "brightness": state.brightness(),
+        "speed": state.speed(),
+        "flip-vertical": state.flip_vertical(),
+        "cycle-duration": state.cycle_duration(),
+        "ethernet-interface": state.ethernet_interface(),
+        "module0-address": state.module0_address(),
     }))
 }
 
 #[get("/api/get-status")]
 async fn get_status(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
     println!("get_status");
-    let state = data.lock().unwrap();
+    let status = data.lock().unwrap().status();
     HttpResponse::Ok().json(serde_json::json!({
-        "status-ok": state.status_ok,
-        "status-message": state.status_message,
+        "status-ok": status.0,
+        "status-message": status.1,
     }))
 }
 
@@ -51,18 +51,46 @@ async fn command(
             "available-content" => {}
             "enabled-content-indices" => {}
             "selected-content-index" => {
-                state.selected_content_index = value.parse().unwrap_or(state.selected_content_index)
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_selected_content_index(parsed_value);
+                }
             }
-            "hue" => state.hue = value.parse().unwrap_or(state.hue),
-            "saturation" => state.saturation = value.parse().unwrap_or(state.saturation),
-            "brightness" => state.brightness = value.parse().unwrap_or(state.brightness),
-            "speed" => state.speed = value.parse().unwrap_or(state.speed),
-            "flip-vertical" => state.flip_vertical = value.parse().unwrap_or(state.flip_vertical),
+            "hue" => {
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_hue(parsed_value);
+                }
+            }
+            "saturation" => {
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_saturation(parsed_value);
+                }
+            }
+            "brightness" => {
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_brightness(parsed_value);
+                }
+            }
+            "speed" => {
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_speed(parsed_value);
+                }
+            }
+            "flip-vertical" => {
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_flip_vertical(parsed_value);
+                }
+            }
             "cycle-duration" => {
-                state.cycle_duration = value.parse().unwrap_or(state.cycle_duration)
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_cycle_duration(parsed_value);
+                }
             }
-            "ethernet-interface" => state.ethernet_interface = value.to_string(),
-            "module0-address" => state.module0_address = value.to_string(),
+            "ethernet-interface" => {
+                state.set_ethernet_interface(value.to_string());
+            }
+            "module0-address" => {
+                state.set_module0_address(value.to_string());
+            }
             _ => {
                 return HttpResponse::NotFound();
             }
@@ -93,7 +121,7 @@ pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
     // we are running the web server in a separate thread, so we can still use the main thread for the simulator
     thread::spawn(|| {
         let sys = actix_web::rt::System::new();
-        let port = state.lock().unwrap().port;
+        let port = state.lock().unwrap().webserver_port();
         let address = format!("0.0.0.0:{port}");
 
         println!("Starting web server at http://localhost:{port}/");

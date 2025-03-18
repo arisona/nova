@@ -1,4 +1,6 @@
-use super::super::renderer::voxel_image::VoxelImage;
+use crate::app_state::AppState;
+use crate::renderer::voxel_image::VoxelImage;
+use crate::renderer::voxel_image::hsb_to_rgb;
 pub struct Fill {}
 
 impl super::content::Content for Fill {
@@ -6,11 +8,17 @@ impl super::content::Content for Fill {
         "Fill".to_string()
     }
 
-    fn configure(&self, _dimensions: (u32, u32, u32)) {
+    fn reset(&self, state: &AppState) {
         println!("Fill.configure");
     }
 
-    fn render(&self, image: VoxelImage) {
-        println!("Fill.render");
+    fn update(&self, state: &AppState) {
+        //println!("Fill.update");
+    }
+
+    fn render(&self, state: &AppState, image: &mut VoxelImage, delta: f32) {
+        //println!("Fill.render");
+        let rgb = hsb_to_rgb((state.hue(), state.saturation(), state.brightness()));
+        image.fill(rgb);
     }
 }
