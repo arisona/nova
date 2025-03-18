@@ -10,7 +10,7 @@ mod web_server;
 const USE_NOVA_HARDWARE: bool = false;
 fn main() {
     let state = Arc::new(Mutex::new(app_state::AppState::load()));
-    //println!("Using settings:\n{:#?}", *state.lock().unwrap());
+    println!("Using settings:\n{:#?}", *state.lock().unwrap());
 
     web_server::run_server(state.clone());
 

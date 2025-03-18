@@ -89,7 +89,9 @@ async fn command(
                 state.set_ethernet_interface(value.to_string());
             }
             "module0-address" => {
-                state.set_module0_address(value.to_string());
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_module0_address(parsed_value);
+                }
             }
             _ => {
                 return HttpResponse::NotFound();

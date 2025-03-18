@@ -1,15 +1,28 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+
+use pcap::Device;
 
 use crate::app_state::AppState;
 use crate::renderer::renderer::Renderer;
 use crate::renderer::voxel_image::VoxelImage;
 
-pub fn run_nova_hardware(state: Arc<Mutex<AppState>>, renderer: Renderer) {
+static RUNNING: AtomicBool = AtomicBool::new(false);
+
+pub fn run_nova_hardware(state: Arc<Mutex<AppState>>, mut renderer: Renderer) {
     println!("Starting Nova hardware driver.");
+
+    if RUNNING.swap(true, Ordering::Relaxed) {
+        println!("Nova hardware driver already running.");
+        return;
+    }
 
     let frame_duration = std::time::Duration::from_millis(40); // 25 frames per second
 
-    let mut image = VoxelImage::new(5, 5, 10);
+    let mut ethernet_interface: String = String::new();
+    let mut module0_address: String = String::new();
+
+    let mut image = VoxelImage::new(state.lock().unwrap().dim());
     let mut time = std::time::Instant::now();
     loop {
         {

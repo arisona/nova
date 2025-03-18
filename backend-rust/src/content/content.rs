@@ -4,7 +4,6 @@ use crate::renderer::voxel_image::VoxelImage;
 pub trait Content {
     fn name(&self) -> String;
     fn reset(&self, state: &AppState);
-    fn update(&self, state: &AppState);
     fn render(&self, state: &AppState, image: &mut VoxelImage, delta: f32);
 }
 

@@ -6,12 +6,12 @@ pub struct VoxelImage {
 }
 
 impl VoxelImage {
-    pub fn new(dx: usize, dy: usize, dz: usize) -> Self {
+    pub fn new(dim: (usize, usize, usize)) -> Self {
         Self {
-            data: vec![0.0; dx * dy * dz * 3],
-            dx,
-            dy,
-            dz,
+            data: vec![0.0; dim.0 * dim.1 * dim.2 * 3],
+            dx: dim.0,
+            dy: dim.1,
+            dz: dim.2,
         }
     }
 

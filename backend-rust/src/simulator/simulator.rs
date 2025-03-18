@@ -19,10 +19,6 @@ pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     miniquad::start(conf(), move || Box::new(Stage::new(state, renderer)));
 }
 
-const DX: usize = 5;
-const DY: usize = 5;
-const DZ: usize = 10;
-
 struct Stage {
     state: Arc<Mutex<AppState>>,
     renderer: Renderer,
@@ -35,10 +31,11 @@ struct Stage {
 
     instances: Vec<(f32, f32, f32, f32, f32, f32, f32)>,
     rot: f32,
+    distance_factor: f32,
 }
 
 impl Stage {
-    pub fn new(state: Arc<Mutex<AppState>>, renderer: Renderer) -> Stage {
+    pub fn new(state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
         let mut ctx: Box<dyn RenderingBackend> = window::new_rendering_backend();
 
         let r = 1.0;
@@ -68,6 +65,9 @@ impl Stage {
         );
 
         // empty, dynamic instance data vertex buffer
+        const DX: usize = AppState::MODULE_X_RES * AppState::MODULE_GRID_MAX;
+        const DY: usize = AppState::MODULE_Y_RES * AppState::MODULE_GRID_MAX;
+        const DZ: usize = AppState::MODULE_Z_RES;
         let instance_vertex_buffer = ctx.new_buffer(
             BufferType::VertexBuffer,
             BufferUsage::Stream,
@@ -116,7 +116,7 @@ impl Stage {
             },
         );
 
-        let image = VoxelImage::new(DX, DY, DZ);
+        let image = VoxelImage::new(state.lock().unwrap().dim());
 
         Stage {
             state,
@@ -127,6 +127,7 @@ impl Stage {
             bindings,
             instances: Vec::with_capacity(DX * DY * DZ),
             rot: 0.0,
+            distance_factor: 1.0,
         }
     }
 }
@@ -138,18 +139,20 @@ impl EventHandler for Stage {
         self.rot += 0.001;
 
         let state = &self.state.lock().unwrap();
-        self.renderer.update(state);
         self.renderer.render(state, &mut self.image, delta_time);
 
         // create grid
+        let dx = state.dim().0;
+        let dy = state.dim().1;
+        let dz = state.dim().2;
         self.instances.clear();
-        for x in 0..DX {
-            for y in 0..DY {
-                for z in 0..DZ {
+        for x in 0..dx {
+            for y in 0..dy {
+                for z in 0..dz {
                     let p = vec3(
-                        x as f32 - (DX as f32 - 1.0) / 2.0,
-                        y as f32 - (DY as f32 - 1.0) / 2.0,
-                        z as f32 - (DZ as f32 - 1.0) / 2.0,
+                        x as f32 - (dx as f32 - 1.0) / 2.0,
+                        y as f32 - (dy as f32 - 1.0) / 2.0,
+                        z as f32 - (dz as f32 - 1.0) / 2.0,
                     );
                     let p = vec3(p.x, p.z, -p.y); // convert z-up to y-up
                     let p = 4.0 * rot * p;
@@ -164,6 +167,7 @@ impl EventHandler for Stage {
                 }
             }
         }
+        self.distance_factor = (dx as f32).max(dy as f32) / 5.0;
     }
 
     fn draw(&mut self) {
@@ -178,9 +182,9 @@ impl EventHandler for Stage {
         // model-view-projection matrix
         let (width, height) = window::screen_size();
 
-        let proj = Mat4::perspective_rh_gl(60.0f32.to_radians(), width / height, 0.01, 100.0);
+        let proj = Mat4::perspective_rh_gl(60.0f32.to_radians(), width / height, 0.01, 1000.0);
         let view = Mat4::look_at_rh(
-            vec3(0.0, 5.0, 50.0),
+            vec3(0.0, 5.0 * self.distance_factor, 50.0 * self.distance_factor),
             vec3(0.0, 0.0, 0.0),
             vec3(0.0, 1.0, 0.0),
         );

@@ -11,10 +11,6 @@ impl super::content::Content for Ramp {
         println!("Ramp.reset");
     }
 
-    fn update(&self, state: &AppState) {
-        //println!("Ramp.update");
-    }
-
     fn render(&self, state: &AppState, image: &mut VoxelImage, delta: f32) {
         //println!("Ramp.render");
         for x in 0..image.dx() {

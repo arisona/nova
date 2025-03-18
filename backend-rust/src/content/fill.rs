@@ -12,10 +12,6 @@ impl super::content::Content for Fill {
         println!("Fill.configure");
     }
 
-    fn update(&self, state: &AppState) {
-        //println!("Fill.update");
-    }
-
     fn render(&self, state: &AppState, image: &mut VoxelImage, delta: f32) {
         //println!("Fill.render");
         let rgb = hsb_to_rgb((state.hue(), state.saturation(), state.brightness()));
