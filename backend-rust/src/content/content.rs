@@ -14,3 +14,8 @@ pub fn get_all_content() -> Vec<Box<dyn Content>> {
         Box::new(super::ramp::Ramp {}),
     ]
 }
+
+pub fn get_all_content_names() -> Vec<String> {
+    assert_ne!(get_all_content().len(), 0);
+    get_all_content().iter().map(|c| c.name()).collect()
+}

@@ -2,6 +2,8 @@ use std::fs;
 
 use serde::{Deserialize, Serialize};
 
+use crate::content::content::get_all_content_names;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
     enabled_content_indices: Vec<u32>,
@@ -31,17 +33,27 @@ pub struct AppState {
 
 impl AppState {
     const SETTINGS_FILE: &str = "nova_settings.json";
-
     pub fn load() -> Self {
+        let mut settings = Self::default();
         if let Ok(json_string) = fs::read_to_string(Self::SETTINGS_FILE) {
             if let Ok(parsed_settings) = serde_json::from_str::<AppState>(&json_string) {
-                return parsed_settings;
+                settings.set_selected_content_index(parsed_settings.selected_content_index);
+                settings.set_enabled_content_indices(parsed_settings.enabled_content_indices);
+                settings.set_hue(parsed_settings.hue);
+                settings.set_saturation(parsed_settings.saturation);
+                settings.set_brightness(parsed_settings.brightness);
+                settings.set_speed(parsed_settings.speed);
+                settings.set_flip_vertical(parsed_settings.flip_vertical);
+                settings.set_cycle_duration(parsed_settings.cycle_duration);
+                settings.set_ethernet_interface(parsed_settings.ethernet_interface);
+                settings.set_module0_address(parsed_settings.module0_address);
+                settings.set_webserver_port(parsed_settings.webserver_port);
             }
             eprintln!("Failed parse settings, using defaults");
         } else {
             eprintln!("Failed to load settings, using defaults");
         }
-        Self::default()
+        settings
     }
 
     pub fn save(&self) {
@@ -75,7 +87,7 @@ impl AppState {
     }
 
     pub fn set_hue(&mut self, hue: f32) {
-        self.hue = hue;
+        self.hue = hue.clamp(0.0, 360.0);
     }
 
     pub fn saturation(&self) -> f32 {
@@ -83,7 +95,7 @@ impl AppState {
     }
 
     pub fn set_saturation(&mut self, saturation: f32) {
-        self.saturation = saturation;
+        self.saturation = saturation.clamp(0.0, 1.0);
     }
 
     pub fn brightness(&self) -> f32 {
@@ -91,7 +103,7 @@ impl AppState {
     }
 
     pub fn set_brightness(&mut self, brightness: f32) {
-        self.brightness = brightness;
+        self.brightness = brightness.clamp(0.0, 1.0);
     }
 
     pub fn speed(&self) -> f32 {
@@ -99,7 +111,7 @@ impl AppState {
     }
 
     pub fn set_speed(&mut self, speed: f32) {
-        self.speed = speed;
+        self.speed = speed.clamp(0.0, 1.0);
     }
 
     pub fn flip_vertical(&self) -> bool {
@@ -115,7 +127,7 @@ impl AppState {
     }
 
     pub fn set_cycle_duration(&mut self, cycle_duration: f32) {
-        self.cycle_duration = cycle_duration;
+        self.cycle_duration = cycle_duration.clamp(0.0, 3600.0);
     }
 
     pub fn ethernet_interface(&self) -> String {
@@ -123,7 +135,11 @@ impl AppState {
     }
 
     pub fn set_ethernet_interface(&mut self, ethernet_interface: String) {
-        self.ethernet_interface = ethernet_interface;
+        self.ethernet_interface = if ethernet_interface.len() > 20 {
+            ethernet_interface[..20].to_string()
+        } else {
+            ethernet_interface
+        };
     }
 
     pub fn module0_address(&self) -> String {
@@ -131,7 +147,11 @@ impl AppState {
     }
 
     pub fn set_module0_address(&mut self, module0_address: String) {
-        self.module0_address = module0_address;
+        self.module0_address = if module0_address.len() > 3 {
+            module0_address[..3].to_string()
+        } else {
+            module0_address
+        };
     }
 
     pub fn webserver_port(&self) -> u16 {
@@ -146,16 +166,8 @@ impl AppState {
         self.available_content.clone()
     }
 
-    pub fn set_available_content(&mut self, available_content: Vec<String>) {
-        self.available_content = available_content;
-    }
-
     pub fn dim(&self) -> (usize, usize, usize) {
         self.dim
-    }
-
-    pub fn set_dim(&mut self, dim: (usize, usize, usize)) {
-        self.dim = dim;
     }
 
     pub fn status(&self) -> (bool, String) {
@@ -174,9 +186,9 @@ impl Default for AppState {
             selected_content_index: 0,
 
             hue: 0.0,
-            saturation: 0.0,
-            brightness: 0.0,
-            speed: 0.0,
+            saturation: 1.0,
+            brightness: 0.5,
+            speed: 0.1,
             flip_vertical: false,
             cycle_duration: 0.0,
             ethernet_interface: "eth0".to_string(),
@@ -184,7 +196,7 @@ impl Default for AppState {
 
             webserver_port: 8080,
 
-            available_content: vec!["Fill".to_string(), "Ramp".to_string()],
+            available_content: get_all_content_names(),
 
             dim: (5, 5, 10),
 

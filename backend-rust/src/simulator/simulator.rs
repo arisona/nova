@@ -11,6 +11,11 @@ use crate::renderer::voxel_image::VoxelImage;
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     println!("Starting Nova simulator.");
 
+    state
+        .lock()
+        .unwrap()
+        .set_status((true, "Nova simulator running".to_string()));
+
     miniquad::start(conf(), move || Box::new(Stage::new(state, renderer)));
 }
 
