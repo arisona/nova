@@ -7,17 +7,20 @@ mod renderer;
 mod simulator;
 mod web_server;
 
-const USE_NOVA_HARDWARE: bool = false;
+#[macro_use]
+mod macros;
+
+const USE_NOVA_HARDWARE: bool = true;
 fn main() {
     let state = Arc::new(Mutex::new(app_state::AppState::load()));
     println!("Using settings:\n{:#?}", *state.lock().unwrap());
 
-    web_server::run_server(state.clone());
+    web_server::run_server(Arc::clone(&state));
 
     let renderer = renderer::renderer::Renderer::new();
     if USE_NOVA_HARDWARE {
-        hardware::nova::run_nova_hardware(state.clone(), renderer);
+        hardware::nova::run_nova_hardware(Arc::clone(&state), renderer);
     } else {
-        simulator::simulator::run_simulator(state.clone(), renderer);
+        simulator::simulator::run_simulator(Arc::clone(&state), renderer);
     }
 }

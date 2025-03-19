@@ -6,6 +6,30 @@ use std::thread;
 
 use crate::app_state::AppState;
 
+pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
+    // we are running the web server in a separate thread, so we can still use the main thread for the simulator
+    thread::spawn(|| {
+        let sys = actix_web::rt::System::new();
+        let port = state.lock().unwrap().webserver_port();
+        let address = format!("0.0.0.0:{port}");
+
+        println!("Starting web server at http://localhost:{port}/");
+
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(Data::new(Arc::clone(&state)))
+                .service(get_state)
+                .service(get_status)
+                .service(command)
+                .service(fs::Files::new("/", "./src/web_client").index_file("index.html"))
+        })
+        .bind(address)
+        .expect("Failed to bind address {address}")
+        .run();
+        sys.block_on(server).expect("Failed to run server");
+    });
+}
+
 #[get("/api/get-state")]
 async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
     println!("get_state");
@@ -29,11 +53,11 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
 
 #[get("/api/get-status")]
 async fn get_status(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
-    println!("get_status");
-    let status = data.lock().unwrap().status();
+    //println!("get_status");
+    let state = data.lock().unwrap();
     HttpResponse::Ok().json(serde_json::json!({
-        "status-ok": status.0,
-        "status-message": status.1,
+        "status-ok": state.status().0,
+        "status-message": state.status().1,
     }))
 }
 
@@ -86,7 +110,7 @@ async fn command(
                 }
             }
             "ethernet-interface" => {
-                state.set_ethernet_interface(value.to_string());
+                state.set_ethernet_interface(value);
             }
             "module0-address" => {
                 if let Ok(parsed_value) = value.parse() {
@@ -117,28 +141,4 @@ async fn command(
     }
     state.save();
     HttpResponse::Ok()
-}
-
-pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
-    // we are running the web server in a separate thread, so we can still use the main thread for the simulator
-    thread::spawn(|| {
-        let sys = actix_web::rt::System::new();
-        let port = state.lock().unwrap().webserver_port();
-        let address = format!("0.0.0.0:{port}");
-
-        println!("Starting web server at http://localhost:{port}/");
-
-        let server = HttpServer::new(move || {
-            App::new()
-                .app_data(Data::new(state.clone()))
-                .service(get_state)
-                .service(get_status)
-                .service(command)
-                .service(fs::Files::new("/", "./src/web_client").index_file("index.html"))
-        })
-        .bind(address)
-        .expect("Failed to bind address {address}")
-        .run();
-        sys.block_on(server).expect("Failed to run server");
-    });
 }

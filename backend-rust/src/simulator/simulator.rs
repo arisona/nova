@@ -1,20 +1,27 @@
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use glam::{Mat3, Mat4, Vec3, Vec4, vec3};
 use miniquad::conf::Icon;
 use miniquad::*;
 
+use crate::check_run_once;
+
 use crate::app_state::AppState;
 use crate::renderer::renderer::Renderer;
 use crate::renderer::voxel_image::VoxelImage;
 
+static RUNNING: AtomicBool = AtomicBool::new(false);
+
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     println!("Starting Nova simulator.");
+
+    check_run_once!(RUNNING, "Nova simulator already running.");
 
     state
         .lock()
         .unwrap()
-        .set_status((true, "Nova simulator running".to_string()));
+        .set_status((true, "Nova simulator running"));
 
     miniquad::start(conf(), move || Box::new(Stage::new(state, renderer)));
 }

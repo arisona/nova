@@ -53,7 +53,7 @@ impl AppState {
                 settings.set_speed(parsed_settings.speed);
                 settings.set_flip_vertical(parsed_settings.flip_vertical);
                 settings.set_cycle_duration(parsed_settings.cycle_duration);
-                settings.set_ethernet_interface(parsed_settings.ethernet_interface);
+                settings.set_ethernet_interface(&parsed_settings.ethernet_interface);
 
                 {
                     let mut max_x = 0;
@@ -105,8 +105,8 @@ impl AppState {
         }
     }
 
-    pub fn enabled_content_indices(&self) -> Vec<u32> {
-        self.enabled_content_indices.clone()
+    pub fn enabled_content_indices(&self) -> &Vec<u32> {
+        &self.enabled_content_indices
     }
 
     pub fn set_enabled_content_indices(&mut self, indices: Vec<u32>) {
@@ -169,15 +169,15 @@ impl AppState {
         self.cycle_duration = cycle_duration.clamp(0.0, 3600.0);
     }
 
-    pub fn ethernet_interface(&self) -> String {
-        self.ethernet_interface.clone()
+    pub fn ethernet_interface(&self) -> &str {
+        &self.ethernet_interface
     }
 
-    pub fn set_ethernet_interface(&mut self, ethernet_interface: String) {
+    pub fn set_ethernet_interface(&mut self, ethernet_interface: &str) {
         self.ethernet_interface = if ethernet_interface.len() > 20 {
             ethernet_interface[..20].to_string()
         } else {
-            ethernet_interface
+            ethernet_interface.to_string()
         };
     }
 
@@ -197,20 +197,20 @@ impl AppState {
         self.webserver_port = webserver_port;
     }
 
-    pub fn available_content(&self) -> Vec<String> {
-        self.available_content.clone()
+    pub fn available_content(&self) -> &Vec<String> {
+        &self.available_content
     }
 
     pub fn dim(&self) -> (usize, usize, usize) {
         self.dim
     }
 
-    pub fn status(&self) -> (bool, String) {
-        self.status.clone()
+    pub fn status(&self) -> (bool, &str) {
+        (self.status.0, self.status.1.as_str())
     }
 
-    pub fn set_status(&mut self, status: (bool, String)) {
-        self.status = status;
+    pub fn set_status(&mut self, status: (bool, &str)) {
+        self.status = (status.0, status.1.to_string());
     }
 }
 
