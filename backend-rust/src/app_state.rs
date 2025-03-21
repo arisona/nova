@@ -14,7 +14,7 @@ pub struct AppState {
     brightness: f32,
     speed: f32,
     flip_vertical: bool,
-    cycle_duration: f32,
+    cycle_duration: f32, // TODO: currently ignored, need to rework
 
     ethernet_interface: String,
     modules: Vec<(usize, usize, u8)>,

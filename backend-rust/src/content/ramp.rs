@@ -1,4 +1,4 @@
-use crate::app_state::AppState;
+use crate::renderer::renderer::RenderState;
 use crate::renderer::voxel_image::VoxelImage;
 pub struct Ramp {}
 
@@ -7,11 +7,11 @@ impl super::content::Content for Ramp {
         "Ramp".to_string()
     }
 
-    fn reset(&self, state: &AppState) {
+    fn reset(&self, state: &RenderState) {
         println!("Ramp.reset");
     }
 
-    fn render(&self, state: &AppState, image: &mut VoxelImage, delta: f32) {
+    fn render(&self, state: &RenderState, image: &mut VoxelImage, delta: f32) {
         //println!("Ramp.render");
         for x in 0..image.dx() {
             for y in 0..image.dy() {

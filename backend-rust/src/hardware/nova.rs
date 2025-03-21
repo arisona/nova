@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use crate::check_run_once;
 
 use crate::app_state::AppState;
-use crate::renderer::renderer::Renderer;
+use crate::renderer::renderer::{RenderState, Renderer};
 use crate::renderer::voxel_image::VoxelImage;
 
 use super::ethernet::Interface;
@@ -49,12 +49,13 @@ pub fn run_nova_hardware(state: Arc<Mutex<AppState>>, mut renderer: Renderer) {
         let mut time = std::time::Instant::now();
         loop {
             {
-                let state = state.lock().unwrap();
-                if state.ethernet_interface() != interface.name() {
+                let app_state = state.lock().unwrap();
+                if app_state.ethernet_interface() != interface.name() {
                     println!("Interface changed, restarting.");
                     break;
                 }
 
+                let state = RenderState::from(&app_state);
                 let now = std::time::Instant::now();
                 let delta = now.duration_since(time);
                 renderer.render(&state, &mut image, delta.as_secs_f32());

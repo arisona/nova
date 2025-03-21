@@ -8,7 +8,7 @@ use miniquad::*;
 use crate::check_run_once;
 
 use crate::app_state::AppState;
-use crate::renderer::renderer::Renderer;
+use crate::renderer::renderer::{RenderState, Renderer};
 use crate::renderer::voxel_image::VoxelImage;
 
 static RUNNING: AtomicBool = AtomicBool::new(false);
@@ -27,7 +27,7 @@ pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
 }
 
 struct Stage {
-    state: Arc<Mutex<AppState>>,
+    app_state: Arc<Mutex<AppState>>,
     renderer: Renderer,
     image: VoxelImage,
 
@@ -126,7 +126,7 @@ impl Stage {
         let image = VoxelImage::new(state.lock().unwrap().dim());
 
         Stage {
-            state,
+            app_state: state,
             renderer,
             image,
             ctx,
@@ -145,13 +145,15 @@ impl EventHandler for Stage {
         let rot = Mat3::from_rotation_y(self.rot);
         self.rot += 0.001;
 
-        let state = &self.state.lock().unwrap();
-        self.renderer.render(state, &mut self.image, delta_time);
+        let app_state = self.app_state.lock().unwrap();
+        let flip = app_state.flip_vertical();
+        let state = RenderState::from(&app_state);
+        self.renderer.render(&state, &mut self.image, delta_time);
 
         // create grid
-        let dx = state.dim().0;
-        let dy = state.dim().1;
-        let dz = state.dim().2;
+        let dx = self.image.dx();
+        let dy = self.image.dy();
+        let dz = self.image.dz();
         self.instances.clear();
         for x in 0..dx {
             for y in 0..dy {
@@ -161,7 +163,8 @@ impl EventHandler for Stage {
                         y as f32 - (dy as f32 - 1.0) / 2.0,
                         z as f32 - (dz as f32 - 1.0) / 2.0,
                     );
-                    let p = vec3(p.x, p.z, -p.y); // convert z-up to y-up
+                    // convert z-up to y-up and flip if needed
+                    let p = vec3(p.x, if flip { p.z } else { -p.z }, -p.y);
                     let p = 4.0 * rot * p;
                     let rgb = self.image.get(x, y, z);
                     let c = Vec4 {
