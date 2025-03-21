@@ -44,7 +44,7 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "saturation": state.saturation(),
         "brightness": state.brightness(),
         "speed": state.speed(),
-        "flip-vertical": state.flip_vertical(),
+        "flip-vertical": state.is_flip_vertical(),
         "cycle-duration": state.cycle_duration(),
         "ethernet-interface": state.ethernet_interface(),
         "module0-address": state.module0_address(),

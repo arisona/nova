@@ -1,25 +1,36 @@
 use std::error::Error;
 use std::sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, Ordering},
+    mpsc::{self, SyncSender},
 };
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use etherparse::{EtherType, Ethernet2Header, PacketBuilder};
+use mac_address;
+use pcap;
 
-const CAPTURE_SLEEP: Duration = Duration::from_micros(1000);
+const MAX_SEND_QUEUE_SIZE: usize = 100;
+const NO_RX_TX_SLEEP_DURATION: Duration = Duration::from_micros(1000);
 
 pub struct Interface {
     name: String,
     address: [u8; 6],
-    capture: Arc<Mutex<pcap::Capture<pcap::Active>>>,
     running: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
+    tx: SyncSender<Vec<u8>>,
 }
 
 impl Interface {
-    pub fn new(name: &str) -> Result<Self, Box<dyn Error>> {
+    pub fn new<F>(
+        name: &str,
+        filter: Option<&str>,
+        callback: Option<F>,
+    ) -> Result<Self, Box<dyn Error>>
+    where
+        F: Fn(&[u8]) -> Option<Vec<u8>> + Send + 'static,
+    {
         let address = mac_address::mac_address_by_name(name)?
             .map(|mac| mac.bytes())
             .ok_or_else(|| format!("Interface {} not found (mac)", name))?;
@@ -33,15 +44,61 @@ impl Interface {
             .immediate_mode(true)
             .promisc(true)
             .open()?;
+
         capture = capture.setnonblock()?;
 
-        println!("Interface {} opened", name);
+        if let Some(f) = filter {
+            let f = f.replace("__MY_MAC__", &mac_address_as_string(address));
+            println!("Setting filter: {}", f);
+            capture.filter(&f, true)?;
+        }
+
+        let (tx, rx) = mpsc::sync_channel::<Vec<u8>>(MAX_SEND_QUEUE_SIZE);
+        let running = Arc::new(AtomicBool::new(true));
+        let run = Arc::clone(&running);
+
+        let handle = thread::spawn(move || {
+            while run.load(Ordering::Relaxed) {
+                let mut request_sleep = true;
+
+                // Receive packets
+                match capture.next_packet() {
+                    Ok(packet) => {
+                        if let Some(callback) = &callback {
+                            if let Some(response) = callback(packet.data) {
+                                let _ = capture.sendpacket(response);
+                                // TODO: error handling
+                            }
+                        }
+                        request_sleep = false;
+                    }
+                    // TODO: error handling
+                    Err(_) => { /* ignore */ }
+                }
+
+                // Send queued packets
+                match rx.try_recv() {
+                    Ok(packet) => {
+                        let _ = capture.sendpacket(packet);
+                        // TODO: error handling?
+                        request_sleep = false;
+                    }
+                    Err(mpsc::TryRecvError::Empty) => { /* nothing to send */ }
+                    Err(mpsc::TryRecvError::Disconnected) => { /* ignore */ }
+                }
+
+                if request_sleep {
+                    thread::sleep(NO_RX_TX_SLEEP_DURATION);
+                }
+            }
+        });
+
         Ok(Self {
             name: name.to_string(),
-            address: address,
-            capture: Arc::new(Mutex::new(capture)),
-            running: Arc::new(AtomicBool::new(false)),
-            handle: None,
+            address,
+            running,
+            handle: Some(handle),
+            tx,
         })
     }
 
@@ -57,44 +114,19 @@ impl Interface {
         mac_address_as_string(self.address)
     }
 
-    pub fn set_filter(&mut self, filter: &str) -> Result<(), Box<dyn Error>> {
-        self.capture.lock().unwrap().filter(filter, true)?;
-        Ok(())
-    }
-
-    pub fn set_capture<F>(&mut self, callback: F) -> Result<(), Box<dyn Error>>
-    where
-        F: Fn(&[u8]) + Send + 'static,
-    {
-        if self.running.swap(true, Ordering::Relaxed) {
-            return Err(format!("Interface {} capture already set", self.name).into());
-        }
-
-        let capture = Arc::clone(&self.capture);
-        let running = Arc::clone(&self.running);
-        let handle = thread::spawn(move || {
-            while running.load(Ordering::Relaxed) {
-                let mut cap = capture.lock().unwrap();
-                if let Ok(packet) = cap.next_packet() {
-                    callback(packet.data);
-                } else {
-                    thread::sleep(CAPTURE_SLEEP);
-                }
-            }
-        });
-        self.handle = Some(handle);
-        Ok(())
-    }
-
-    pub fn send_packet(&mut self, packet: Vec<u8>) -> Result<(), Box<dyn Error>> {
-        self.capture.lock().unwrap().sendpacket(packet)?;
+    pub fn send_packet(&self, packet: Vec<u8>) -> Result<(), Box<dyn Error>> {
+        // TODO: error handling
+        let _ = self.tx.try_send(packet);
         Ok(())
     }
 
     fn close(&mut self) {
         self.running.store(false, Ordering::Relaxed);
         if let Some(handle) = self.handle.take() {
-            handle.join().expect("Failed to join capture thread");
+            handle.join().expect(&format!(
+                "Interface {}: failed to join capture thread",
+                self.name
+            ));
         }
         println!("Interface {} closed", self.name);
     }

@@ -146,7 +146,7 @@ impl EventHandler for Stage {
         self.rot += 0.001;
 
         let app_state = self.app_state.lock().unwrap();
-        let flip = app_state.flip_vertical();
+        let flip = app_state.is_flip_vertical();
         let state = RenderState::from(&app_state);
         self.renderer.render(&state, &mut self.image, delta_time);
 

@@ -28,12 +28,12 @@ impl VoxelImage {
     }
 
     pub fn get(&self, x: usize, y: usize, z: usize) -> (f32, f32, f32) {
-        let index = (z * self.dx * self.dy + y * self.dx + x) * 3;
+        let index = (x * self.dy * self.dz + y * self.dz + z) * 3;
         (self.data[index], self.data[index + 1], self.data[index + 2])
     }
 
     pub fn set(&mut self, x: usize, y: usize, z: usize, color: (f32, f32, f32)) {
-        let index = (z * self.dx * self.dy + y * self.dx + x) * 3;
+        let index = (x * self.dy * self.dz + y * self.dz + z) * 3;
         self.data[index] = color.0;
         self.data[index + 1] = color.1;
         self.data[index + 2] = color.2;

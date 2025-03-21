@@ -153,7 +153,7 @@ impl AppState {
         self.speed = speed.clamp(0.0, 1.0);
     }
 
-    pub fn flip_vertical(&self) -> bool {
+    pub fn is_flip_vertical(&self) -> bool {
         self.flip_vertical
     }
 
@@ -179,6 +179,10 @@ impl AppState {
         } else {
             ethernet_interface.to_string()
         };
+    }
+
+    pub fn modules(&self) -> &Vec<(usize, usize, u8)> {
+        &self.modules
     }
 
     pub fn module0_address(&self) -> u8 {
