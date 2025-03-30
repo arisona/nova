@@ -11,17 +11,15 @@ use crate::app_state::AppState;
 use crate::renderer::renderer::{RenderState, Renderer};
 use crate::renderer::voxel_image::VoxelImage;
 
-static RUNNING: AtomicBool = AtomicBool::new(false);
-
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
-    println!("Starting Nova simulator.");
+    check_run_once!("Nova simulator already running.");
 
-    check_run_once!(RUNNING, "Nova simulator already running.");
+    println!("Starting Nova simulator.");
 
     state
         .lock()
         .unwrap()
-        .set_status((true, "Nova simulator running"));
+        .set_status((true, "Nova simulator running."));
 
     miniquad::start(conf(), move || Box::new(Stage::new(state, renderer)));
 }
