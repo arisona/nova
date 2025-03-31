@@ -32,6 +32,7 @@ struct NovaHardware {
     sequence_number: usize,
 
     // TODO: once we have this all working: do we really need these?
+    // (likely it's not needed, since we're not expecting any IP replies from Nova)
     local_ip_addr: [u8; 4],
     local_port: u16,
 }
@@ -86,7 +87,8 @@ impl NovaHardware {
                     continue;
                 }
                 println!("Opened interface {}", interface_name);
-                self.reset_modules(&modules);
+
+                self.reset_modules(&modules, &mut image);
             }
 
             assert!(self.interface.is_open(), "Interface not open.");
@@ -99,52 +101,27 @@ impl NovaHardware {
                 self.handle_status_packet(&packet);
             }
 
-            // Main processing loop if everything is full operational
-            println!("Processing frame...");
+            // If everything is fully operational, we can render
+            //println!("Processing frame...");
             let delta = std::time::Instant::now().duration_since(time);
-            self.renderer
-                .render(&render_state, &mut image, delta.as_secs_f32());
+            let delta = delta.as_secs_f32();
+            self.renderer.render(&render_state, &mut image, delta);
 
-            self.create_and_queue_packets(&modules, &image);
+            // Send data to Nova modules
+            for (_, _, addr) in modules {
+                let packet = self.udp_packet(addr, CMD_RGB, self.sequence_number, &image);
+                let _ = self.interface.send(packet);
+            }
+
+            // TODO: need to see when / how to increment sequence_number
+            self.sequence_number = self.sequence_number.wrapping_add(1);
+
             time = std::time::Instant::now();
 
             // TODO: we need to compensate the time used for rendering here
             std::thread::sleep(frame_duration);
         }
         // won't reach (we're running on the main thread)
-    }
-
-    fn create_and_queue_packets(&mut self, modules: &[(usize, usize, u8)], image: &VoxelImage) {
-        let mut module_buffer = vec![0u8; PIXEL_DATA_LEN];
-
-        for &(mx, my, addr) in modules {
-            let mut offset = 0;
-
-            for x in 0..AppState::MODULE_X_RES {
-                let x = mx * AppState::MODULE_X_RES + x;
-                for y in 0..AppState::MODULE_Y_RES {
-                    let y = my * AppState::MODULE_Y_RES + y;
-                    for z in 0..AppState::MODULE_Z_RES {
-                        let (r, g, b) = image.get(x, y, z);
-                        let r = (r.clamp(0.0, 1.0) * 1023.0).round() as u32;
-                        let g = (g.clamp(0.0, 1.0) * 1023.0).round() as u32;
-                        let b = (b.clamp(0.0, 1.0) * 1023.0).round() as u32;
-
-                        let packed = (r << 20) | (g << 10) | b;
-
-                        module_buffer[offset + 0] = (packed >> 24) as u8;
-                        module_buffer[offset + 1] = (packed >> 16) as u8;
-                        module_buffer[offset + 2] = (packed >> 8) as u8;
-                        module_buffer[offset + 3] = packed as u8;
-
-                        offset += 4;
-                    }
-                }
-            }
-
-            // TODO: Send `module_buffer` for this module to the hardware using `interface` and `addr`.
-            //self.interface.unwrap().send_packet();
-        }
     }
 
     fn handle_status_packet(&mut self, packet: &[u8]) {
@@ -211,11 +188,23 @@ impl NovaHardware {
         let _ = self.interface.send(reply);
     }
 
-    fn reset_modules(&mut self, modules: &[(usize, usize, u8)]) {
-        for &(mx, my, address) in modules {
-            let packet = self.udp_packet(address, CMD_RESET, 0, &BLACK_PIXELS);
+    fn reset_modules(&mut self, modules: &[(usize, usize, u8)], image: &mut VoxelImage) {
+        // clear image, so black will be sent to the modules
+        image.clear();
+
+        // the logic here is taken from the original java code, don't question it for now
+        for _ in 0..4 {
+            for &(_, _, address) in modules {
+                let packet = self.udp_packet(address, CMD_RESET, 0, image);
+                let _ = self.interface.send(packet);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(400));
+        }
+        for &(_, _, address) in modules {
+            let packet = self.udp_packet(address, CMD_AUTOID, 0, image);
             let _ = self.interface.send(packet);
         }
+        std::thread::sleep(std::time::Duration::from_millis(1000));
     }
 
     fn sync_packet(
@@ -248,7 +237,7 @@ impl NovaHardware {
         module_address: u8,
         command: u8,
         sequence_num: usize,
-        pixel_data: &[u8; 5 * 5 * 10 * 4],
+        image: &VoxelImage,
     ) -> [u8; UDP_PACKET_LEN] {
         let mut packet = [0u8; UDP_PACKET_LEN];
         // ethernet header
@@ -257,38 +246,74 @@ impl NovaHardware {
         packet[6..12].copy_from_slice(&self.interface.address());
         packet[12] = (ETHER_TYPE_IP >> 8) as u8;
         packet[13] = ETHER_TYPE_IP as u8;
+
         // ip header
         packet[14] = IP_VERSION | 0x05;
         packet[15] = 0x00; // ECN / DSCP -- orignal value was 0xf0, which doesn't really make sense
         let ip_packet_len = IP_HEADER_LEN + UDP_HEADER_LEN + CHAINED_DATA_LEN;
         packet[16] = (ip_packet_len >> 8) as u8;
         packet[17] = ip_packet_len as u8;
-        packet[18] = 0x32;
-        packet[19] = 0x1c;
-        packet[20] = 0x40;
-        packet[21] = 0x00;
-        packet[22] = 0x80;
+        packet[18] = 0x32; // ID field
+        packet[19] = 0x1c; // (according original code)
+        packet[20] = 0x40; // fragment flags & offset
+        packet[21] = 0x00; // (don't fragment, offset = 0)
+        packet[22] = 0x80; // TTL (0x80 is common default)
         packet[23] = 0x11; // UDP
         packet[24] = 0x00; // checksum
-        packet[25] = 0x00; // checksum
+        packet[25] = 0x00; // (calculated below)
         packet[26..30].copy_from_slice(&self.local_ip_addr);
         packet[30..33].copy_from_slice(&NOVA_IP_PREFIX);
         packet[33] = module_address;
         let checksum = ip_checksum(&packet[14..34]);
         packet[24] = (checksum >> 8) as u8;
         packet[25] = checksum as u8;
+
         // udp header
         packet[34] = (self.local_port >> 8) as u8;
         packet[35] = self.local_port as u8;
         packet[36] = (NOVA_UDP_PORT >> 8) as u8;
         packet[37] = NOVA_UDP_PORT as u8;
         let udp_packet_len = UDP_HEADER_LEN + CHAINED_DATA_LEN;
-        packet[36] = (udp_packet_len >> 8) as u8;
-        packet[37] = udp_packet_len as u8;
-        packet[38] = 0x00; // checksum
-        packet[39] = 0x00; // checksum
+        packet[38] = (udp_packet_len >> 8) as u8;
+        packet[39] = udp_packet_len as u8;
+        packet[40] = 0x00; // checksum
+        packet[41] = 0x00; // (left as zero, which is okay for UDP)
+
+        // udp payload
+        self.fill_udp_payload(&mut packet, command, sequence_num, image);
 
         packet
+    }
+
+    fn fill_udp_payload(
+        &self,
+        packet: &mut [u8; UDP_PACKET_LEN],
+        command: u8,
+        sequence_num: usize,
+        image: &VoxelImage,
+    ) {
+        for chain in 0..25 {
+            let offset = UDP_PAYLOAD_OFFSET + chain * 44;
+            packet[offset + 0] = 0xc0;
+            packet[offset + 1] = command;
+            packet[offset + 2] = sequence_num as u8;
+            packet[offset + 3] = chain as u8;
+
+            let pixels = image.row(0, chain); // row index 0, chain index = Y
+
+            for i in 0..10 {
+                let base = offset + 4 + i * 4;
+                let r = (pixels[i * 3 + 0].clamp(0.0, 1.0) * 1023.0).round() as u32;
+                let g = (pixels[i * 3 + 1].clamp(0.0, 1.0) * 1023.0).round() as u32;
+                let b = (pixels[i * 3 + 2].clamp(0.0, 1.0) * 1023.0).round() as u32;
+
+                let packed = (r << 20) | (g << 10) | b;
+                packet[base + 0] = (packed >> 24) as u8;
+                packet[base + 1] = (packed >> 16) as u8;
+                packet[base + 2] = (packed >> 8) as u8;
+                packet[base + 3] = packed as u8;
+            }
+        }
     }
 }
 
@@ -345,8 +370,6 @@ const UDP_HEADER_LEN: usize = 8;
 const UDP_PACKET_LEN: usize = UDP_PAYLOAD_OFFSET + CHAINED_DATA_LEN;
 const NOVA_UDP_PORT: u16 = 3210;
 
-const BLACK_PIXELS: [u8; PIXEL_DATA_LEN] = [0; PIXEL_DATA_LEN];
-
 const IP_VERSION: u8 = 0x40;
 const IP_HEADER_LEN: usize = 20;
 const NOVA_IP: [u8; 4] = [192, 168, 1, 0];
@@ -363,6 +386,10 @@ const CMD_START: u8 = 0x02;
 const CMD_STOP: u8 = 0x03;
 const CMD_STATUS: u8 = 0x04;
 
+// Status flags
+const STATUS_STOPPED: u8 = 0x00;
+const STATUS_RUNNING: u8 = 0x01;
+
 // DMUX command values
 const CMD_RESET: u8 = 0x00;
 const CMD_RGB: u8 = 0x02;
@@ -371,10 +398,6 @@ const CMD_COLOR_CORR: u8 = 0x08;
 const CMD_BRIGHTNESS: u8 = 0x10;
 const CMD_OPMODE: u8 = 0x40;
 const CMD_AUTOID: u8 = 0x70;
-
-// Status flags
-const STATUS_STOPPED: u8 = 0x00;
-const STATUS_RUNNING: u8 = 0x01;
 
 // FSS Power flags
 const FSS_POWER_OK3: u8 = 0x80;

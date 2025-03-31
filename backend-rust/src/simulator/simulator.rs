@@ -179,7 +179,8 @@ impl EventHandler for Stage {
     }
 
     fn draw(&mut self) {
-        // by default glam-rs can vec3 as u128 or #[reprc(C)](f32, f32, f32). need to ensure that the second option was used
+        // by default glam-rs can vec3 as u128 or #[reprc(C)](f32, f32, f32).
+        // need to ensure that the second option was used.
         assert_eq!(std::mem::size_of::<Vec3>(), 12);
 
         self.ctx.buffer_update(

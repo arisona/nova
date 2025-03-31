@@ -39,6 +39,12 @@ impl VoxelImage {
         self.data[index + 2] = color.2;
     }
 
+    pub fn row(&self, x: usize, y: usize) -> &[f32] {
+        let start = (x * self.dy * self.dz + y * self.dz) * 3;
+        let end = start + self.dz * 3;
+        &self.data[start..end]
+    }
+
     pub fn clear(&mut self) {
         self.data.fill(0.0);
     }
