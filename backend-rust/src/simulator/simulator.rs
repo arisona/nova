@@ -37,6 +37,8 @@ struct Stage {
     instances: Vec<(f32, f32, f32, f32, f32, f32, f32)>,
     rot: f32,
     distance_factor: f32,
+
+    last_frame_time: std::time::Instant,
 }
 
 impl Stage {
@@ -133,13 +135,17 @@ impl Stage {
             instances: Vec::with_capacity(DX * DY * DZ),
             rot: 0.0,
             distance_factor: 1.0,
+            last_frame_time: std::time::Instant::now(),
         }
     }
 }
 
 impl EventHandler for Stage {
     fn update(&mut self) {
-        let delta_time: f32 = 1.0 / 60.0;
+        let now = std::time::Instant::now();
+        let delta_time = now.duration_since(self.last_frame_time).as_secs_f32();
+        self.last_frame_time = now;
+
         let rot = Mat3::from_rotation_y(self.rot);
         self.rot += 0.001;
 
@@ -228,13 +234,13 @@ fn conf() -> conf::Conf {
 mod shader {
     use miniquad::*;
 
-    pub const VERTEX: &str = r#"#version 100
-    attribute vec3 in_pos;
-    attribute vec3 in_inst_pos;
-    attribute vec4 in_inst_color;
+    pub const VERTEX: &str = r#"#version 150
+    in vec3 in_pos;
+    in vec3 in_inst_pos;
+    in vec4 in_inst_color;
 
-    varying lowp vec4 color;
-    varying mediump vec2 frag_uv;
+    out vec4 color;
+    out vec2 frag_uv;
 
     uniform mat4 view;
     uniform mat4 proj;
@@ -247,16 +253,16 @@ mod shader {
     }
     "#;
 
-    pub const FRAGMENT: &str = r#"#version 100
-    precision mediump float;
+    pub const FRAGMENT: &str = r#"#version 150
+    in vec4 color;
+    in vec2 frag_uv;
 
-    varying lowp vec4 color;
-    varying mediump vec2 frag_uv;
+    out vec4 out_color;
 
     void main() {
         float dist = length(frag_uv - vec2(0.5, 0.5));
-        if (dist > 0.5) discard; // Discard pixels outside the circle
-        gl_FragColor = color;
+        if (dist > 0.5) discard;
+        out_color = color;
     }
     "#;
 
