@@ -98,7 +98,7 @@ impl AppState {
     pub fn save(&self) {
         if let Ok(json_string) = serde_json::to_string_pretty(self) {
             if let Err(e) = fs::write(Self::SETTINGS_FILE, json_string) {
-                eprintln!("Failed to save settings: {}", e);
+                eprintln!("Failed to save settings: {e}");
             }
         } else {
             eprintln!("Failed to serialize settings");

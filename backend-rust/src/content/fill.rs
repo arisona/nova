@@ -8,11 +8,11 @@ impl super::content::Content for Fill {
         "Fill".to_string()
     }
 
-    fn reset(&self, state: &RenderState) {
+    fn reset(&self, _: &RenderState) {
         println!("Fill.configure");
     }
 
-    fn render(&self, state: &RenderState, image: &mut VoxelImage, delta: f32) {
+    fn render(&self, state: &RenderState, image: &mut VoxelImage, _: f32) {
         //println!("Fill.render");
         let rgb = hsb_to_rgb((state.hue(), state.saturation(), state.brightness()));
         image.fill(rgb);

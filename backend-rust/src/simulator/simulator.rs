@@ -57,7 +57,7 @@ impl Stage {
         let geometry_vertex_buffer = ctx.new_buffer(
             BufferType::VertexBuffer,
             BufferUsage::Immutable,
-            BufferSource::slice(&vertices),
+            BufferSource::slice(vertices),
         );
 
         #[rustfmt::skip]
@@ -68,7 +68,7 @@ impl Stage {
         let index_buffer = ctx.new_buffer(
             BufferType::IndexBuffer,
             BufferUsage::Immutable,
-            BufferSource::slice(&indices),
+            BufferSource::slice(indices),
         );
 
         // empty, dynamic instance data vertex buffer
@@ -83,7 +83,7 @@ impl Stage {
 
         let bindings = Bindings {
             vertex_buffers: vec![geometry_vertex_buffer, instance_vertex_buffer],
-            index_buffer: index_buffer,
+            index_buffer,
             images: vec![],
         };
 

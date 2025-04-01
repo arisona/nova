@@ -7,11 +7,11 @@ impl super::content::Content for Ramp {
         "Ramp".to_string()
     }
 
-    fn reset(&self, state: &RenderState) {
+    fn reset(&self, _: &RenderState) {
         println!("Ramp.reset");
     }
 
-    fn render(&self, state: &RenderState, image: &mut VoxelImage, delta: f32) {
+    fn render(&self, state: &RenderState, image: &mut VoxelImage, _: f32) {
         //println!("Ramp.render");
         for x in 0..image.dx() {
             for y in 0..image.dy() {
