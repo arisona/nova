@@ -1,6 +1,7 @@
 use std::net::UdpSocket;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use crate::check_run_once;
 
@@ -26,105 +27,140 @@ pub fn run_nova_hardware(app_state: Arc<Mutex<AppState>>, renderer: Renderer) {
 struct NovaHardware {
     app_state: Arc<Mutex<AppState>>,
     renderer: Renderer,
-    interface: Interface,
 
     is_running: bool,
     sequence_number: usize,
 
     // TODO: once we have this all working: do we really need these?
     // (likely it's not needed, since we're not expecting any IP replies from Nova)
-    local_ip_addr: [u8; 4],
+    local_ip: [u8; 4],
     local_port: u16,
 }
 
 impl NovaHardware {
     fn new(app_state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
-        let (local_ip_addr, local_port) = local_ip_and_port().unwrap();
-
+        let (local_ip, local_port) = Self::local_ip_and_port().unwrap();
         NovaHardware {
             app_state,
             renderer,
-            interface: Interface::new("", None),
             is_running: false,
             sequence_number: 0,
-            local_ip_addr,
+            local_ip,
             local_port,
         }
     }
 
     fn run(&mut self) {
-        // TODO::
+        // filter: accept nova packets (0x810) sent to me, and all broadcast packets
+        // TODO:
         // __MY_MAC__ will be replaced with the interfaces mac, once it's known
         // it doesn't seem we need to filter for broadcast packets
         let filter = format!(
-            "ether proto {} and ether dst __MY_MAC__ or ether broadcast",
+            "(ether proto {} and ether dst __MY_MAC__) or ether broadcast",
             ETHER_TYPE_NOVA_SYNC
         );
 
-        // TODO: need to check this, I think it's actually 40 fps @ 25ms each
-        let frame_duration = std::time::Duration::from_millis(40); // 25 frames per second
-
-        let mut time = std::time::Instant::now();
         let mut image = VoxelImage::new(self.app_state.lock().unwrap().dim());
 
         loop {
-            // Make sure app_state is unlocked quickly otherwise webserver thread will starve
-            let (interface_name, render_state, modules) = {
-                let app_state = self.app_state.lock().unwrap();
-                (
-                    app_state.ethernet_interface().to_string(),
-                    RenderState::from(&app_state),
-                    app_state.modules().clone(),
-                )
-            };
+            let mut interface;
 
-            // Try to open the interface
-            if !self.interface.is_open() || self.interface.name() != &interface_name {
-                self.interface = Interface::new(&interface_name, Some(filter.as_str()));
-                if !self.interface.is_open() {
-                    eprintln!("Failed to open interface {}. Retrying...", interface_name);
-                    std::thread::sleep(INTERFACE_ERROR_SLEEP_DURATION);
-                    continue;
+            // Retry loop for opening the interface
+            loop {
+                let (interface_name, modules) = {
+                    let app_state = self.app_state.lock().unwrap();
+                    (
+                        app_state.ethernet_interface().to_string(),
+                        app_state.modules().clone(),
+                    )
+                };
+
+                match Interface::new(&interface_name, Some(filter.as_str())) {
+                    Ok(iface) => {
+                        interface = iface;
+                        // Sucessfully opened interface
+                        println!("Opened interface {}.", interface_name);
+                        self.reset_modules(&mut interface, &modules, &mut image);
+                        println!("Module reset complete.");
+                        break;
+                    }
+                    Err(err) => {
+                        println!(
+                            "Failed to open interface {}: {}. Retrying...",
+                            interface_name, err
+                        );
+                        std::thread::sleep(Duration::from_millis(500));
+                    }
                 }
-                println!("Opened interface {}", interface_name);
-
-                self.reset_modules(&modules, &mut image);
             }
 
-            assert!(self.interface.is_open(), "Interface not open.");
+            // Main processing loop for opened interface
+            let mut sync_time = Instant::now();
+            //let mut next_frame = Instant::now() + NOVA_FRAME_INTERVAL;
 
-            // Check if we need to request status from each module
-            // TODO
+            loop {
+                // Make sure app_state is unlocked quickly otherwise webserver thread will starve
+                let (interface_name, render_state, modules) = {
+                    let app_state = self.app_state.lock().unwrap();
+                    (
+                        app_state.ethernet_interface().to_string(),
+                        RenderState::from(&app_state),
+                        app_state.modules().clone(),
+                    )
+                };
 
-            // Handle received status packets
-            while let Ok(packet) = self.interface.receive() {
-                self.handle_status_packet(&packet);
+                if &interface_name != interface.name() {
+                    println!("Interface changed to {}.", interface_name);
+                    // return back to interface opening loop
+                    break;
+                }
+
+                // Check if we need to request status from each module
+                // TODO
+
+                // Handle received status packets
+                while let Ok(packet) = interface.receive() {
+                    self.handle_status_packet(&mut interface, &packet);
+                }
+
+                // If everything is fully operational, we can render
+                // TODO: pass "real" delta to render (in case we have underruns)
+                let delta = NOVA_FRAME_INTERVAL.as_secs_f32();
+                self.renderer.render(&render_state, &mut image, delta);
+
+                // Sync loop to hardware
+                Self::wait_for_next_sync(&mut sync_time);
+
+                // Send sync broadcast
+                // TODO: this is inconsistent with the Java code, which sends sync/running or pll/stopped depending on run status
+                let packet = Self::sync_packet(
+                    &BROADCAST_ADDR,
+                    &SYNC_ADDR,
+                    CMD_SYNC,
+                    STATUS_RUNNING,
+                    self.sequence_number,
+                );
+                let _ = interface.send(packet);
+
+                // Send rgb data to modules
+                for (_, _, addr) in modules {
+                    let packet = Self::udp_packet(
+                        &interface.address(),
+                        &self.local_ip,
+                        self.local_port,
+                        addr,
+                        CMD_RGB,
+                        self.sequence_number,
+                        &image,
+                    );
+                    let _ = interface.send(packet);
+                }
             }
-
-            // If everything is fully operational, we can render
-            //println!("Processing frame...");
-            let delta = std::time::Instant::now().duration_since(time);
-            let delta = delta.as_secs_f32();
-            self.renderer.render(&render_state, &mut image, delta);
-
-            // Send data to Nova modules
-            for (_, _, addr) in modules {
-                let packet = self.udp_packet(addr, CMD_RGB, self.sequence_number, &image);
-                let _ = self.interface.send(packet);
-            }
-
-            // TODO: need to see when / how to increment sequence_number
-            self.sequence_number = self.sequence_number.wrapping_add(1);
-
-            time = std::time::Instant::now();
-
-            // TODO: we need to compensate the time used for rendering here
-            std::thread::sleep(frame_duration);
         }
         // won't reach (we're running on the main thread)
     }
 
-    fn handle_status_packet(&mut self, packet: &[u8]) {
+    fn handle_status_packet(&mut self, interface: &mut Interface, packet: &[u8]) {
         // Ignore if destination is broadcast
         // TODO: remove broadcast in filter, and forget about this
         if &packet[0..6] == [0xff; 6] {
@@ -153,12 +189,12 @@ impl NovaHardware {
             CMD_START => {
                 self.is_running = true;
                 self.sequence_number = 0;
-                reply = self.sync_packet(&SYNC_ADDR, &src, CMD_STATUS, STATUS_RUNNING, 511);
+                reply = Self::sync_packet(&SYNC_ADDR, &src, CMD_STATUS, STATUS_RUNNING, 511);
             }
             CMD_STOP => {
                 self.is_running = false;
                 self.sequence_number = 0;
-                reply = self.sync_packet(&SYNC_ADDR, &src, CMD_STATUS, STATUS_STOPPED, 0);
+                reply = Self::sync_packet(&SYNC_ADDR, &src, CMD_STATUS, STATUS_STOPPED, 0);
             }
             CMD_STATUS => {
                 if packet[20] == NOVA_IP[0] {
@@ -167,7 +203,7 @@ impl NovaHardware {
                     let module_address = packet[23];
                     return;
                 } else {
-                    reply = self.sync_packet(
+                    reply = Self::sync_packet(
                         &SYNC_ADDR,
                         &src,
                         CMD_STATUS,
@@ -185,30 +221,68 @@ impl NovaHardware {
                 return;
             }
         }
-        let _ = self.interface.send(reply);
+        let _ = interface.send(reply);
     }
 
-    fn reset_modules(&mut self, modules: &[(usize, usize, u8)], image: &mut VoxelImage) {
+    fn reset_modules(
+        &mut self,
+        interface: &mut Interface,
+        modules: &[(usize, usize, u8)],
+        image: &mut VoxelImage,
+    ) {
         // clear image, so black will be sent to the modules
         image.clear();
 
         // the logic here is taken from the original java code, don't question it for now
         for _ in 0..4 {
             for &(_, _, address) in modules {
-                let packet = self.udp_packet(address, CMD_RESET, 0, image);
-                let _ = self.interface.send(packet);
+                let packet = Self::udp_packet(
+                    &interface.address(),
+                    &self.local_ip,
+                    self.local_port,
+                    address,
+                    CMD_RESET,
+                    0,
+                    image,
+                );
+                let _ = interface.send(packet);
             }
-            std::thread::sleep(std::time::Duration::from_millis(400));
+            std::thread::sleep(Duration::from_millis(400));
         }
         for &(_, _, address) in modules {
-            let packet = self.udp_packet(address, CMD_AUTOID, 0, image);
-            let _ = self.interface.send(packet);
+            let packet = Self::udp_packet(
+                &interface.address(),
+                &self.local_ip,
+                self.local_port,
+                address,
+                CMD_AUTOID,
+                0,
+                image,
+            );
+            let _ = interface.send(packet);
         }
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        std::thread::sleep(Duration::from_millis(1000));
+    }
+
+    fn wait_for_next_sync(sync_time: &mut Instant) {
+        // TODO: this needs improvement, e.g. dealing with underruns etc
+        // all depends a bit on timing requirements of the hw modules, need to experiment
+        std::thread::sleep(
+            *sync_time + NOVA_FRAME_INTERVAL - Instant::now() - Duration::from_millis(5),
+        );
+        // println!(
+        //     "Waiting for {} us",
+        //     (*sync_time + NOVA_FRAME_INTERVAL - Instant::now()).as_micros()
+        // );
+        while Instant::now() < *sync_time + NOVA_FRAME_INTERVAL {
+            // busy wait for next sync tick
+            std::thread::yield_now();
+        }
+        // println!("Elapsed time: {:?}", sync_time.elapsed());
+        *sync_time += NOVA_FRAME_INTERVAL;
     }
 
     fn sync_packet(
-        &self,
         dst: &[u8; 6],
         src: &[u8; 6],
         command: u8,
@@ -233,7 +307,9 @@ impl NovaHardware {
     }
 
     fn udp_packet(
-        &self,
+        interface_addr: &[u8; 6],
+        local_ip: &[u8; 4],
+        local_port: u16,
         module_address: u8,
         command: u8,
         sequence_num: usize,
@@ -243,7 +319,7 @@ impl NovaHardware {
         // ethernet header
         packet[0..5].copy_from_slice(&DMUX_ADDR_PREFIX);
         packet[5] = module_address;
-        packet[6..12].copy_from_slice(&self.interface.address());
+        packet[6..12].copy_from_slice(interface_addr);
         packet[12] = (ETHER_TYPE_IP >> 8) as u8;
         packet[13] = ETHER_TYPE_IP as u8;
 
@@ -261,16 +337,16 @@ impl NovaHardware {
         packet[23] = 0x11; // UDP
         packet[24] = 0x00; // checksum
         packet[25] = 0x00; // (calculated below)
-        packet[26..30].copy_from_slice(&self.local_ip_addr);
+        packet[26..30].copy_from_slice(local_ip);
         packet[30..33].copy_from_slice(&NOVA_IP_PREFIX);
         packet[33] = module_address;
-        let checksum = ip_checksum(&packet[14..34]);
+        let checksum = Self::ip_checksum(&packet[14..34]);
         packet[24] = (checksum >> 8) as u8;
         packet[25] = checksum as u8;
 
         // udp header
-        packet[34] = (self.local_port >> 8) as u8;
-        packet[35] = self.local_port as u8;
+        packet[34] = (local_port >> 8) as u8;
+        packet[35] = local_port as u8;
         packet[36] = (NOVA_UDP_PORT >> 8) as u8;
         packet[37] = NOVA_UDP_PORT as u8;
         let udp_packet_len = UDP_HEADER_LEN + CHAINED_DATA_LEN;
@@ -280,13 +356,12 @@ impl NovaHardware {
         packet[41] = 0x00; // (left as zero, which is okay for UDP)
 
         // udp payload
-        self.fill_udp_payload(&mut packet, command, sequence_num, image);
+        Self::fill_udp_payload(&mut packet, command, sequence_num, image);
 
         packet
     }
 
     fn fill_udp_payload(
-        &self,
         packet: &mut [u8; UDP_PACKET_LEN],
         command: u8,
         sequence_num: usize,
@@ -315,43 +390,39 @@ impl NovaHardware {
             }
         }
     }
-}
 
-// nova packets
+    fn local_ip_and_port() -> std::io::Result<([u8; 4], u16)> {
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
+        socket.connect("8.8.8.8:80")?;
+        let local_addr = socket.local_addr()?;
+        match local_addr.ip() {
+            std::net::IpAddr::V4(v4) => Ok((v4.octets(), local_addr.port())),
+            std::net::IpAddr::V6(_) => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Expected IPv4 address, got IPv6",
+            )),
+        }
+    }
 
-// udp/ip network utilities
-
-fn local_ip_and_port() -> std::io::Result<([u8; 4], u16)> {
-    let socket = UdpSocket::bind("0.0.0.0:0")?;
-    socket.connect("8.8.8.8:80")?;
-    let local_addr = socket.local_addr()?;
-    match local_addr.ip() {
-        std::net::IpAddr::V4(v4) => Ok((v4.octets(), local_addr.port())),
-        std::net::IpAddr::V6(_) => Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Expected IPv4 address, got IPv6",
-        )),
+    fn ip_checksum(data: &[u8]) -> u16 {
+        let mut sum = 0u32;
+        for chunk in data.chunks(2) {
+            let word = if chunk.len() == 2 {
+                u16::from_be_bytes([chunk[0], chunk[1]]) as u32
+            } else {
+                (chunk[0] as u32) << 8
+            };
+            sum = sum.wrapping_add(word);
+        }
+        while (sum >> 16) != 0 {
+            sum = (sum & 0xffff) + (sum >> 16);
+        }
+        !sum as u16
     }
 }
 
-fn ip_checksum(data: &[u8]) -> u16 {
-    let mut sum = 0u32;
-    for chunk in data.chunks(2) {
-        let word = if chunk.len() == 2 {
-            u16::from_be_bytes([chunk[0], chunk[1]]) as u32
-        } else {
-            (chunk[0] as u32) << 8
-        };
-        sum = sum.wrapping_add(word);
-    }
-    while (sum >> 16) != 0 {
-        sum = (sum & 0xffff) + (sum >> 16);
-    }
-    !sum as u16
-}
-
-// timing constants
-const INTERFACE_ERROR_SLEEP_DURATION: std::time::Duration = std::time::Duration::from_millis(500);
+// Nova timing (20ms per frame, 50Hz)
+const NOVA_FRAME_INTERVAL: Duration = Duration::from_millis(20);
 
 // ethernet related constants
 const ETHER_ADDR_LEN: usize = 6;
