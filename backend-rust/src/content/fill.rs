@@ -1,9 +1,10 @@
-use crate::renderer::renderer::RenderState;
-use crate::renderer::voxel_image::VoxelImage;
-use crate::renderer::voxel_image::hsb_to_rgb;
+use crate::renderer::RenderState;
+use crate::voxel_image::VoxelImage;
+use crate::voxel_image::hsb_to_rgb;
+
 pub struct Fill {}
 
-impl super::content::Content for Fill {
+impl super::Content for Fill {
     fn name(&self) -> String {
         "Fill".to_string()
     }

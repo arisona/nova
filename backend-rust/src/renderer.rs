@@ -1,7 +1,6 @@
 use crate::app_state::AppState;
-use crate::content::content::get_all_content;
-
-use super::voxel_image::VoxelImage;
+use crate::content::get_all_content;
+use crate::voxel_image::VoxelImage;
 
 pub struct RenderState {
     hue: f32,

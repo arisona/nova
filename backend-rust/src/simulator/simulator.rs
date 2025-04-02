@@ -8,8 +8,8 @@ use miniquad::*;
 use crate::check_run_once;
 
 use crate::app_state::AppState;
-use crate::renderer::renderer::{RenderState, Renderer};
-use crate::renderer::voxel_image::VoxelImage;
+use crate::renderer::{RenderState, Renderer};
+use crate::voxel_image::VoxelImage;
 
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova simulator already running.");

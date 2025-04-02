@@ -2,7 +2,7 @@ use std::fs;
 
 use serde::{Deserialize, Serialize};
 
-use crate::content::content::get_all_content_names;
+use crate::content::get_all_content_names;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {

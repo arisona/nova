@@ -5,6 +5,7 @@ mod content;
 mod hardware;
 mod renderer;
 mod simulator;
+mod voxel_image;
 mod web_server;
 
 #[macro_use]
@@ -17,7 +18,7 @@ fn main() {
 
     web_server::run_server(Arc::clone(&state));
 
-    let renderer = renderer::renderer::Renderer::new();
+    let renderer = renderer::Renderer::new();
     if USE_NOVA_HARDWARE {
         hardware::nova::run_nova_hardware(Arc::clone(&state), renderer);
     } else {

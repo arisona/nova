@@ -1,8 +1,8 @@
-use crate::renderer::renderer::RenderState;
-use crate::renderer::voxel_image::VoxelImage;
+use crate::renderer::RenderState;
+use crate::voxel_image::VoxelImage;
 pub struct Ramp {}
 
-impl super::content::Content for Ramp {
+impl super::Content for Ramp {
     fn name(&self) -> String {
         "Ramp".to_string()
     }

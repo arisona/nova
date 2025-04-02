@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use crate::check_run_once;
 
 use crate::app_state::AppState;
-use crate::renderer::renderer::{RenderState, Renderer};
-use crate::renderer::voxel_image::VoxelImage;
+use crate::renderer::{RenderState, Renderer};
+use crate::voxel_image::VoxelImage;
 
 use super::ethernet::Interface;
 
