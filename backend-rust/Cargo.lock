@@ -270,6 +270,7 @@ dependencies = [
  "mac_address",
  "miniquad",
  "pcap",
+ "rand",
  "serde",
  "serde_json",
 ]

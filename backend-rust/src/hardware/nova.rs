@@ -4,6 +4,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use rand::Rng;
+
 use crate::check_run_once;
 
 use crate::app_state::AppState;
@@ -81,7 +83,13 @@ impl NovaHardware {
                 match Interface::new(&interface_name, Some(filter.as_str())) {
                     Ok(iface) => {
                         interface = iface;
+
                         // Sucessfully opened interface
+                        self.app_state.lock().unwrap().set_status((
+                            false,
+                            &format!("Resetting all modules at interface {interface_name}."),
+                        ));
+
                         println!("Opened interface {interface_name}.");
                         self.reset_modules(&mut interface, &modules, &mut image);
                         println!("Module reset complete.");
@@ -93,7 +101,7 @@ impl NovaHardware {
                             &format!("Cannot open interface {interface_name}."),
                         ));
                         println!("Failed to open interface {interface_name}: {err}. Retrying...");
-                        std::thread::sleep(Duration::from_millis(500));
+                        std::thread::sleep(INTERFACE_RETRY_PERIOD);
                     }
                 }
             }
@@ -139,7 +147,7 @@ impl NovaHardware {
                         &format!("{num_ready_modules} of {num_modules} modules ready."),
                     ));
 
-                    status_time += Duration::from_millis(5000);
+                    status_time += STATUS_PERIOD;
                 }
 
                 // Handle received status packets
@@ -147,13 +155,8 @@ impl NovaHardware {
                     self.handle_status_packet(&mut interface, &packet);
                 }
 
-                // If everything is fully operational, we can render
-                let delta = frame_time.elapsed().as_secs_f32();
-                frame_time = Instant::now();
-                self.renderer.render(&render_state, &mut image, delta);
-
-                // Sync loop to hardware
-                Self::wait_for_next_sync(&mut sync_time);
+                // Sync loop to hardware and check for render time budget
+                let do_render = Self::wait_for_next_sync(&mut sync_time);
 
                 // Send sync broadcast
                 // TODO: this is inconsistent with the Java code, which sends sync/running or pll/stopped depending on run status
@@ -182,6 +185,20 @@ impl NovaHardware {
 
                 // TODO: we need to review again how to deal with sequence numbers
                 self.sequence_number = self.sequence_number.wrapping_add(1);
+
+                // Finally, if we time budget allows, we can render
+                if do_render {
+                    let delta = frame_time.elapsed().as_secs_f32();
+                    frame_time = Instant::now();
+                    // println!("Render time: {:.3}ms", delta * 1000.0);
+                    self.renderer.render(&render_state, &mut image, delta);
+
+                    // Testing wait for a random time between 5 and 20 ms
+                    // let mut rng = rand::rng();
+                    // let random_delay = rng.random_range(5..=100);
+                    // println!("Random delay: {random_delay}ms");
+                    // std::thread::sleep(Duration::from_millis(random_delay));
+                }
             }
         }
         // won't reach (we're running on the main thread)
@@ -295,23 +312,30 @@ impl NovaHardware {
         std::thread::sleep(Duration::from_millis(1000));
     }
 
-    fn wait_for_next_sync(sync_time: &mut Instant) {
-        // TODO: this needs improvement, e.g. dealing with underruns etc
-        // all depends a bit on timing requirements of the hw modules, need to experiment
-        let target = *sync_time + NOVA_FRAME_INTERVAL;
+    fn wait_for_next_sync(sync_time: &mut Instant) -> bool {
+        // this needs testing as the Nova timing is quite critical
+        let target = *sync_time + SYNC_PERIOD;
+        *sync_time += SYNC_PERIOD;
+
         let now = Instant::now();
-        let mut sleep_duration = if target > now {
-            target - now
-        } else {
-            Duration::from_millis(0)
-        };
-        sleep_duration = sleep_duration.saturating_sub(Duration::from_millis(5));
-        std::thread::sleep(sleep_duration);
-        while Instant::now() < *sync_time + NOVA_FRAME_INTERVAL {
-            // busy wait for next sync tick
+        if now > target {
+            // missed sync: do not render and wait for next sync
+            println!("Missed sync by {}us", (now - target).as_micros());
+            return false;
+        } else if now < target - SYNC_BUSY_WAIT_MARGIN {
+            // os wait for as much as possible
+            let sleep_duration = target
+                .duration_since(now)
+                .saturating_sub(SYNC_BUSY_WAIT_MARGIN);
+            if sleep_duration != Duration::ZERO {
+                std::thread::sleep(sleep_duration);
+            }
+        }
+        while Instant::now() < target {
+            // busy wait for the last bit to keep the timing
             std::thread::yield_now();
         }
-        *sync_time += NOVA_FRAME_INTERVAL;
+        true
     }
 
     fn nova_packet(
@@ -483,7 +507,10 @@ impl NovaHardware {
 }
 
 // Nova timing (20ms per frame, 50Hz)
-const NOVA_FRAME_INTERVAL: Duration = Duration::from_millis(20);
+const SYNC_PERIOD: Duration = Duration::from_millis(20);
+const SYNC_BUSY_WAIT_MARGIN: Duration = Duration::from_millis(5);
+const STATUS_PERIOD: Duration = Duration::from_millis(5000);
+const INTERFACE_RETRY_PERIOD: Duration = Duration::from_millis(500);
 
 // ethernet related constants
 const ETHER_ADDR_LEN: usize = 6;
