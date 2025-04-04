@@ -19,4 +19,5 @@ pcap = "2.2"
 ## simulator stuff
 # possible we start making more general use of glam in the actual content renderers
 miniquad = "0.4"
-glam = { version = "0.30", features = ["scalar-math"] }
+# glam = { version = "0.30", features = ["scalar-math"] }
+glam = "0.30"

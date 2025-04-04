@@ -1,7 +1,7 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
-use glam::{Mat3, Mat4, Vec3, Vec4, vec3};
+use glam::{Mat3, Mat4, vec3, vec4};
 use miniquad::conf::Icon;
 use miniquad::*;
 
@@ -171,12 +171,7 @@ impl EventHandler for Stage {
                     let p = vec3(p.x, if flip { p.z } else { -p.z }, -p.y);
                     let p = 4.0 * rot * p;
                     let rgb = self.image.get(x, y, z);
-                    let c = Vec4 {
-                        x: rgb.0,
-                        y: rgb.1,
-                        z: rgb.2,
-                        w: 1.0,
-                    };
+                    let c = vec4(rgb.0, rgb.1, rgb.2, 1.0);
                     self.instances.push((p.x, p.y, p.z, c.x, c.y, c.z, c.w));
                 }
             }
@@ -185,10 +180,6 @@ impl EventHandler for Stage {
     }
 
     fn draw(&mut self) {
-        // by default glam-rs can vec3 as u128 or #[reprc(C)](f32, f32, f32).
-        // need to ensure that the second option was used.
-        assert_eq!(std::mem::size_of::<Vec3>(), 12);
-
         self.ctx.buffer_update(
             self.bindings.vertex_buffers[1],
             BufferSource::slice(&self.instances[..]),

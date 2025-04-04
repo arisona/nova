@@ -9,7 +9,7 @@ impl super::Content for Fill {
         "Fill".to_string()
     }
 
-    fn reset(&self, _: &RenderState) {
+    fn reset(&self, _: &RenderState, _: &mut VoxelImage) {
         println!("Fill.configure");
     }
 

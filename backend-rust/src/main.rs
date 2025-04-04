@@ -11,7 +11,7 @@ mod web_server;
 #[macro_use]
 mod macros;
 
-const USE_NOVA_HARDWARE: bool = true;
+const USE_NOVA_HARDWARE: bool = false;
 fn main() {
     let state = Arc::new(Mutex::new(app_state::AppState::load()));
     println!("Using settings:\n{:#?}", *state.lock().unwrap());

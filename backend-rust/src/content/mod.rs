@@ -6,7 +6,7 @@ pub mod ramp;
 
 pub trait Content {
     fn name(&self) -> String;
-    fn reset(&self, state: &RenderState);
+    fn reset(&self, state: &RenderState, image: &mut VoxelImage);
     fn render(&self, state: &RenderState, image: &mut VoxelImage, delta: f32);
 }
 

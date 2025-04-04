@@ -60,7 +60,7 @@ impl Renderer {
             self.selected_content_index = state.selected_content_index;
             if self.selected_content_index < content.len() {
                 //println!("renderer: reset");
-                content[self.selected_content_index].reset(state);
+                content[self.selected_content_index].reset(state, image);
             }
         }
         content[self.selected_content_index].render(state, image, delta);

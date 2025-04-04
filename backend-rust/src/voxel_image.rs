@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct VoxelImage {
     data: Vec<f32>, // Store RGB values in a flat layout
     dx: usize,
