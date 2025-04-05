@@ -1,3 +1,5 @@
+use glam::vec3;
+
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 use crate::voxel_image::hsb_to_rgb;
@@ -15,7 +17,7 @@ impl super::Content for Fill {
 
     fn render(&self, state: &RenderState, image: &mut VoxelImage, _: f32) {
         //println!("Fill.render");
-        let rgb = hsb_to_rgb((state.hue(), state.saturation(), state.brightness()));
+        let rgb = hsb_to_rgb(vec3(state.hue(), state.saturation(), state.brightness()));
         image.fill(rgb);
     }
 }

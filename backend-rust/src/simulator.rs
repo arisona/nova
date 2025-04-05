@@ -171,7 +171,7 @@ impl EventHandler for Stage {
                     let p = vec3(p.x, if flip { p.z } else { -p.z }, -p.y);
                     let p = 4.0 * rot * p;
                     let rgb = self.image.get(x, y, z);
-                    let c = vec4(rgb.0, rgb.1, rgb.2, 1.0);
+                    let c = vec4(rgb.x, rgb.y, rgb.z, 1.0);
                     self.instances.push((p.x, p.y, p.z, c.x, c.y, c.z, c.w));
                 }
             }

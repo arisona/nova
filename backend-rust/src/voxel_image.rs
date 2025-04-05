@@ -1,3 +1,5 @@
+use glam::{Vec3, vec3};
+
 #[derive(Clone)]
 pub struct VoxelImage {
     data: Vec<f32>, // Store RGB values in a flat layout
@@ -28,19 +30,19 @@ impl VoxelImage {
         self.dz
     }
 
-    pub fn get(&self, x: usize, y: usize, z: usize) -> (f32, f32, f32) {
+    pub fn get(&self, x: usize, y: usize, z: usize) -> Vec3 {
         let index = (x * self.dy * self.dz + y * self.dz + z) * 3;
-        (self.data[index], self.data[index + 1], self.data[index + 2])
+        vec3(self.data[index], self.data[index + 1], self.data[index + 2])
     }
 
-    pub fn set(&mut self, x: usize, y: usize, z: usize, color: (f32, f32, f32)) {
+    pub fn set(&mut self, x: usize, y: usize, z: usize, color: Vec3) {
         let index = (x * self.dy * self.dz + y * self.dz + z) * 3;
-        self.data[index] = color.0;
-        self.data[index + 1] = color.1;
-        self.data[index + 2] = color.2;
+        self.data[index] = color.x;
+        self.data[index + 1] = color.y;
+        self.data[index + 2] = color.z;
     }
 
-    pub fn row(&self, x: usize, y: usize) -> &[f32] {
+    pub fn slice(&self, x: usize, y: usize) -> &[f32] {
         let start = (x * self.dy * self.dz + y * self.dz) * 3;
         let end = start + self.dz * 3;
         &self.data[start..end]
@@ -50,17 +52,17 @@ impl VoxelImage {
         self.data.fill(0.0);
     }
 
-    pub fn fill(&mut self, color: (f32, f32, f32)) {
+    pub fn fill(&mut self, color: Vec3) {
         self.data.chunks_exact_mut(3).for_each(|chunk| {
-            chunk[0] = color.0;
-            chunk[1] = color.1;
-            chunk[2] = color.2;
+            chunk[0] = color.x;
+            chunk[1] = color.y;
+            chunk[2] = color.z;
         });
     }
 }
 
-pub fn rgb_to_hsb(rgb: (f32, f32, f32)) -> (f32, f32, f32) {
-    let (r, g, b) = rgb;
+pub fn rgb_to_hsb(rgb: Vec3) -> Vec3 {
+    let (r, g, b) = (rgb.x, rgb.y, rgb.z);
     let max = r.max(g).max(b);
     let min = r.min(g).min(b);
     let delta = max - min;
@@ -79,13 +81,12 @@ pub fn rgb_to_hsb(rgb: (f32, f32, f32)) -> (f32, f32, f32) {
     let s = if max == 0.0 { 0.0 } else { delta / max };
     let b = max;
 
-    (h, s, b)
+    vec3(h, s, b)
 }
 
-pub(crate) fn hsb_to_rgb(hsb: (f32, f32, f32)) -> (f32, f32, f32) {
-    let (h, s, b) = hsb;
+pub(crate) fn hsb_to_rgb(hsb: Vec3) -> Vec3 {
+    let (h, s, b) = (hsb.x, hsb.y, hsb.z);
     let h = h * 360.0;
-
     let c = b * s;
     let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
     let m = b - c;
@@ -104,5 +105,5 @@ pub(crate) fn hsb_to_rgb(hsb: (f32, f32, f32)) -> (f32, f32, f32) {
         (c, 0.0, x)
     };
 
-    (r + m, g + m, b + m)
+    vec3(r + m, g + m, b + m)
 }

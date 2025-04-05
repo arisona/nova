@@ -1,3 +1,5 @@
+use glam::vec3;
+
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 pub struct Ramp {}
@@ -15,7 +17,7 @@ impl super::Content for Ramp {
                     let r = x as f32 / image.dx() as f32 * state.brightness();
                     let g = y as f32 / image.dy() as f32 * state.brightness();
                     let b = z as f32 / image.dz() as f32 * state.brightness();
-                    image.set(x, y, z, (r, g, b));
+                    image.set(x, y, z, vec3(r, g, b));
                 }
             }
         }

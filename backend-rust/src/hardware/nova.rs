@@ -430,7 +430,7 @@ impl NovaHardware {
             packet[offset + 2] = sequence_num as u8;
             packet[offset + 3] = chain as u8;
 
-            let pixels = image.row(0, chain); // row index 0, chain index = Y
+            let pixels = image.slice(0, chain); // row index 0, chain index = Y
 
             for i in 0..10 {
                 let base = offset + 4 + i * 4;
