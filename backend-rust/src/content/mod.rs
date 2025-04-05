@@ -6,12 +6,12 @@ pub mod ramp;
 
 pub trait Content {
     fn name(&self) -> String;
-    fn reset(&self, state: &RenderState, image: &mut VoxelImage);
-    fn render(&self, state: &RenderState, image: &mut VoxelImage, delta: f32);
+    fn reset(&mut self, state: &RenderState, image: &mut VoxelImage);
+    fn render(&mut self, state: &RenderState, image: &mut VoxelImage, delta: f32);
 }
 
 pub fn get_all_content() -> Vec<Box<dyn Content>> {
-    vec![Box::new(fill::Fill {}), Box::new(ramp::Ramp {})]
+    vec![Box::new(fill::Fill::new()), Box::new(ramp::Ramp::new())]
 }
 
 pub fn get_all_content_names() -> Vec<String> {
