@@ -22,6 +22,6 @@ fn main() {
     if USE_NOVA_HARDWARE {
         hardware::nova::run_nova_hardware(Arc::clone(&state), renderer);
     } else {
-        simulator::simulator::run_simulator(Arc::clone(&state), renderer);
+        simulator::run_simulator(Arc::clone(&state), renderer);
     }
 }
