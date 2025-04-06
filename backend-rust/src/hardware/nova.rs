@@ -4,8 +4,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use rand::Rng;
-
 use crate::check_run_once;
 
 use crate::app_state::AppState;
@@ -65,8 +63,6 @@ impl NovaHardware {
             "(ether proto {ETHER_TYPE_NOVA_SYNC} and ether dst __MY_MAC__) or ether broadcast"
         );
 
-        let mut image = VoxelImage::new(self.app_state.lock().unwrap().dim());
-
         loop {
             let mut interface;
 
@@ -82,6 +78,8 @@ impl NovaHardware {
 
                 match Interface::new(&interface_name, Some(filter.as_str())) {
                     Ok(iface) => {
+                        println!("Opened interface {interface_name}.");
+
                         interface = iface;
 
                         // Sucessfully opened interface
@@ -90,8 +88,8 @@ impl NovaHardware {
                             &format!("Resetting all modules at interface {interface_name}."),
                         ));
 
-                        println!("Opened interface {interface_name}.");
-                        self.reset_modules(&mut interface, &modules, &mut image);
+                        let image = VoxelImage::new(self.app_state.lock().unwrap().dim());
+                        self.reset_modules(&mut interface, &modules, &image);
                         println!("Module reset complete.");
                         break;
                     }
@@ -107,17 +105,17 @@ impl NovaHardware {
             }
 
             // Main processing loop for opened interface
-            let mut frame_time = Instant::now();
             let mut sync_time = Instant::now();
             let mut status_time = Instant::now();
-
             loop {
                 // Make sure app_state is unlocked quickly otherwise webserver thread will starve
-                let (interface_name, render_state, modules) = {
+                // TODO: implement flip
+                let (mut render_state, flip, interface_name, modules) = {
                     let app_state = self.app_state.lock().unwrap();
                     (
-                        app_state.ethernet_interface().to_string(),
                         RenderState::from(&app_state),
+                        app_state.is_flip_vertical(),
+                        app_state.ethernet_interface().to_string(),
                         app_state.modules().clone(),
                     )
                 };
@@ -169,7 +167,6 @@ impl NovaHardware {
                 );
                 let _ = interface.send(packet);
 
-                // Send rgb data to modules
                 for (_, _, addr) in modules {
                     let packet = Self::udp_packet(
                         &interface.address(),
@@ -178,27 +175,17 @@ impl NovaHardware {
                         addr,
                         CMD_RGB,
                         self.sequence_number,
-                        &image,
+                        self.renderer.image(),
                     );
                     let _ = interface.send(packet);
                 }
 
+                if do_render {
+                    self.renderer.render(&mut render_state);
+                }
+
                 // TODO: we need to review again how to deal with sequence numbers
                 self.sequence_number = self.sequence_number.wrapping_add(1);
-
-                // Finally, if we time budget allows, we can render
-                if do_render {
-                    let delta = frame_time.elapsed().as_secs_f32();
-                    frame_time = Instant::now();
-                    // println!("Render time: {:.3}ms", delta * 1000.0);
-                    self.renderer.render(&render_state, &mut image, delta);
-
-                    // Testing wait for a random time between 5 and 20 ms
-                    // let mut rng = rand::rng();
-                    // let random_delay = rng.random_range(5..=100);
-                    // println!("Random delay: {random_delay}ms");
-                    // std::thread::sleep(Duration::from_millis(random_delay));
-                }
             }
         }
         // won't reach (we're running on the main thread)
@@ -273,13 +260,12 @@ impl NovaHardware {
         &mut self,
         interface: &mut Interface,
         modules: &[(usize, usize, u8)],
-        image: &mut VoxelImage,
+        image: &VoxelImage,
     ) {
         // cleanup state
         self.is_running = false;
         self.sequence_number = 0;
         self.module_status.clear();
-        image.clear();
 
         // the logic here is taken from the original java code, don't question it for now
         for _ in 0..4 {
@@ -425,7 +411,7 @@ impl NovaHardware {
     ) {
         for chain in 0..25 {
             let offset = UDP_PAYLOAD_OFFSET + chain * 44;
-            packet[offset + 0] = 0xc0;
+            packet[offset] = 0xc0;
             packet[offset + 1] = command;
             packet[offset + 2] = sequence_num as u8;
             packet[offset + 3] = chain as u8;
@@ -434,12 +420,12 @@ impl NovaHardware {
 
             for i in 0..10 {
                 let base = offset + 4 + i * 4;
-                let r = (pixels[i * 3 + 0].clamp(0.0, 1.0) * 1023.0).round() as u32;
+                let r = (pixels[i * 3].clamp(0.0, 1.0) * 1023.0).round() as u32;
                 let g = (pixels[i * 3 + 1].clamp(0.0, 1.0) * 1023.0).round() as u32;
                 let b = (pixels[i * 3 + 2].clamp(0.0, 1.0) * 1023.0).round() as u32;
 
                 let packed = (r << 20) | (g << 10) | b;
-                packet[base + 0] = (packed >> 24) as u8;
+                packet[base] = (packed >> 24) as u8;
                 packet[base + 1] = (packed >> 16) as u8;
                 packet[base + 2] = (packed >> 8) as u8;
                 packet[base + 3] = packed as u8;

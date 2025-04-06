@@ -9,7 +9,6 @@ use crate::check_run_once;
 
 use crate::app_state::AppState;
 use crate::renderer::{RenderState, Renderer};
-use crate::voxel_image::VoxelImage;
 
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova simulator already running.");
@@ -27,7 +26,6 @@ pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
 struct Stage {
     app_state: Arc<Mutex<AppState>>,
     renderer: Renderer,
-    image: VoxelImage,
 
     ctx: Box<dyn RenderingBackend>,
 
@@ -123,12 +121,9 @@ impl Stage {
             },
         );
 
-        let image = VoxelImage::new(state.lock().unwrap().dim());
-
         Stage {
             app_state: state,
             renderer,
-            image,
             ctx,
             pipeline,
             bindings,
@@ -143,22 +138,20 @@ impl Stage {
 impl EventHandler for Stage {
     fn update(&mut self) {
         let now = std::time::Instant::now();
-        let delta_time = now.duration_since(self.last_frame_time).as_secs_f32();
         self.last_frame_time = now;
 
         let rot = Mat3::from_rotation_y(self.rot);
         self.rot += 0.001;
 
-        let app_state = self.app_state.lock().unwrap();
-        let flip = app_state.is_flip_vertical();
-        let state = RenderState::from(&app_state);
-        self.renderer.render(&state, &mut self.image, delta_time);
+        let (mut render_state, flip) = {
+            let app_state = self.app_state.lock().unwrap();
+            (RenderState::from(&app_state), app_state.is_flip_vertical())
+        };
+        self.renderer.render(&mut render_state);
 
         // create grid
-        let dx = self.image.dx();
-        let dy = self.image.dy();
-        let dz = self.image.dz();
         self.instances.clear();
+        let (dx, dy, dz) = self.renderer.image().dim();
         for x in 0..dx {
             for y in 0..dy {
                 for z in 0..dz {
@@ -170,7 +163,7 @@ impl EventHandler for Stage {
                     // convert z-up to y-up and flip if needed
                     let p = vec3(p.x, if flip { p.z } else { -p.z }, -p.y);
                     let p = 4.0 * rot * p;
-                    let rgb = self.image.get(x, y, z);
+                    let rgb = self.renderer.image().get(x, y, z);
                     let c = vec4(rgb.x, rgb.y, rgb.z, 1.0);
                     self.instances.push((p.x, p.y, p.z, c.x, c.y, c.z, c.w));
                 }

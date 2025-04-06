@@ -18,7 +18,7 @@ fn main() {
 
     web_server::run_server(Arc::clone(&state));
 
-    let renderer = renderer::Renderer::new();
+    let renderer = renderer::Renderer::new(state.lock().unwrap().dim());
     if USE_NOVA_HARDWARE {
         hardware::nova::run_nova_hardware(Arc::clone(&state), renderer);
     } else {

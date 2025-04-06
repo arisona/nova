@@ -13,17 +13,19 @@ impl Fill {
 }
 
 impl super::Content for Fill {
-    fn name(&self) -> String {
-        "Fill".to_string()
+    fn name(&self) -> &str {
+        "Fill"
     }
 
-    fn reset(&mut self, _: &RenderState, _: &mut VoxelImage) {
-        println!("Fill.configure");
-    }
-
-    fn render(&mut self, state: &RenderState, image: &mut VoxelImage, _: f32) {
-        //println!("Fill.render");
+    fn render(
+        &mut self,
+        state: &RenderState,
+        _: f32,
+        _: f32,
+        _: &VoxelImage,
+        next: &mut VoxelImage,
+    ) {
         let rgb = hsb_to_rgb(vec3(state.hue(), state.saturation(), state.brightness()));
-        image.fill(rgb);
+        next.fill(rgb);
     }
 }

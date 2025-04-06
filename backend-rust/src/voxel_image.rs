@@ -18,6 +18,10 @@ impl VoxelImage {
         }
     }
 
+    pub fn dim(&self) -> (usize, usize, usize) {
+        (self.dx, self.dy, self.dz)
+    }
+
     pub fn dx(&self) -> usize {
         self.dx
     }

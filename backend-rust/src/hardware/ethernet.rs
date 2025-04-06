@@ -9,6 +9,7 @@ pub struct Interface {
     capture: pcap::Capture<pcap::Active>,
 }
 
+#[allow(dead_code)]
 impl Interface {
     pub fn new(name: &str, filter: Option<&str>) -> Result<Self, Box<dyn Error>> {
         let address = mac_address::mac_address_by_name(name)?
