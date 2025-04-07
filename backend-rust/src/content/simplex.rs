@@ -1,24 +1,20 @@
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
-use glam::Vec3;
 use noise::{NoiseFn, Simplex as SimplexNoise};
+use palette::{IntoColor, Mix, Oklch, Srgb};
+
+use super::get_palette;
 
 pub struct Simplex {
     simplex: SimplexNoise,
-    palette: Vec<Vec3>,
+    palette: Vec<Oklch>,
 }
 
 impl Simplex {
     pub fn new() -> Self {
         Self {
             simplex: SimplexNoise::new(0xffff8240),
-            palette: vec![
-                Vec3::new(1.0, 0.0, 0.0),
-                Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(0.0, 0.0, 1.0),
-                Vec3::new(1.0, 1.0, 0.0),
-                Vec3::new(0.0, 1.0, 1.0),
-            ],
+            palette: get_palette("The Grand Budapest Hotel (2014)"),
         }
     }
 }
@@ -75,12 +71,14 @@ impl super::Content for Simplex {
 
                     let mix = palette_index.fract();
                     let color = if upper_index < self.palette.len() {
-                        self.palette[lower_index].lerp(self.palette[upper_index], mix as f32)
+                        self.palette[lower_index].mix(self.palette[upper_index], mix as f32)
                     } else {
                         self.palette[lower_index]
                     };
 
-                    next.set(x, y, z, color * state.brightness());
+                    let rgb: Srgb<f32> = color.into_color();
+                    let vec3 = glam::Vec3::new(rgb.red, rgb.green, rgb.blue) * state.brightness();
+                    next.set(x, y, z, vec3);
                 }
             }
         }
