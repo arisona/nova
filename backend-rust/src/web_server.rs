@@ -71,9 +71,11 @@ async fn command(
     if let Some(value) = query.get("value") {
         println!("command: {command} value: {:?}", value);
         match command.as_str() {
-            // TODO: missing content commands
-            "available-content" => {}
-            "enabled-content-indices" => {}
+            "enabled-content-indices" => {
+                let enabled_indices: Vec<u32> =
+                    value.split(',').filter_map(|s| s.parse().ok()).collect();
+                state.set_enabled_content_indices(enabled_indices);
+            }
             "selected-content-index" => {
                 if let Ok(parsed_value) = value.parse() {
                     state.set_selected_content_index(parsed_value);
