@@ -7,10 +7,9 @@ use std::time::{Duration, Instant};
 use crate::check_run_once;
 
 use crate::app_state::AppState;
+use crate::ethernet::Interface;
 use crate::renderer::{RenderState, Renderer};
 use crate::voxel_image::VoxelImage;
-
-use super::ethernet::Interface;
 
 pub fn run_nova_hardware(app_state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova hardware driver already running.");

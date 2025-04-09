@@ -1,5 +1,6 @@
 use glam::vec3;
 
+use crate::content;
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 use crate::voxel_image::hsb_to_rgb;
@@ -12,7 +13,7 @@ impl Fill {
     }
 }
 
-impl super::Content for Fill {
+impl content::Content for Fill {
     fn name(&self) -> &str {
         "Fill"
     }

@@ -2,7 +2,8 @@ use std::sync::{Arc, Mutex};
 
 mod app_state;
 mod content;
-mod hardware;
+mod ethernet;
+mod nova;
 mod renderer;
 mod simulator;
 mod voxel_image;
@@ -20,7 +21,7 @@ fn main() {
 
     let renderer = renderer::Renderer::new(state.lock().unwrap().dim());
     if USE_NOVA_HARDWARE {
-        hardware::nova::run_nova_hardware(Arc::clone(&state), renderer);
+        nova::run_nova_hardware(Arc::clone(&state), renderer);
     } else {
         simulator::run_simulator(Arc::clone(&state), renderer);
     }

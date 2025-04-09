@@ -50,6 +50,20 @@ static PALETTES: LazyLock<Value> = LazyLock::new(|| {
                   { "color": "Gold", "rgb": [255, 204, 102] },
                   { "color": "Brown", "rgb": [153, 102, 51] }
                 ]
+            },           {
+                "movie": "Robot",
+                "palette": [
+                  { "color": "Pink", "rgb": [244, 194, 194] },
+                  { "color": "Black", "rgb": [0, 0, 0] },
+                  { "color": "Purple", "rgb": [204, 153, 204] },
+                  { "color": "Black", "rgb": [0, 0, 0] },
+                  { "color": "Red", "rgb": [255, 102, 102] },
+                  { "color": "Black", "rgb": [0, 0, 0] },
+                  { "color": "Gold", "rgb": [255, 204, 102] },
+                  { "color": "Black", "rgb": [0, 0, 0] },
+                  { "color": "Brown", "rgb": [153, 102, 51] },
+                  { "color": "Black", "rgb": [0, 0, 0] }
+                ]
             },
             {
                 "movie": "Mad Max: Fury Road (2015)",
@@ -262,6 +276,12 @@ pub fn get_palette(name: &str) -> Vec<Oklch> {
         let rgb = Srgb::new(r, g, b);
         oklch_colors.push(rgb.into_color());
     }
+    oklch_colors.push(Srgb::new(0.0, 0.0, 0.0).into_color());
+    oklch_colors.push(Srgb::new(1.0, 1.0, 1.0).into_color());
+    oklch_colors.push(Srgb::new(0.0, 0.0, 0.0).into_color());
+    oklch_colors.push(Srgb::new(1.0, 1.0, 1.0).into_color());
+    oklch_colors.push(Srgb::new(0.0, 0.0, 0.0).into_color());
+    oklch_colors.push(Srgb::new(1.0, 1.0, 1.0).into_color());
     oklch_colors
 }
 

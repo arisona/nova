@@ -1,8 +1,5 @@
 use std::{borrow::Borrow, error::Error};
 
-use mac_address;
-use pcap;
-
 pub struct Interface {
     name: String,
     address: [u8; 6],

@@ -40,7 +40,7 @@ struct Stage {
 }
 
 impl Stage {
-    pub fn new(state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
+    fn new(state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
         let mut ctx: Box<dyn RenderingBackend> = window::new_rendering_backend();
 
         let r = 1.0;
@@ -169,6 +169,7 @@ impl EventHandler for Stage {
                 }
             }
         }
+        // TODO: this is incorrect for other resultions, needs a fix
         self.distance_factor = (dx as f32).max(dy as f32) / 5.0;
     }
 

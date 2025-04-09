@@ -1,5 +1,6 @@
 use glam::vec3;
 
+use crate::content;
 use crate::renderer::RenderState;
 use crate::voxel_image::{self, VoxelImage};
 pub struct Ramp {}
@@ -10,7 +11,7 @@ impl Ramp {
     }
 }
 
-impl super::Content for Ramp {
+impl content::Content for Ramp {
     fn name(&self) -> &str {
         "Ramp"
     }

@@ -14,7 +14,6 @@ serde_json = "1"
 
 ## networking stuff 
 # alternative to pcap would be pnet, which uses raw sockets instead of lib pcap
-etherparse = "0.17"
 mac_address = "1.1"
 pcap = "2.2"
 
