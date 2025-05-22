@@ -4,9 +4,9 @@ use crate::voxel_image::VoxelImage;
 use noise::{NoiseFn, Simplex as SimplexNoise, Value as ValueNoise, Worley as WorleyNoise};
 use palette::{IntoColor, Mix, Oklch, Srgb};
 
-//type Noise = SimplexNoise;
+type Noise = SimplexNoise;
 //type Noise = WorleyNoise;
-type Noise = ValueNoise;
+//type Noise = ValueNoise;
 
 pub struct Simplex {
     noise: Noise,

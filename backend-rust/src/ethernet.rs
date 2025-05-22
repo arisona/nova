@@ -66,3 +66,11 @@ fn mac_address_as_string(address: [u8; 6]) -> String {
         address[0], address[1], address[2], address[3], address[4], address[5]
     )
 }
+
+fn print_packet(text: &str, packet: &[u8], num_bytes: usize) {
+    print!("{}({}): ", text, packet.len());
+    for byte in &packet[..packet.len().min(num_bytes)] {
+        print!("{:02x} ", byte);
+    }
+    println!();
+}

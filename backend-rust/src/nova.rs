@@ -29,7 +29,6 @@ struct NovaHardware {
     renderer: Renderer,
 
     is_running: bool,
-    sequence_number: usize,
 
     module_status: HashMap<u8, Instant>,
 
@@ -46,7 +45,6 @@ impl NovaHardware {
             app_state,
             renderer,
             is_running: false,
-            sequence_number: 0,
             module_status: HashMap::new(),
             local_ip,
             local_port,
@@ -54,13 +52,8 @@ impl NovaHardware {
     }
 
     fn run(&mut self) {
-        // filter: accept nova packets (0x810) sent to me, and all broadcast packets
-        // TODO:
-        // __MY_MAC__ will be replaced with the interfaces mac, once it's known
-        // it doesn't seem we need to filter for broadcast packets
-        let filter = format!(
-            "(ether proto {ETHER_TYPE_NOVA_SYNC} and ether dst __MY_MAC__) or ether broadcast"
-        );
+        // Accept nova packets (0x810) sent to me (__MY_MAC__ will be replaced with the interface mac)
+        let filter = format!("ether proto {ETHER_TYPE_NOVA_SYNC} and ether dst __MY_MAC__");
 
         loop {
             let mut interface;
@@ -104,6 +97,11 @@ impl NovaHardware {
             }
 
             // Main processing loop for opened interface
+            self.is_running = false;
+            self.module_status.clear();
+
+            let mut sequence_number = 0;
+            let mut shift_pixels = false;
             let mut sync_time = Instant::now();
             let mut status_time = Instant::now();
             loop {
@@ -121,17 +119,27 @@ impl NovaHardware {
 
                 if &interface_name != interface.name() {
                     println!("Interface changed to {interface_name}.");
-                    // return back to interface opening loop
+                    // Return back to interface opening loop
                     break;
                 }
 
                 // Check if we need to request status from each module
                 let now = Instant::now();
                 if now >= status_time {
-                    let packet =
-                        Self::nova_packet(&BROADCAST_ADDR, &interface.address(), CMD_STATUS, 0, 0);
+                    println!("Requesting status from all modules.");
+                    let packet = Self::nova_packet(
+                        &BROADCAST_ADDR,
+                        &interface.address(),
+                        CMD_STATUS,
+                        0,
+                        0,
+                        false,
+                    );
                     let _ = interface.send(packet);
+                    status_time += STATUS_PERIOD;
 
+                    // TODO: this is original logic from Java code, but I think we should do this when we receive status packets
+                    // TODO: one more issue: modules that are not configured in settings also report back when they are alive (we could use this to autoconfig actually)
                     let num_modules = modules.len();
                     let num_ready_modules = self
                         .module_status
@@ -143,28 +151,34 @@ impl NovaHardware {
                         num_modules == num_ready_modules,
                         &format!("{num_ready_modules} of {num_modules} modules ready."),
                     ));
-
-                    status_time += STATUS_PERIOD;
                 }
 
                 // Handle received status packets
                 while let Ok(packet) = interface.receive() {
                     self.handle_status_packet(&mut interface, &packet);
+                    // TODO: move status update handling from above to here
                 }
 
                 // Sync loop to hardware and check for render time budget
                 let do_render = Self::wait_for_next_sync(&mut sync_time);
 
-                // Send sync broadcast
-                // TODO: this is inconsistent with the Java code, which sends sync/running or pll/stopped depending on run status
+                // Send sync broadcast and do not send any pixel data if we are in shift mode
                 let packet = Self::nova_packet(
                     &BROADCAST_ADDR,
                     &SYNC_ADDR,
                     CMD_SYNC,
                     STATUS_RUNNING,
-                    self.sequence_number,
+                    sequence_number,
+                    shift_pixels,
                 );
                 let _ = interface.send(packet);
+
+                // Handle sequence number and decide whether to shift pixels only
+                shift_pixels = !shift_pixels;
+                if !shift_pixels {
+                    sequence_number = sequence_number.wrapping_add(1);
+                    continue;
+                }
 
                 for (_, _, addr) in modules {
                     let packet = Self::udp_packet(
@@ -173,7 +187,7 @@ impl NovaHardware {
                         self.local_port,
                         addr,
                         CMD_RGB,
-                        self.sequence_number,
+                        sequence_number.wrapping_add(MODULE_QUEUE_SIZE),
                         self.renderer.image(),
                     );
                     let _ = interface.send(packet);
@@ -182,28 +196,12 @@ impl NovaHardware {
                 if do_render {
                     self.renderer.render(&mut render_state);
                 }
-
-                // TODO: we need to review again how to deal with sequence numbers
-                self.sequence_number = self.sequence_number.wrapping_add(1);
             }
         }
         // won't reach (we're running on the main thread)
     }
 
     fn handle_status_packet(&mut self, interface: &mut Interface, packet: &[u8]) {
-        // Ignore if destination is broadcast
-        // TODO: remove broadcast in filter, and forget about this
-        if packet[0..6] == [0xff; 6] {
-            return;
-        }
-
-        // Ignore if ethertype is not NOVA_SYNC
-        // TODO: same, ignore, since our filter guarantees that this is a NOVA_SYNC packet
-        let ethertype = u16::from_be_bytes([packet[12], packet[13]]);
-        if ethertype != ETHER_TYPE_NOVA_SYNC {
-            return;
-        }
-
         if packet.len() < 17 {
             return;
         }
@@ -219,13 +217,13 @@ impl NovaHardware {
         match command {
             CMD_START => {
                 self.is_running = true;
-                self.sequence_number = 0;
-                reply = Self::nova_packet(dst, src, CMD_STATUS, STATUS_RUNNING, 511);
+                //self.sequence_number = 0;
+                reply = Self::nova_packet(dst, src, CMD_STATUS, STATUS_RUNNING, 511, false);
             }
             CMD_STOP => {
                 self.is_running = false;
-                self.sequence_number = 0;
-                reply = Self::nova_packet(dst, src, CMD_STATUS, STATUS_STOPPED, 0);
+                //self.sequence_number = 0;
+                reply = Self::nova_packet(dst, src, CMD_STATUS, STATUS_STOPPED, 0, false);
             }
             CMD_STATUS => {
                 if packet[20] == NOVA_IP[0] {
@@ -243,7 +241,8 @@ impl NovaHardware {
                         } else {
                             STATUS_STOPPED
                         },
-                        self.sequence_number,
+                        0,     // self.sequence_number,
+                        false, // self.shift_pixels,
                     )
                 }
             }
@@ -256,16 +255,11 @@ impl NovaHardware {
     }
 
     fn reset_modules(
-        &mut self,
+        &self,
         interface: &mut Interface,
         modules: &[(usize, usize, u8)],
         image: &VoxelImage,
     ) {
-        // cleanup state
-        self.is_running = false;
-        self.sequence_number = 0;
-        self.module_status.clear();
-
         // the logic here is taken from the original java code, don't question it for now
         for _ in 0..4 {
             for &(_, _, address) in modules {
@@ -280,7 +274,7 @@ impl NovaHardware {
                 );
                 let _ = interface.send(packet);
             }
-            std::thread::sleep(Duration::from_millis(400));
+            std::thread::sleep(Duration::from_millis(200));
         }
         for &(_, _, address) in modules {
             let packet = Self::udp_packet(
@@ -295,6 +289,9 @@ impl NovaHardware {
             let _ = interface.send(packet);
         }
         std::thread::sleep(Duration::from_millis(1000));
+
+        // TODO: the original code here sends MODULE_QUEUE_SIZE packets ahead (e.g. 4 packets with seq 0 1 2 3)
+        // but looks like its not needed actually
     }
 
     fn wait_for_next_sync(sync_time: &mut Instant) -> bool {
@@ -329,6 +326,7 @@ impl NovaHardware {
         command: u8,
         status: u8,
         sequence_num: usize,
+        shift_pixels: bool,
     ) -> [u8; NOVA_PACKET_LEN] {
         let mut packet = [0u8; NOVA_PACKET_LEN];
         // ethernet header
@@ -340,9 +338,9 @@ impl NovaHardware {
         packet[14] = (STATUS_DATA_LEN >> 8) as u8;
         packet[15] = STATUS_DATA_LEN as u8;
         packet[16] = command;
-        packet[17] = status; // status
-        packet[18] = (sequence_num >> 1) as u8;
-        packet[19] = (sequence_num & 1) as u8;
+        packet[17] = status;
+        packet[18] = sequence_num as u8;
+        packet[19] = if shift_pixels { 1 } else { 0 };
 
         packet
     }
@@ -432,16 +430,17 @@ impl NovaHardware {
         }
     }
 
+    // NOTE: the original java code obtains the loopback address (127.0.0.1)
+    // note sure which variant is better.
     fn local_ip_and_port() -> std::io::Result<([u8; 4], u16)> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
         socket.connect("8.8.8.8:80")?;
         let local_addr = socket.local_addr()?;
         match local_addr.ip() {
             std::net::IpAddr::V4(v4) => Ok((v4.octets(), local_addr.port())),
-            std::net::IpAddr::V6(_) => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Expected IPv4 address, got IPv6",
-            )),
+            std::net::IpAddr::V6(_) => {
+                Err(std::io::Error::other("Expected IPv4 address, got IPv6"))
+            }
         }
     }
 
@@ -520,8 +519,8 @@ const NOVA_IP_PREFIX: [u8; 3] = [192, 168, 1];
 const NOVA_UDP_PORT: u16 = 3210;
 
 const BROADCAST_ADDR: [u8; 6] = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
-const SYNC_ADDR: [u8; 6] = [0x00, 0x20, 0xE3, 0x10, 0x01, 0x00];
-const DMUX_ADDR_PREFIX: [u8; 5] = [0x00, 0x20, 0xE3, 0x10, 0x00];
+const SYNC_ADDR: [u8; 6] = [0x00, 0x20, 0xe3, 0x10, 0x01, 0x00];
+const DMUX_ADDR_PREFIX: [u8; 5] = [0x00, 0x20, 0xe3, 0x10, 0x00];
 
 // Sync command values
 const CMD_SYNC: u8 = 0x00;
@@ -552,3 +551,5 @@ const CMD_AUTOID: u8 = 0x70;
 // const FSS_POWER_ERASE_PENDING: u8 = 0x04;
 // const FSS_POWER_PROGRAM_PENDING: u8 = 0x02;
 // const FSS_POWER_RESTART_PENDING: u8 = 0x01;
+
+const MODULE_QUEUE_SIZE: usize = 4;

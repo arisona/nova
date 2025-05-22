@@ -8,7 +8,7 @@ use crate::app_state::AppState;
 
 pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
     // we are running the web server in a separate thread, so we can still use the main thread for the simulator
-    thread::spawn(|| {
+    thread::spawn(move || {
         let sys = actix_web::rt::System::new();
         let port = state.lock().unwrap().webserver_port();
         let address = format!("0.0.0.0:{port}");
