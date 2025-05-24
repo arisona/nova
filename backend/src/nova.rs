@@ -23,11 +23,16 @@ pub fn run_nova_hardware(app_state: Arc<Mutex<AppState>>, renderer: Renderer) {
     NovaHardware::new(app_state, renderer).run();
 }
 
+// Legacy note: the 50Hz loop runs in two cycles: one to send pixels and another to shift pixels on the hardware.
+#[derive(PartialEq)]
+enum SyncMode {
+    SendPixels,
+    ShiftPixels,
+}
+
 struct NovaHardware {
     app_state: Arc<Mutex<AppState>>,
     renderer: Renderer,
-
-    is_running: bool,
 
     module_status: HashMap<u8, Instant>,
 }
@@ -37,7 +42,6 @@ impl NovaHardware {
         NovaHardware {
             app_state,
             renderer,
-            is_running: false,
             module_status: HashMap::new(),
         }
     }
@@ -88,16 +92,14 @@ impl NovaHardware {
             }
 
             // Main processing loop for opened interface
-            self.is_running = false;
             self.module_status.clear();
 
             let mut sequence_number = 0;
-            let mut shift_pixels = false;
+            let mut sync_mode = SyncMode::SendPixels;
             let mut sync_time = Instant::now();
             let mut status_time = Instant::now();
             loop {
                 // Make sure app_state is unlocked quickly otherwise webserver thread will starve
-                // TODO: implement flip
                 let (mut render_state, flip, interface_name, modules) = {
                     let app_state = self.app_state.lock().unwrap();
                     (
@@ -127,9 +129,14 @@ impl NovaHardware {
                     );
                     let _ = interface.send(packet);
                     status_time += STATUS_PERIOD;
+                }
 
-                    // TODO: this is original logic from Java code, but I think we should do this when we receive status packets
-                    // TODO: one more issue: modules that are not configured in settings also report back when they are alive (we could use this to autoconfig actually)
+                // Handle received status packets
+                while let Ok(packet) = interface.receive() {
+                    self.handle_status_packet(&packet);
+
+                    // Update the app state with the latest module status
+                    // TODO: modules that are not configured in settings also report back when they are alive (we could use this to autoconfig actually)
                     let num_modules = modules.len();
                     let num_ready_modules = self
                         .module_status
@@ -143,12 +150,6 @@ impl NovaHardware {
                     ));
                 }
 
-                // Handle received status packets
-                while let Ok(packet) = interface.receive() {
-                    self.handle_status_packet(&packet);
-                    // TODO: move status update handling from above to here
-                }
-
                 // Sync loop to hardware and check for render time budget
                 let do_render = Self::wait_for_next_sync(&mut sync_time);
 
@@ -158,34 +159,38 @@ impl NovaHardware {
                     &interface.address(),
                     NOVA_CMD_SYNC,
                     sequence_number,
-                    shift_pixels,
+                    sync_mode == SyncMode::ShiftPixels,
                 );
                 let _ = interface.send(packet);
 
-                // Handle sequence number and decide whether to shift pixels only
-                shift_pixels = !shift_pixels;
-                if !shift_pixels {
-                    sequence_number = sequence_number.wrapping_add(1);
-                    continue;
-                }
-
-                for (_, _, addr) in modules {
-                    let packet = Self::udp_packet(
-                        &interface.address(),
-                        addr,
-                        UDP_CMD_RGB,
-                        sequence_number.wrapping_add(MODULE_QUEUE_SIZE),
-                        self.renderer.image(),
-                    );
-                    let _ = interface.send(packet);
-                }
-
-                if do_render {
-                    self.renderer.render(&mut render_state);
+                // Send or shift pixels depending on the sync mode. Render only if we didn't miss the sync.
+                // Legacy note: the original code used MODULE_QUEUE_SIZE = 4 to send rgb data with sequence number + 4 ahead.
+                match sync_mode {
+                    SyncMode::SendPixels => {
+                        if do_render {
+                            self.renderer.render(&mut render_state);
+                        }
+                        for (_, _, addr) in modules {
+                            let packet = Self::udp_packet(
+                                &interface.address(),
+                                addr,
+                                UDP_CMD_RGB,
+                                sequence_number.wrapping_add(1),
+                                self.renderer.image(),
+                                flip,
+                            );
+                            let _ = interface.send(packet);
+                        }
+                        sync_mode = SyncMode::ShiftPixels;
+                    }
+                    SyncMode::ShiftPixels => {
+                        sequence_number = sequence_number.wrapping_add(1);
+                        sync_mode = SyncMode::SendPixels;
+                    }
                 }
             }
         }
-        // won't reach (we're running on the main thread)
+        // Won't reach (we're running on the main thread)
     }
 
     fn handle_status_packet(&mut self, packet: &[u8]) {
@@ -219,34 +224,34 @@ impl NovaHardware {
         modules: &[(usize, usize, u8)],
         image: &VoxelImage,
     ) {
-        // the logic here is taken from the original java code
+        // Legacy note: the logic here is taken from the original java code
+        let mac = &interface.address();
         for _ in 0..4 {
             for &(_, _, address) in modules {
-                let packet =
-                    Self::udp_packet(&interface.address(), address, UDP_CMD_RESET, 0, image);
+                let packet = Self::udp_packet(mac, address, UDP_CMD_RESET, 0, image, false);
                 let _ = interface.send(packet);
             }
             std::thread::sleep(Duration::from_millis(200));
         }
         for &(_, _, address) in modules {
-            let packet = Self::udp_packet(&interface.address(), address, UDP_CMD_AUTOID, 0, image);
+            let packet = Self::udp_packet(mac, address, UDP_CMD_AUTOID, 0, image, false);
             let _ = interface.send(packet);
         }
         std::thread::sleep(Duration::from_millis(200));
     }
 
     fn wait_for_next_sync(sync_time: &mut Instant) -> bool {
-        // this needs testing as the Nova timing is quite critical
+        // Legacy note: Nova sync timing is critical
         let target = *sync_time + SYNC_PERIOD;
         *sync_time += SYNC_PERIOD;
 
         let now = Instant::now();
         if now > target {
-            // missed sync: do not render and wait for next sync
+            // Missed sync: do not render and wait for next sync
             println!("Missed sync by {}us", (now - target).as_micros());
             return false;
         } else if now < target - SYNC_BUSY_WAIT_MARGIN {
-            // os wait for as much as possible
+            // Thread sleep wait for as much as possible
             let sleep_duration = target
                 .duration_since(now)
                 .saturating_sub(SYNC_BUSY_WAIT_MARGIN);
@@ -255,7 +260,7 @@ impl NovaHardware {
             }
         }
         while Instant::now() < target {
-            // busy wait for the last bit to keep the timing
+            // Busy wait for the last bit to keep the timing
             std::thread::yield_now();
         }
         true
@@ -295,29 +300,30 @@ impl NovaHardware {
         command: u8,
         sequence_num: usize,
         image: &VoxelImage,
+        flip: bool,
     ) -> [u8; UDP_PACKET_LEN] {
         let mut packet = [0u8; UDP_PACKET_LEN];
-        // ethernet header
+        // Ethernet header
         packet[0..5].copy_from_slice(&NOVA_MAC_PREFIX);
         packet[5] = module_address;
         packet[6..12].copy_from_slice(src);
         packet[12] = (ETHER_TYPE_IP >> 8) as u8;
         packet[13] = ETHER_TYPE_IP as u8;
 
-        // ip header
+        // IP header
         packet[14] = IP_VERSION | 0x05;
         packet[15] = 0x00; // ECN / DSCP -- orignal value was 0xf0, which doesn't really make sense
         let ip_packet_len = IP_HEADER_LEN + UDP_HEADER_LEN + UDP_CHAINED_DATA_LEN;
         packet[16] = (ip_packet_len >> 8) as u8;
         packet[17] = ip_packet_len as u8;
         packet[18] = 0x32; // ID field
-        packet[19] = 0x1c; // (according original code)
-        packet[20] = 0x40; // fragment flags & offset
-        packet[21] = 0x00; // (don't fragment, offset = 0)
+        packet[19] = 0x1c; // Constant 0x1c according original code
+        packet[20] = 0x40; // Fragment flags & offset
+        packet[21] = 0x00; // Don't fragment, offset = 0
         packet[22] = 0x80; // TTL (0x80 is common default)
         packet[23] = 0x11; // UDP
-        packet[24] = 0x00; // checksum
-        packet[25] = 0x00; // (calculated below)
+        packet[24] = 0x00; // Checksum (calculated below)
+        packet[25] = 0x00; // Checksum (calculated below)
         packet[26..30].copy_from_slice(&LOCAL_IP);
         packet[30..33].copy_from_slice(&NOVA_IP_PREFIX);
         packet[33] = module_address;
@@ -325,7 +331,7 @@ impl NovaHardware {
         packet[24] = (checksum >> 8) as u8;
         packet[25] = checksum as u8;
 
-        // udp header
+        // UDP header
         packet[34] = (LOCAL_UDP_PORT >> 8) as u8;
         packet[35] = LOCAL_UDP_PORT as u8;
         packet[36] = (NOVA_UDP_PORT >> 8) as u8;
@@ -333,11 +339,11 @@ impl NovaHardware {
         let udp_packet_len = UDP_HEADER_LEN + UDP_CHAINED_DATA_LEN;
         packet[38] = (udp_packet_len >> 8) as u8;
         packet[39] = udp_packet_len as u8;
-        packet[40] = 0x00; // checksum
-        packet[41] = 0x00; // (left as zero, which is okay for UDP)
+        packet[40] = 0x00; // Checksum (zero for UDP)
+        packet[41] = 0x00; // Checksum (zero for UDP)
 
-        // udp payload
-        Self::fill_udp_payload(&mut packet, command, sequence_num, image);
+        // UDP payload
+        Self::fill_udp_payload(&mut packet, command, sequence_num, image, flip);
 
         packet
     }
@@ -347,6 +353,7 @@ impl NovaHardware {
         command: u8,
         sequence_num: usize,
         image: &VoxelImage,
+        flip: bool,
     ) {
         for chain in 0..25 {
             let offset = UDP_PAYLOAD_OFFSET + chain * 44;
@@ -355,10 +362,11 @@ impl NovaHardware {
             packet[offset + 2] = sequence_num as u8;
             packet[offset + 3] = chain as u8;
 
-            let pixels = image.slice(0, chain); // row index 0, chain index = Y
+            let pixels = image.slice(0, chain); // Row index 0, chain index = Y
 
             for i in 0..10 {
                 let base = offset + 4 + i * 4;
+                let i = if flip { 9 - i } else { i };
                 let r = (pixels[i * 3].clamp(0.0, 1.0) * 1023.0).round() as u32;
                 let g = (pixels[i * 3 + 1].clamp(0.0, 1.0) * 1023.0).round() as u32;
                 let b = (pixels[i * 3 + 2].clamp(0.0, 1.0) * 1023.0).round() as u32;
@@ -394,10 +402,6 @@ const SYNC_PERIOD: Duration = Duration::from_millis(20);
 const SYNC_BUSY_WAIT_MARGIN: Duration = Duration::from_millis(5);
 const STATUS_PERIOD: Duration = Duration::from_millis(5000);
 const INTERFACE_RETRY_PERIOD: Duration = Duration::from_millis(500);
-
-// Module side queue size
-// TODO: looks like we can also set it to 1 and it still works, need to review the rgb/shift logic
-const MODULE_QUEUE_SIZE: usize = 4;
 
 // Ethernet / IP / UDP related constants
 const ETHER_ADDR_LEN: usize = 6;

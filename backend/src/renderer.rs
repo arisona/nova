@@ -105,7 +105,9 @@ impl Renderer {
             &mut self.next,
         );
 
-        // Testing wait for a random time between 5 and 20 ms
+        state.set_reset(false);
+
+        // Testing: wait for a random time between 5 and 20 ms
         // let mut rng = rand::rng();
         // let random_delay = rng.random_range(5..=100);
         // println!("Random delay: {random_delay}ms");
