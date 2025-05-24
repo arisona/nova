@@ -12,7 +12,7 @@
       },
       "problemMatcher": ["$rustc"],
       "options": {
-        "cwd": "${workspaceFolder}/backend-rust"
+        "cwd": "${workspaceFolder}/backend"
       }
     }
   ]

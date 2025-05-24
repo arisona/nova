@@ -8,9 +8,9 @@
       "type": "lldb",
       "request": "launch",
       "name": "Launch",
-      "program": "${workspaceFolder}/backend-rust/target/debug/backend-rust",
+      "program": "${workspaceFolder}/backend/target/debug/nova-server",
       "args": [],
-      "cwd": "${workspaceFolder}/backend-rust",
+      "cwd": "${workspaceFolder}/backend",
       "preLaunchTask": "cargo build"
     }
   ]
