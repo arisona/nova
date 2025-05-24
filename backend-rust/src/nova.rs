@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::net::UdpSocket;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -31,29 +30,21 @@ struct NovaHardware {
     is_running: bool,
 
     module_status: HashMap<u8, Instant>,
-
-    // TODO: once we have this all working: do we really need these?
-    // (likely it's not needed, since we're not expecting any IP replies from Nova)
-    local_ip: [u8; 4],
-    local_port: u16,
 }
 
 impl NovaHardware {
     fn new(app_state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
-        let (local_ip, local_port) = Self::local_ip_and_port().unwrap();
         NovaHardware {
             app_state,
             renderer,
             is_running: false,
             module_status: HashMap::new(),
-            local_ip,
-            local_port,
         }
     }
 
     fn run(&mut self) {
         // Accept nova packets (0x810) sent to me (__MY_MAC__ will be replaced with the interface mac)
-        let filter = format!("ether proto {ETHER_TYPE_NOVA_SYNC} and ether dst __MY_MAC__");
+        let filter = format!("ether proto {ETHER_TYPE_NOVA} and ether dst __MY_MAC__");
 
         loop {
             let mut interface;
@@ -128,10 +119,9 @@ impl NovaHardware {
                 if now >= status_time {
                     println!("Requesting status from all modules.");
                     let packet = Self::nova_packet(
-                        &BROADCAST_ADDR,
+                        &BROADCAST_MAC,
                         &interface.address(),
-                        CMD_STATUS,
-                        0,
+                        NOVA_CMD_STATUS,
                         0,
                         false,
                     );
@@ -155,7 +145,7 @@ impl NovaHardware {
 
                 // Handle received status packets
                 while let Ok(packet) = interface.receive() {
-                    self.handle_status_packet(&mut interface, &packet);
+                    self.handle_status_packet(&packet);
                     // TODO: move status update handling from above to here
                 }
 
@@ -164,10 +154,9 @@ impl NovaHardware {
 
                 // Send sync broadcast and do not send any pixel data if we are in shift mode
                 let packet = Self::nova_packet(
-                    &BROADCAST_ADDR,
-                    &SYNC_ADDR,
-                    CMD_SYNC,
-                    STATUS_RUNNING,
+                    &BROADCAST_MAC,
+                    &interface.address(),
+                    NOVA_CMD_SYNC,
                     sequence_number,
                     shift_pixels,
                 );
@@ -183,10 +172,8 @@ impl NovaHardware {
                 for (_, _, addr) in modules {
                     let packet = Self::udp_packet(
                         &interface.address(),
-                        &self.local_ip,
-                        self.local_port,
                         addr,
-                        CMD_RGB,
+                        UDP_CMD_RGB,
                         sequence_number.wrapping_add(MODULE_QUEUE_SIZE),
                         self.renderer.image(),
                     );
@@ -201,57 +188,29 @@ impl NovaHardware {
         // won't reach (we're running on the main thread)
     }
 
-    fn handle_status_packet(&mut self, interface: &mut Interface, packet: &[u8]) {
-        if packet.len() < 17 {
+    fn handle_status_packet(&mut self, packet: &[u8]) {
+        if packet.len() < NOVA_PACKET_LEN {
+            eprintln!("Packet too short: {}", packet.len());
             return;
         }
 
-        // TODO: src should actually be my ethernet address, shouldn't it?
-        let dst = &SYNC_ADDR;
-        let src = &packet[0..6].try_into().unwrap();
-
-        // TODO: what's unclear here, how does this work with multiple modules? will each of them send a
-        // status packet? And if so, how do we handle this correctly?
         let command = packet[6 + 6 + 2 + 2];
-        let reply;
-        match command {
-            CMD_START => {
-                self.is_running = true;
-                //self.sequence_number = 0;
-                reply = Self::nova_packet(dst, src, CMD_STATUS, STATUS_RUNNING, 511, false);
-            }
-            CMD_STOP => {
-                self.is_running = false;
-                //self.sequence_number = 0;
-                reply = Self::nova_packet(dst, src, CMD_STATUS, STATUS_STOPPED, 0, false);
-            }
-            CMD_STATUS => {
-                if packet[20] == NOVA_IP[0] {
-                    let module_address = packet[23];
-                    println!("Module {module_address} is alive.");
-                    self.module_status.insert(module_address, Instant::now());
-                    return;
-                } else {
-                    reply = Self::nova_packet(
-                        dst,
-                        src,
-                        CMD_STATUS,
-                        if self.is_running {
-                            STATUS_RUNNING
-                        } else {
-                            STATUS_STOPPED
-                        },
-                        0,     // self.sequence_number,
-                        false, // self.shift_pixels,
-                    )
-                }
-            }
-            _ => {
-                eprintln!("Unknown command: {command}");
-                return;
-            }
+        if command != NOVA_CMD_STATUS {
+            eprintln!("Unexpected status packet command: {}", command);
+            return;
         }
-        let _ = interface.send(reply);
+
+        if packet[20] != NOVA_IP[0] {
+            eprintln!(
+                "Unexpected IP address: {}.{}.{}.{}",
+                packet[20], packet[21], packet[22], packet[23]
+            );
+            return;
+        }
+
+        let module_address = packet[23];
+        println!("Module {module_address} is alive.");
+        self.module_status.insert(module_address, Instant::now());
     }
 
     fn reset_modules(
@@ -260,38 +219,20 @@ impl NovaHardware {
         modules: &[(usize, usize, u8)],
         image: &VoxelImage,
     ) {
-        // the logic here is taken from the original java code, don't question it for now
+        // the logic here is taken from the original java code
         for _ in 0..4 {
             for &(_, _, address) in modules {
-                let packet = Self::udp_packet(
-                    &interface.address(),
-                    &self.local_ip,
-                    self.local_port,
-                    address,
-                    CMD_RESET,
-                    0,
-                    image,
-                );
+                let packet =
+                    Self::udp_packet(&interface.address(), address, UDP_CMD_RESET, 0, image);
                 let _ = interface.send(packet);
             }
             std::thread::sleep(Duration::from_millis(200));
         }
         for &(_, _, address) in modules {
-            let packet = Self::udp_packet(
-                &interface.address(),
-                &self.local_ip,
-                self.local_port,
-                address,
-                CMD_AUTOID,
-                0,
-                image,
-            );
+            let packet = Self::udp_packet(&interface.address(), address, UDP_CMD_AUTOID, 0, image);
             let _ = interface.send(packet);
         }
-        std::thread::sleep(Duration::from_millis(1000));
-
-        // TODO: the original code here sends MODULE_QUEUE_SIZE packets ahead (e.g. 4 packets with seq 0 1 2 3)
-        // but looks like its not needed actually
+        std::thread::sleep(Duration::from_millis(200));
     }
 
     fn wait_for_next_sync(sync_time: &mut Instant) -> bool {
@@ -324,19 +265,22 @@ impl NovaHardware {
         dst: &[u8; 6],
         src: &[u8; 6],
         command: u8,
-        status: u8,
         sequence_num: usize,
         shift_pixels: bool,
     ) -> [u8; NOVA_PACKET_LEN] {
+        // doc not: the original code used to send status (running / stopped). does not seem necessary
+        let status = 0;
+
         let mut packet = [0u8; NOVA_PACKET_LEN];
+
         // ethernet header
         packet[0..6].copy_from_slice(dst);
         packet[6..12].copy_from_slice(src);
-        packet[12] = (ETHER_TYPE_NOVA_SYNC >> 8) as u8;
-        packet[13] = ETHER_TYPE_NOVA_SYNC as u8;
+        packet[12] = (ETHER_TYPE_NOVA >> 8) as u8;
+        packet[13] = ETHER_TYPE_NOVA as u8;
         // sync packet data
-        packet[14] = (STATUS_DATA_LEN >> 8) as u8;
-        packet[15] = STATUS_DATA_LEN as u8;
+        packet[14] = (NOVA_DATA_LEN >> 8) as u8;
+        packet[15] = NOVA_DATA_LEN as u8;
         packet[16] = command;
         packet[17] = status;
         packet[18] = sequence_num as u8;
@@ -346,9 +290,7 @@ impl NovaHardware {
     }
 
     fn udp_packet(
-        interface_addr: &[u8; 6],
-        local_ip: &[u8; 4],
-        local_port: u16,
+        src: &[u8; 6],
         module_address: u8,
         command: u8,
         sequence_num: usize,
@@ -356,16 +298,16 @@ impl NovaHardware {
     ) -> [u8; UDP_PACKET_LEN] {
         let mut packet = [0u8; UDP_PACKET_LEN];
         // ethernet header
-        packet[0..5].copy_from_slice(&DMUX_ADDR_PREFIX);
+        packet[0..5].copy_from_slice(&NOVA_MAC_PREFIX);
         packet[5] = module_address;
-        packet[6..12].copy_from_slice(interface_addr);
+        packet[6..12].copy_from_slice(src);
         packet[12] = (ETHER_TYPE_IP >> 8) as u8;
         packet[13] = ETHER_TYPE_IP as u8;
 
         // ip header
         packet[14] = IP_VERSION | 0x05;
         packet[15] = 0x00; // ECN / DSCP -- orignal value was 0xf0, which doesn't really make sense
-        let ip_packet_len = IP_HEADER_LEN + UDP_HEADER_LEN + CHAINED_DATA_LEN;
+        let ip_packet_len = IP_HEADER_LEN + UDP_HEADER_LEN + UDP_CHAINED_DATA_LEN;
         packet[16] = (ip_packet_len >> 8) as u8;
         packet[17] = ip_packet_len as u8;
         packet[18] = 0x32; // ID field
@@ -376,7 +318,7 @@ impl NovaHardware {
         packet[23] = 0x11; // UDP
         packet[24] = 0x00; // checksum
         packet[25] = 0x00; // (calculated below)
-        packet[26..30].copy_from_slice(local_ip);
+        packet[26..30].copy_from_slice(&LOCAL_IP);
         packet[30..33].copy_from_slice(&NOVA_IP_PREFIX);
         packet[33] = module_address;
         let checksum = Self::ip_checksum(&packet[14..34]);
@@ -384,11 +326,11 @@ impl NovaHardware {
         packet[25] = checksum as u8;
 
         // udp header
-        packet[34] = (local_port >> 8) as u8;
-        packet[35] = local_port as u8;
+        packet[34] = (LOCAL_UDP_PORT >> 8) as u8;
+        packet[35] = LOCAL_UDP_PORT as u8;
         packet[36] = (NOVA_UDP_PORT >> 8) as u8;
         packet[37] = NOVA_UDP_PORT as u8;
-        let udp_packet_len = UDP_HEADER_LEN + CHAINED_DATA_LEN;
+        let udp_packet_len = UDP_HEADER_LEN + UDP_CHAINED_DATA_LEN;
         packet[38] = (udp_packet_len >> 8) as u8;
         packet[39] = udp_packet_len as u8;
         packet[40] = 0x00; // checksum
@@ -430,20 +372,6 @@ impl NovaHardware {
         }
     }
 
-    // NOTE: the original java code obtains the loopback address (127.0.0.1)
-    // note sure which variant is better.
-    fn local_ip_and_port() -> std::io::Result<([u8; 4], u16)> {
-        let socket = UdpSocket::bind("0.0.0.0:0")?;
-        socket.connect("8.8.8.8:80")?;
-        let local_addr = socket.local_addr()?;
-        match local_addr.ip() {
-            std::net::IpAddr::V4(v4) => Ok((v4.octets(), local_addr.port())),
-            std::net::IpAddr::V6(_) => {
-                Err(std::io::Error::other("Expected IPv4 address, got IPv6"))
-            }
-        }
-    }
-
     fn ip_checksum(data: &[u8]) -> u16 {
         let mut sum = 0u32;
         for chunk in data.chunks(2) {
@@ -459,35 +387,6 @@ impl NovaHardware {
         }
         !sum as u16
     }
-
-    fn _print_sync_packet(packet: &[u8]) {
-        if packet.len() < NOVA_PACKET_LEN {
-            println!("Packet too short: {} bytes", packet.len());
-            return;
-        }
-
-        let dst = &packet[0..6];
-        let src = &packet[6..12];
-        let ethertype = u16::from_be_bytes([packet[12], packet[13]]);
-        let length = u16::from_be_bytes([packet[14], packet[15]]);
-        let command = packet[16];
-        let status = packet[17];
-        let seq_hi = packet[18];
-        let seq_lo = packet[19];
-        let sequence = ((seq_hi as usize) << 1) | (seq_lo as usize);
-
-        println!("ETH dst: {:02x?} src: {:02x?}", dst, src);
-        println!(
-            "type: 0x{:04x}, len: {}, cmd: 0x{:02x}, status: 0x{:02x}, seq: {}",
-            ethertype, length, command, status, sequence
-        );
-
-        print!("dump:");
-        for byte in &packet[20..] {
-            print!(" {:02x}", byte);
-        }
-        println!();
-    }
 }
 
 // Nova timing (20ms per frame, 50Hz)
@@ -496,60 +395,64 @@ const SYNC_BUSY_WAIT_MARGIN: Duration = Duration::from_millis(5);
 const STATUS_PERIOD: Duration = Duration::from_millis(5000);
 const INTERFACE_RETRY_PERIOD: Duration = Duration::from_millis(500);
 
-// ethernet related constants
+// Module side queue size
+// TODO: looks like we can also set it to 1 and it still works, need to review the rgb/shift logic
+const MODULE_QUEUE_SIZE: usize = 4;
+
+// Ethernet / IP / UDP related constants
 const ETHER_ADDR_LEN: usize = 6;
 const ETHER_TYPE_LEN: usize = 2;
 const ETHER_TYPE_IP: u16 = 0x0800;
-const ETHER_TYPE_NOVA_SYNC: u16 = 0x0810;
+const ETHER_TYPE_NOVA: u16 = 0x0810;
 
-const STATUS_DATA_LEN: usize = 46;
-const PIXEL_DATA_LEN: usize = 5 * 5 * 10 * 4; // 5x5x10 pixels, 4 bytes per pixel (RGBA)
-const CHAINED_DATA_LEN: usize = PIXEL_DATA_LEN + 4 * 25; // 25 chains of 4 extra bytes each
-
-const NOVA_PACKET_LEN: usize = ETHER_ADDR_LEN + ETHER_ADDR_LEN + ETHER_TYPE_LEN + STATUS_DATA_LEN;
-
-const UDP_PAYLOAD_OFFSET: usize = 42;
-const UDP_HEADER_LEN: usize = 8;
-const UDP_PACKET_LEN: usize = UDP_PAYLOAD_OFFSET + CHAINED_DATA_LEN;
+const NOVA_PACKET_LEN: usize = ETHER_ADDR_LEN + ETHER_ADDR_LEN + ETHER_TYPE_LEN + NOVA_DATA_LEN;
+const NOVA_DATA_LEN: usize = 46;
 
 const IP_VERSION: u8 = 0x40;
 const IP_HEADER_LEN: usize = 20;
+
+const UDP_HEADER_LEN: usize = 8;
+const UDP_PACKET_LEN: usize = UDP_PAYLOAD_OFFSET + UDP_CHAINED_DATA_LEN;
+const UDP_PAYLOAD_OFFSET: usize = 42;
+const UDP_CHAINED_DATA_LEN: usize = 25 * (10 * 4 + 4); // 25 chains of 10 pixels, 4 bytes per pixel + 4 extra bytes
+
+// Nova specific addresses and address prefixes
+const BROADCAST_MAC: [u8; 6] = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
+const NOVA_MAC_PREFIX: [u8; 5] = [0x00, 0x20, 0xe3, 0x10, 0x00];
+
+const LOCAL_IP: [u8; 4] = [127, 0, 0, 1];
+const LOCAL_UDP_PORT: u16 = 1234;
+
 const NOVA_IP: [u8; 4] = [192, 168, 1, 0];
 const NOVA_IP_PREFIX: [u8; 3] = [192, 168, 1];
 const NOVA_UDP_PORT: u16 = 3210;
 
-const BROADCAST_ADDR: [u8; 6] = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
-const SYNC_ADDR: [u8; 6] = [0x00, 0x20, 0xe3, 0x10, 0x01, 0x00];
-const DMUX_ADDR_PREFIX: [u8; 5] = [0x00, 0x20, 0xe3, 0x10, 0x00];
-
-// Sync command values
-const CMD_SYNC: u8 = 0x00;
-// const CMD_PLL: u8 = 0x01;
-const CMD_START: u8 = 0x02;
-const CMD_STOP: u8 = 0x03;
-const CMD_STATUS: u8 = 0x04;
+// Nova packet command values
+const NOVA_CMD_SYNC: u8 = 0x00;
+// const NOVA_CMD_PLL: u8 = 0x01;
+// const NOVA_CMD_START: u8 = 0x02;
+// const NOVA_CMD_STOP: u8 = 0x03;
+const NOVA_CMD_STATUS: u8 = 0x04;
 
 // Status flags
-const STATUS_STOPPED: u8 = 0x00;
-const STATUS_RUNNING: u8 = 0x01;
+// const NOVA_STATUS_STOPPED: u8 = 0x00;
+// const NOVA_STATUS_RUNNING: u8 = 0x01;
 
-// DMUX command values
-const CMD_RESET: u8 = 0x00;
-const CMD_RGB: u8 = 0x02;
-// const CMD_DOT_CORR: u8 = 0x04;
-// const CMD_COLOR_CORR: u8 = 0x08;
-// const CMD_BRIGHTNESS: u8 = 0x10;
-// const CMD_OPMODE: u8 = 0x40;
-const CMD_AUTOID: u8 = 0x70;
+// UDP packet command values
+const UDP_CMD_RESET: u8 = 0x00;
+const UDP_CMD_RGB: u8 = 0x02;
+// const UDP_CMD_DOT_CORR: u8 = 0x04;
+// const UDP_CMD_COLOR_CORR: u8 = 0x08;
+// const UDP_CMD_BRIGHTNESS: u8 = 0x10;
+// const UDP_CMD_OPMODE: u8 = 0x40;
+const UDP_CMD_AUTOID: u8 = 0x70;
 
 // FSS Power flags
-// const FSS_POWER_OK3: u8 = 0x80;
-// const FSS_POWER_OK2: u8 = 0x40;
-// const FSS_POWER_OK1: u8 = 0x20;
-// const FSS_POWER_ERASE_TIMEOUT: u8 = 0x10;
-// const FSS_POWER_PROGRAM_TIMEOUT: u8 = 0x08;
-// const FSS_POWER_ERASE_PENDING: u8 = 0x04;
-// const FSS_POWER_PROGRAM_PENDING: u8 = 0x02;
 // const FSS_POWER_RESTART_PENDING: u8 = 0x01;
-
-const MODULE_QUEUE_SIZE: usize = 4;
+// const FSS_POWER_PROGRAM_PENDING: u8 = 0x02;
+// const FSS_POWER_ERASE_PENDING: u8 = 0x04;
+// const FSS_POWER_PROGRAM_TIMEOUT: u8 = 0x08;
+// const FSS_POWER_ERASE_TIMEOUT: u8 = 0x10;
+// const FSS_POWER_OK1: u8 = 0x20;
+// const FSS_POWER_OK2: u8 = 0x40;
+// const FSS_POWER_OK3: u8 = 0x80;
