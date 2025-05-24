@@ -63,7 +63,7 @@ impl AppState {
                         let x = module.0;
                         let y = module.1;
                         if x >= AppState::MODULE_GRID_MAX || y >= AppState::MODULE_GRID_MAX {
-                            eprintln!(
+                            log::warn!(
                                 "Module location out of bounds (max is {}), skipping module",
                                 AppState::MODULE_GRID_MAX - 1
                             );
@@ -81,16 +81,18 @@ impl AppState {
                             AppState::MODULE_Z_RES,
                         );
                     } else {
-                        eprintln!("No valid modules found, using defaults");
+                        log::warn!("No valid modules found, using defaults");
                     }
                 }
 
                 settings.set_webserver_port(parsed_settings.webserver_port);
             } else {
-                eprintln!("Failed to parse settings, using defaults");
+                log::error!("Failed to parse settings, using defaults");
+                settings.save();
             }
         } else {
-            eprintln!("Failed to load settings, using defaults");
+            log::error!("Failed to load settings, using defaults");
+            settings.save();
         }
         settings
     }
@@ -98,10 +100,10 @@ impl AppState {
     pub fn save(&self) {
         if let Ok(json_string) = serde_json::to_string_pretty(self) {
             if let Err(e) = fs::write(Self::SETTINGS_FILE, json_string) {
-                eprintln!("Failed to save settings: {e}");
+                log::error!("Failed to save settings: {e}");
             }
         } else {
-            eprintln!("Failed to serialize settings");
+            log::error!("Failed to serialize settings");
         }
     }
 

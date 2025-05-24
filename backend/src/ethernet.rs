@@ -11,12 +11,12 @@ impl Interface {
     pub fn new(name: &str, filter: Option<&str>) -> Result<Self, Box<dyn Error>> {
         let address = mac_address::mac_address_by_name(name)?
             .map(|mac| mac.bytes())
-            .ok_or_else(|| format!("Interface {name} not found (mac)"))?;
+            .ok_or_else(|| format!("{name} not found (mac)"))?;
 
         let device = pcap::Device::list()?
             .into_iter()
             .find(|d| d.name == name)
-            .ok_or_else(|| format!("Interface {name} not found (pcap)"))?;
+            .ok_or_else(|| format!("{name} not found (pcap)"))?;
 
         let mut capture = pcap::Capture::from_device(device)?
             .immediate_mode(true)

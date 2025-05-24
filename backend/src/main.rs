@@ -14,8 +14,19 @@ mod macros;
 
 const USE_NOVA_HARDWARE: bool = true;
 fn main() {
+    init_logging();
+
+    log::info!(
+        "Starting Nova server in {} mode",
+        if USE_NOVA_HARDWARE {
+            "hardware"
+        } else {
+            "simulator"
+        }
+    );
+
     let state = Arc::new(Mutex::new(app_state::AppState::load()));
-    println!("Using settings:\n{:#?}", *state.lock().unwrap());
+    log::debug!("Using settings:\n{:#?}", *state.lock().unwrap());
 
     web_server::run_server(Arc::clone(&state));
 
@@ -25,4 +36,9 @@ fn main() {
     } else {
         simulator::run_simulator(Arc::clone(&state), renderer);
     }
+}
+
+fn init_logging() {
+    let env = env_logger::Env::default().default_filter_or("debug,actix_server=warn");
+    env_logger::Builder::from_env(env).init();
 }

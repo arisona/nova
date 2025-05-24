@@ -13,7 +13,7 @@ use crate::renderer::{RenderState, Renderer};
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova simulator already running.");
 
-    println!("Starting Nova simulator.");
+    log::info!("Starting Nova simulator.");
 
     state
         .lock()

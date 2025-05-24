@@ -13,7 +13,7 @@ use crate::voxel_image::VoxelImage;
 pub fn run_nova_hardware(app_state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova hardware driver already running.");
 
-    println!("Starting Nova hardware driver.");
+    log::info!("Starting Nova hardware driver.");
 
     app_state
         .lock()
@@ -65,7 +65,7 @@ impl NovaHardware {
 
                 match Interface::new(&interface_name, Some(filter.as_str())) {
                     Ok(iface) => {
-                        println!("Opened interface {interface_name}.");
+                        log::info!("Opened interface {interface_name}.");
 
                         interface = iface;
 
@@ -77,7 +77,7 @@ impl NovaHardware {
 
                         let image = VoxelImage::new(self.app_state.lock().unwrap().dim());
                         self.reset_modules(&mut interface, &modules, &image);
-                        println!("Module reset complete.");
+                        log::info!("Module reset complete.");
                         break;
                     }
                     Err(err) => {
@@ -85,7 +85,7 @@ impl NovaHardware {
                             false,
                             &format!("Cannot open interface {interface_name}."),
                         ));
-                        println!("Failed to open interface {interface_name}: {err}. Retrying...");
+                        log::warn!("Failed to open interface {interface_name}: {err}. Retrying...");
                         std::thread::sleep(INTERFACE_RETRY_PERIOD);
                     }
                 }
@@ -111,7 +111,7 @@ impl NovaHardware {
                 };
 
                 if &interface_name != interface.name() {
-                    println!("Interface changed to {interface_name}.");
+                    log::info!("Interface changed to {interface_name}.");
                     // Return back to interface opening loop
                     break;
                 }
@@ -119,7 +119,7 @@ impl NovaHardware {
                 // Check if we need to request status from each module
                 let now = Instant::now();
                 if now >= status_time {
-                    println!("Requesting status from all modules.");
+                    log::debug!("Requesting status from all modules.");
                     let packet = Self::nova_packet(
                         &BROADCAST_MAC,
                         &interface.address(),
@@ -143,7 +143,7 @@ impl NovaHardware {
                         .values()
                         .filter(|t| now.duration_since(**t) < Duration::from_millis(5000))
                         .count();
-                    println!("Status update: {num_ready_modules} of {num_modules} ready.");
+                    log::debug!("Status update: {num_ready_modules} of {num_modules} ready.");
                     self.app_state.lock().unwrap().set_status((
                         num_modules == num_ready_modules,
                         &format!("{num_ready_modules} of {num_modules} modules ready."),
@@ -165,6 +165,7 @@ impl NovaHardware {
 
                 // Send or shift pixels depending on the sync mode. Render only if we didn't miss the sync.
                 // Legacy note: the original code used MODULE_QUEUE_SIZE = 4 to send rgb data with sequence number + 4 ahead.
+                // This does not seem necessary, and we are just sending the current sequence number + 1.
                 match sync_mode {
                     SyncMode::SendPixels => {
                         if do_render {
@@ -195,26 +196,29 @@ impl NovaHardware {
 
     fn handle_status_packet(&mut self, packet: &[u8]) {
         if packet.len() < NOVA_PACKET_LEN {
-            eprintln!("Packet too short: {}", packet.len());
+            log::warn!("Packet too short: {}", packet.len());
             return;
         }
 
         let command = packet[6 + 6 + 2 + 2];
         if command != NOVA_CMD_STATUS {
-            eprintln!("Unexpected status packet command: {}", command);
+            log::warn!("Unexpected status packet command: {}", command);
             return;
         }
 
         if packet[20] != NOVA_IP[0] {
-            eprintln!(
+            log::warn!(
                 "Unexpected IP address: {}.{}.{}.{}",
-                packet[20], packet[21], packet[22], packet[23]
+                packet[20],
+                packet[21],
+                packet[22],
+                packet[23]
             );
             return;
         }
 
         let module_address = packet[23];
-        println!("Module {module_address} is alive.");
+        log::debug!("Module {module_address} is alive.");
         self.module_status.insert(module_address, Instant::now());
     }
 
@@ -248,7 +252,7 @@ impl NovaHardware {
         let now = Instant::now();
         if now > target {
             // Missed sync: do not render and wait for next sync
-            println!("Missed sync by {}us", (now - target).as_micros());
+            log::warn!("Missed sync by {}us", (now - target).as_micros());
             return false;
         } else if now < target - SYNC_BUSY_WAIT_MARGIN {
             // Thread sleep wait for as much as possible
@@ -316,8 +320,8 @@ impl NovaHardware {
         let ip_packet_len = IP_HEADER_LEN + UDP_HEADER_LEN + UDP_CHAINED_DATA_LEN;
         packet[16] = (ip_packet_len >> 8) as u8;
         packet[17] = ip_packet_len as u8;
-        packet[18] = 0x32; // ID field
-        packet[19] = 0x1c; // Constant 0x1c according original code
+        packet[18] = 0x32; // ID field (constant 0x321c)
+        packet[19] = 0x1c; // ID field (constant 0x321c)
         packet[20] = 0x40; // Fragment flags & offset
         packet[21] = 0x00; // Don't fragment, offset = 0
         packet[22] = 0x80; // TTL (0x80 is common default)

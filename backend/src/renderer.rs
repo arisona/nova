@@ -78,7 +78,7 @@ impl Renderer {
     }
 
     pub fn render(&mut self, state: &mut RenderState) {
-        //println!("renderer: rendering frame {delta}");
+        //log::debug!("renderer: rendering frame {delta}");
         let elapsed = self.elapsed_time.elapsed().as_secs_f32();
         let delta = self.delta_time.elapsed().as_secs_f32();
         self.delta_time = std::time::Instant::now();
@@ -107,10 +107,11 @@ impl Renderer {
 
         state.set_reset(false);
 
+        // TODO: move this to a separate content module for debugging
         // Testing: wait for a random time between 5 and 20 ms
         // let mut rng = rand::rng();
         // let random_delay = rng.random_range(5..=100);
-        // println!("Random delay: {random_delay}ms");
+        // log::debug!("Random delay: {random_delay}ms");
         // std::thread::sleep(Duration::from_millis(random_delay));
     }
 

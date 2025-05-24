@@ -13,7 +13,7 @@ pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
         let port = state.lock().unwrap().webserver_port();
         let address = format!("0.0.0.0:{port}");
 
-        println!("Starting web server at http://localhost:{port}/");
+        log::info!("Starting web server at http://localhost:{port}/");
 
         let server = HttpServer::new(move || {
             App::new()
@@ -32,7 +32,7 @@ pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
 
 #[get("/api/get-state")]
 async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
-    println!("get_state");
+    log::debug!("get_state");
     let state = data.lock().unwrap();
 
     // do not expose all fields to client
@@ -53,7 +53,7 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
 
 #[get("/api/get-status")]
 async fn get_status(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
-    //println!("get_status");
+    //log::debug!("get_status");
     let state = data.lock().unwrap();
     HttpResponse::Ok().json(serde_json::json!({
         "status-ok": state.status().0,
@@ -69,7 +69,7 @@ async fn command(
 ) -> impl Responder {
     let mut state = data.lock().unwrap();
     if let Some(value) = query.get("value") {
-        println!("command: {command} value: {:?}", value);
+        log::debug!("command: {command} value: {:?}", value);
         match command.as_str() {
             "enabled-content-indices" => {
                 let enabled_indices: Vec<u32> =
@@ -124,7 +124,7 @@ async fn command(
             }
         }
     } else {
-        println!("command: {command}");
+        log::debug!("command: {command}");
         match command.as_str() {
             "restore" => {
                 // restore settings to default
