@@ -14,7 +14,14 @@ mod macros;
 
 const USE_NOVA_HARDWARE: bool = true;
 fn main() {
-    init_logging();
+    let env = env_logger::Env::default().default_filter_or("debug,actix_server=warn");
+    env_logger::Builder::from_env(env).init();
+
+    ctrlc::set_handler(|| {
+        log::info!("Interrupt received, exiting.");
+        std::process::exit(0);
+    })
+    .expect("Error setting signal handler");
 
     log::info!(
         "Starting Nova server in {} mode",
@@ -36,9 +43,4 @@ fn main() {
     } else {
         simulator::run_simulator(Arc::clone(&state), renderer);
     }
-}
-
-fn init_logging() {
-    let env = env_logger::Env::default().default_filter_or("debug,actix_server=warn");
-    env_logger::Builder::from_env(env).init();
 }

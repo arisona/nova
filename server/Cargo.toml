@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 actix-web = "4"
 actix-files = "0.6"
+ctrlc = "3.4"
 include_dir = "0.7"
 mime_guess = "2.0"
 noise = "0.9"

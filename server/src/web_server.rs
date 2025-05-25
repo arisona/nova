@@ -1,4 +1,3 @@
-use actix_files as fs;
 use actix_web::web::Data;
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, web};
 use include_dir::{Dir, include_dir};
