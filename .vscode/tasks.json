@@ -2,17 +2,22 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "cargo build",
+      "label": "Backend build",
       "type": "shell",
-      "command": "cargo",
-      "args": ["build"],
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
+      "command": "cargo build",
+      "group": "build",
       "problemMatcher": ["$rustc"],
       "options": {
         "cwd": "${workspaceFolder}/backend"
+      }
+    },
+    {
+      "label": "Frontend dev",
+      "type": "shell",
+      "command": "npm run dev",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
       }
     }
   ]
