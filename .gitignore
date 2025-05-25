@@ -1,12 +1,11 @@
-# Frontend dependencies
-frontend/node_modules/
+# Webapp: dependencies
+webapp/node_modules/
 
-# Rust build output
-backend/target/
-backend/src/static
+# Server: Rust build output
+server/target/
 
 # Nova configuration file
-backend/nova_settings.json
+server/nova_settings.json
 
 # macOS specific files
 .DS_Store

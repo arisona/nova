@@ -2,22 +2,22 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Backend build",
+      "label": "server-build",
       "type": "shell",
       "command": "cargo build",
       "group": "build",
       "problemMatcher": ["$rustc"],
       "options": {
-        "cwd": "${workspaceFolder}/backend"
+        "cwd": "${workspaceFolder}/server"
       }
     },
     {
-      "label": "Frontend dev",
+      "label": "webapp-dev",
       "type": "shell",
       "command": "npm run dev",
       "group": "build",
       "options": {
-        "cwd": "${workspaceFolder}/frontend"
+        "cwd": "${workspaceFolder}/webapp"
       }
     }
   ]

@@ -2,13 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Rust Backend",
+      "name": "Debug Nova Server",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/backend/target/debug/nova-server",
+      "program": "${workspaceFolder}/server/target/debug/nova-server",
       "args": [],
-      "cwd": "${workspaceFolder}/backend",
-      "preLaunchTask": "cargo build"
+      "cwd": "${workspaceFolder}/server",
+      "preLaunchTask": "server-build"
     }
   ]
 }

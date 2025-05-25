@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
 
   build: {
-    outDir: '../backend/src/web_client',
+    outDir: '../server/src/www',
     emptyOutDir: true,
     rollupOptions: {
       output: {

@@ -1,9 +1,14 @@
 # Nova Raspberry Pi setup
 
-This document provides step-by-step instructions to set up a Raspberry Pi in headless mode with the Nova software and integrate it into a home WLAN environment.
+This document provides step-by-step instructions to set up a Raspberry Pi
+in headless mode with the Nova software and integrate it into a home WLAN
+environment.
 
-Basic Linux console experience is assumed. To edit files use either vi or nano. For details to configure a Raspberry Pi, refer to
-headless setup from scratch for integration into home network: <https://www.raspberrypi.org/documentation/configuration/>.
+Basic Linux console experience is assumed. To edit files use either vi or
+nano. For details to configure a Raspberry Pi, refer to headless setup from
+scratch for integration into home network:
+
+<https://www.raspberrypi.org/documentation/configuration/>
 
 ## Step-by-step instructions
 
@@ -45,23 +50,12 @@ sudo reboot
 - Install required software:
 
 ```
-sudo apt-get install git libpcap0.8 maven
+sudo apt-get install git libpcap0.8
 ```
 
-### Install OpenJDK 23 or later
+_Everything from here onwards is TBD_
 
-Note: once OpenJDK 23 or later becomes available via apt-get, you can install the package via apt-get, and skip to the next section.
-
-- Get latest OpenJDK package via wget: go to https://jdk.java.net, select JDK 23 or later ("Ready for Use"), and copy link to Linux/AArch64 `.tar.gz` package.
-- In terminal on your Raspberry Pi, issue commands (make sure to update latest link and package name):
-
-```
-cd /home/pi
-wget https://download.java.net/java/GA/jdk23.0.1/c28985cbf10d4e648e4004050f8781aa/11/GPL/openjdk-23.0.1_linux-aarch64_bin.tar.gz
-tar xzf openjdk-23.0.1_linux-aarch64_bin.tar.gz
-```
-
-- This will result in your JDK being unpacked in your home directory at `/home/pi/jdk-23.0.1` You will need this path later for the automatic startup. Again, the exact path will be different for later JDK versions.
+### Install Rust toolchain
 
 ### Nova software setup and configuration
 

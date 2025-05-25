@@ -1,137 +1,184 @@
-# Nova control software documentation
+# Nova Control Server Documentation
 
-The Nova control software is a Java application that controls the Nova hardware by directly sending ethernet frames to the hardware using [jnetpcap](https://github.com/slytechs-repos/jnetpcap-wrapper). In addition to controlling the connected Nova voxel modules (up to 10x10 modules, where as each module contains 5x5x10 LED voxels), the Nova control software provides a web interface running on the default interface on port 80 to control playback and content parameters.
+The Nova Control server is a Rust application that drives Nova voxel hardware by sending raw Ethernet frames. It replaces the original Java-based implementation and provides the same web interface for content management and control.
 
-## Development setup
+## Table of Contents
 
-### Nova server
+1. [Development Setup](#development-setup)
+2. [Building and Running](#building-and-running)
+3. [Web Interface](#web-interface)
+4. [Configuration](#configuration)
+5. [Hardware Addressing](#hardware-addressing)
+6. [Content Extensions](#content-extensions)
+7. [Troubleshooting](#troubleshooting)
 
-The Nova server project is a Java project and can easily be imported into IDEs like Visual Studio Code (preferred) or Eclipse for development. Jar files can be built from command line using Maven (`mvn install`). The application launches via `NovaControl.main()`, and and creates `settings.conf` containing default settings, that can later be edited by the user.
+---
 
-Requirements:
+## Development Setup
 
-- JDK 22 or later
-- Maven or IDE with Maven support (preferred IDE is Visual Studio Code)
+### Prerequisites
 
-**Important:** Currently, the sources for jnetcap are included in the source tree. Once jnetcap for JDK 22 or later becomes available on Maven Central, these sources will be removed.
+- Rust toolchain (Rust 1.87 or later) with Cargo
+- `libpcap` development headers (for packet capture/send)
+- Node.js (v16+) and npm (for web UI development)
+- A code editor or IDE (VS Code preferred)
 
-### Web app
-
-The project includes a web app based on React / Material UI. The built and bundled app is included in the source repository at `src/main/resources/www`. Its sources are located at `src/main/webapp`. For development, you will need Node, and can the proceed as usual using `npm install`. As bundler, Vite is used, and you can use `npm run dev` to run the app in dev mode, and `npm run build` to build and copy the bundle to `src/resources/www`.
-
-## Software configuration
-
-The configuration is stored in `settings.conf` (which is automatically created on first start). Depending on your setup, edit the file and adjust the following parameters:
-
-- `port`: The port the UI web server will be listening on. Default if omitted is `80`.
-- `ethernet_interface`: The ethernet interface used for communicating with Nova. Default is `eth0`.
-- `address_<X>_<Y>`: The address (as configured by jumpers on the Nova board, see below) of the module at module location (X,Y). Default is `address_0_0 = 1`.
-
-A sample configuration could look like this:
+### Project Structure
 
 ```
-port=80
-ethernet_interface=eth1
-address_0_0 = 1
-address_0_1 = 5
-address_0_2 = 9
-address_0_3 = 13
-address_1_0 = 2
-address_1_1 = 6
-address_1_2 = 10
-address_1_3 = 14
-address_2_0 = 3
-address_2_1 = 7
-address_2_2 = 11
-address_2_3 = 15
-address_3_0 = 4
-address_3_1 = 8
-address_3_2 = 12
-address_3_3 = 16
-...
+├── server/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── main.rs           # Entry point
+│       ├── app_state.rs      # Configuration and state management
+│       ├── ethernet.rs       # pcap-based packet I/O
+│       ├── nova.rs           # Hardware driver loop
+│       ├── renderer.rs       # Frame rendering logic
+│       ├── voxel_image.rs    # Image buffer abstraction
+│       └── web_server.rs     # HTTP API and static file serving
+└── webapp/
+    ├── package.json
+    └── src/                  # React + Material UI source
 ```
 
-All other parameters can be set using the web app.
+1. Clone the repository and enter the project root.
+2. Build and install the web app:
+   ```bash
+   cd webapp
+   npm install
+   npm run build
+   ```
+3. Build and install the Rust server:
+   ```bash
+   rustup update
+   cd server
+   cargo build
+   ```
 
-## Hardware address configuration
+---
 
-The modules derive their MAC address from jumpers on the board. The jumpers encode the least significant byte of the MAC address. Refer to [Nova Jumper Configuration](nova_jumpers.jpg) in this documentation for an example
+## Building and Running
 
-Generally, the server does not need to setup TCP/IP for the interface that communicates with the modules. However, the modules also set up their own IP address with the least significant 8 bits in the 192.168.1.0/24 subnet. This can be used for troubleshooting, e.g., for pinging the corresponding IP address to see if a module responds.
+### Web App
 
-## Writing content extensions
+During development:
 
-The server loads content extensions as configured from a predefined package. Adding classes to this package makes them available to the server. A content extension must located in the `content` package and must inherit from the `Content` class. It needs to implement at least a constructor and the fillFrame() method. Below is the implementation of the `Content` class. For example:
-
+```bash
+cd webapp
+npm run dev
 ```
-package ch.bluecc.nova.content;
 
-public class Sweep extends Content {
-	/**
-	 * Creates a content instance.
-	 *
-	 * @param name The name of the content.
-	 * @param dimI The X-dimension.
-	 * @param dimJ The Y-dimension.
-	 * @param dimK The Z-dimension.
-	 */
-	public Sweep(int dimI, int dimJ, int dimK) {
-		super("Sweep", dimI, dimJ, dimK);
-	}
+This launches a hot-reloading server.
 
-	/**
-	 * Fill the frame.
-	 */
-	@Override
-	public void fillFrame(float[] rgbFrame, double timeInSec) {
-		final double dimK_1 = dimK - 1;
-		// loop over all voxels
-		for(int k = 0; k < dimK; k++) {
-			double dk = k / dimK_1;
-			// compute value based on time from a sine curve
-			float v = (float)Math.abs(Math.sin(dk * Math.PI + timeInSec));
-			for(int i = 0; i < dimI; i++)
-				for(int j = 0; j < dimJ; j++)
-					setVoxel(rgbFrame, i, j, k, v, v, v);
-		}
-	}
+To build for production:
+
+```bash
+npm run build
+```
+
+The static bundle is copied into `server/src/www` on build.
+
+### Nova Server
+
+To compile and run the Nova server in release mode:
+
+```bash
+cd server
+cargo run --release
+```
+
+The Nova server starts a web server on port 8080.
+
+By default, the server reads its settings from `nova_settings.json` in the working directory. On first run, a default file is created.
+
+---
+
+## Web Interface
+
+The built web client uses React and Material UI. It provides controls for:
+
+- Selecting and ordering content modules
+- Adjusting hue, saturation, brightness, speed, and cycle duration
+- Toggling vertical flip
+- Monitoring module status
+
+Access it in your browser at `http://<server-host>:<webserver_port>/`.
+
+---
+
+## Configuration
+
+All settings are stored in `nova_settings.json`. Example:
+
+```json
+{
+  "ethernet_interface": "eth0",
+  "webserver_port": 8080,
+  "modules": [
+    [0, 0, 1],
+    [0, 1, 5],
+    [1, 0, 2]
+  ],
+  "hue": 0.0,
+  "saturation": 1.0,
+  "brightness": 0.5,
+  "speed": 0.1,
+  "flip_vertical": false,
+  "cycle_duration": 0.0,
+  "enabled_content_indices": [0, 1],
+  "selected_content_index": 0
 }
 ```
 
-Be aware that `fillFrame()` must complete in 40ms, otherwise a frame underrun will occur. If the content is too complex to render in real-time, it can be written to a flat file of RGB voxels and played back with the ch.bluecc.nova.content.Movie class.
+- `modules`: list of `[x, y, address]` tuples.
+- Other fields mirror UI controls.
 
-For additional examples and further details, refer to the source code.
+---
+
+## Hardware Addressing
+
+Module MAC and IP addresses are derived from jumpers:
+
+- MAC: `00:20:e3:10:00:<address>`
+- IP: `192.168.1.<address>`
+- Where `<address>` is given by the jumper setting on the hardware module
+
+You can ping modules directly after assigning a static IP to your interface.
+
+---
+
+## Content Extensions
+
+Content is implemented as Rust types that implement the `Content` trait:
+
+```rust
+pub trait Content {
+    fn name(&self) -> &str;
+    fn render(
+        &mut self,
+        state: &RenderState,
+        elapsed: f32,
+        delta: f32,
+        prev: &VoxelImage,
+        next: &mut VoxelImage,
+    );
+}
+```
+
+To add a new effect:
+
+1. Create a struct in `server/src/content/`.
+2. Implement `Content` for it.
+3. Register it in `get_all_content()`.
+
+For examples, refer to existing content in `server/src/content/`.
+
+Ensure `render()` completes within 20 ms to avoid underruns.
+
+---
 
 ## Troubleshooting
 
-In case you have trouble getting your Nova up and running, you can to ping to your modules using the corresponding IP address. For this you need to configure TCP/IP for the Ethernet interface your Nova is connected to. Below steps apply to a Raspberry Pi setup, but doing this from macOS or another platform is analogous.
-
-**Important:** likely, your home network runs on the 192.168.1.x network, you need to change this on your router, e.g. 192.168.2.x, since the 192.168.1.x network is used by the Nova hardware.
-
-- Make sure your Nova is set to address 4 (see Nova Server documentation).
-- From your machine, ssh to novahost.local
-
-```
-ssh pi@novahost.local
-```
-
-- Edit /etc/dhcpcd.conf, add:
-
-```
-interface eth0
-static ip_address=192.168.1.130/24
-```
-
-- Reboot the Raspberry Pi & ssh to novahost.local again:
-
-```
-ssh pi@novahost.local
-```
-
-- You should be able to ping the Nova hardware via
-
-```
-ping 192.168.1.4
-```
-
-- If this is not the case, check your Nova address jumper settings again.
+- If modules do not respond, verify jumper settings and network IP.
+- Use `tcpdump` or `wireshark` on the interface for raw packet inspection.
+- Check logs for warnings about missed sync or interface errors.

@@ -21,7 +21,7 @@ pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
                 .service(get_state)
                 .service(get_status)
                 .service(command)
-                .service(fs::Files::new("/", "./src/web_client").index_file("index.html"))
+                .service(fs::Files::new("/", "./src/www").index_file("index.html"))
         })
         .bind(address)
         .expect("Failed to bind address {address}")
