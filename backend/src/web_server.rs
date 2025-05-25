@@ -4,7 +4,7 @@ use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use crate::app_state::AppState;
+use crate::app_state::{AppState, Status};
 
 pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
     // we are running the web server in a separate thread, so we can still use the main thread for the simulator
@@ -53,11 +53,15 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
 
 #[get("/api/get-status")]
 async fn get_status(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
-    //log::debug!("get_status");
     let state = data.lock().unwrap();
+    let (ok, message): (bool, &str) = match state.status() {
+        Status::Ok(msg) => (true, msg.as_str()),
+        Status::Err(msg) => (false, msg.as_str()),
+        Status::Unknown => (false, ""),
+    };
     HttpResponse::Ok().json(serde_json::json!({
-        "status-ok": state.status().0,
-        "status-message": state.status().1,
+        "status-ok": ok,
+        "status-message": message,
     }))
 }
 

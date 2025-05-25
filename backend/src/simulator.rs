@@ -7,7 +7,7 @@ use miniquad::*;
 
 use crate::check_run_once;
 
-use crate::app_state::AppState;
+use crate::app_state::{AppState, Status};
 use crate::renderer::{RenderState, Renderer};
 
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
@@ -18,7 +18,7 @@ pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     state
         .lock()
         .unwrap()
-        .set_status((true, "Nova simulator running."));
+        .set_status(Status::Ok("Nova simulator running.".to_string()));
 
     miniquad::start(conf(), move || Box::new(Stage::new(state, renderer)));
 }

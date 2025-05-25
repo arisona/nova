@@ -4,6 +4,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::content::get_all_content_names;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub enum Status {
+    #[default]
+    Unknown,
+    Ok(String),
+    Err(String),
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
     enabled_content_indices: Vec<u32>,
@@ -27,7 +35,7 @@ pub struct AppState {
     dim: (usize, usize, usize),
 
     #[serde(skip_serializing, skip_deserializing)]
-    status: (bool, String),
+    status: Status,
 }
 
 impl AppState {
@@ -211,12 +219,12 @@ impl AppState {
         self.dim
     }
 
-    pub fn status(&self) -> (bool, &str) {
-        (self.status.0, self.status.1.as_str())
+    pub fn status(&self) -> &Status {
+        &self.status
     }
 
-    pub fn set_status(&mut self, status: (bool, &str)) {
-        self.status = (status.0, status.1.to_string());
+    pub fn set_status(&mut self, status: Status) {
+        self.status = status;
     }
 }
 
@@ -245,7 +253,7 @@ impl Default for AppState {
                 AppState::MODULE_Z_RES,
             ),
 
-            status: (false, "Nova is starting up.".to_string()),
+            status: Status::Unknown,
         }
     }
 }
