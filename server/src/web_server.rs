@@ -6,23 +6,6 @@ use std::thread;
 
 use crate::app_state::{AppState, Status};
 
-static WWW_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/www");
-
-#[get("/{_:.*}")]
-async fn serve_embedded_file(req: HttpRequest) -> HttpResponse {
-    let path = req.match_info().query("_.*");
-    let path = if path.is_empty() { "index.html" } else { path };
-
-    match WWW_DIR.get_file(path) {
-        Some(file) => {
-            let body = file.contents();
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            HttpResponse::Ok().content_type(mime.as_ref()).body(body)
-        }
-        None => HttpResponse::NotFound().body("404 Not Found"),
-    }
-}
-
 pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
     // we are running the web server in a separate thread, so we can still use the main thread for the simulator
     thread::spawn(move || {
@@ -38,7 +21,7 @@ pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
                 .service(get_state)
                 .service(get_status)
                 .service(command)
-                .service(serve_embedded_file)
+                .service(files)
         })
         .bind(address)
         .expect("Failed to bind address {address}")
@@ -164,4 +147,22 @@ async fn command(
     }
     state.save();
     HttpResponse::Ok()
+}
+
+static WWW_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/www");
+
+#[get("/{path:.*}")]
+async fn files(path: web::Path<String>) -> impl Responder {
+    let path = path.as_str();
+    let path = if path.is_empty() { "index.html" } else { path };
+    log::debug!("files: {path}");
+
+    match WWW_DIR.get_file(path) {
+        Some(file) => {
+            let body = file.contents();
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            HttpResponse::Ok().content_type(mime.as_ref()).body(body)
+        }
+        None => HttpResponse::NotFound().body("404 Not Found"),
+    }
 }
