@@ -1,6 +1,6 @@
 #!/bin/sh
 cd /home/pi
-sleep 10
+sleep 1
 while true
 do
 sudo nova-server

@@ -116,8 +116,8 @@ All settings are stored in `nova_settings.json`. Example:
   "webserver_port": 8080,
   "modules": [
     [0, 0, 1],
-    [0, 1, 5],
-    [1, 0, 2]
+    [0, 1, 2],
+    [1, 0, 4]
   ],
   "hue": 0.0,
   "saturation": 1.0,

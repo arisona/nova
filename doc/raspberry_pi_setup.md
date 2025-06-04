@@ -50,12 +50,20 @@ sudo reboot
 - Install required software:
 
 ```
-sudo apt-get install git libpcap0.8
+sudo apt-get install git libpcap-dev
 ```
 
-_Everything from here onwards is TBD_
-
 ### Install Rust toolchain
+
+As regular user ('pi') run the following command:
+
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+If this fails for some reason, check out the documentation at <https://rust-lang.org>
+
+_Everything from here onwards is TBD_
 
 ### Nova software setup and configuration
 
