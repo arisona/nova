@@ -1,5 +1,5 @@
 use actix_web::web::Data;
-use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, web};
+use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
 use include_dir::{Dir, include_dir};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -73,7 +73,7 @@ async fn command(
 ) -> impl Responder {
     let mut state = data.lock().unwrap();
     if let Some(value) = query.get("value") {
-        log::debug!("command: {command} value: {:?}", value);
+        log::debug!("command: {command} value: {value}");
         match command.as_str() {
             "enabled-content-indices" => {
                 let enabled_indices: Vec<u32> =

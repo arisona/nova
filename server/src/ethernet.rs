@@ -70,7 +70,7 @@ fn mac_address_as_string(address: [u8; 6]) -> String {
 fn _print_packet(text: &str, packet: &[u8], num_bytes: usize) {
     print!("{}({}): ", text, packet.len());
     for byte in &packet[..packet.len().min(num_bytes)] {
-        print!("{:02x} ", byte);
+        print!("{byte:02x} ");
     }
     println!();
 }

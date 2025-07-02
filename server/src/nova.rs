@@ -212,7 +212,7 @@ impl NovaHardware {
 
         let command = packet[6 + 6 + 2 + 2];
         if command != NOVA_CMD_STATUS {
-            log::warn!("Unexpected status packet command: {}", command);
+            log::warn!("Unexpected status packet command: {command}");
             return;
         }
 
