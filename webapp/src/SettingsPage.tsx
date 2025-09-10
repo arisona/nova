@@ -32,7 +32,7 @@ export const SettingsPage = ({
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate('/');
+    void navigate('/');
   };
 
   const handleEnabledContentChange = (value: {
@@ -175,7 +175,9 @@ export const SettingsPage = ({
               <ListItemButton
                 dense
                 disableRipple
-                onClick={() => handleEnabledContentChange(option)}
+                onClick={() => {
+                  handleEnabledContentChange(option);
+                }}
               >
                 <ListItemIcon>
                   <Checkbox

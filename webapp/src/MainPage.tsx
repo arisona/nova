@@ -34,7 +34,7 @@ export const MainPage = ({
   const navigate = useNavigate();
 
   const handleSettings = () => {
-    navigate('/settings');
+    void navigate('/settings');
   };
 
   const handleContentChange = (
@@ -87,7 +87,7 @@ export const MainPage = ({
     const selectedContent = state.enabledContent.find(
       (value) => value.index === state.selectedContentIndex
     );
-    return selectedContent ? selectedContent : null;
+    return selectedContent ?? null;
   };
 
   const rgb = hsvToRgb(state.hue, state.saturation, state.brightness);
@@ -117,18 +117,29 @@ export const MainPage = ({
           id="select-content"
           disableCloseOnSelect
           options={state.enabledContent}
-          getOptionKey={(option) => option.index}
           getOptionLabel={(option) => option.name}
-          renderInput={({ inputProps, ...rest }) => (
-            <TextField
-              {...rest}
-              label="Select content"
-              inputProps={{ ...inputProps, readOnly: true }}
-            />
-          )}
+          isOptionEqualToValue={(o, v) => o.index === v.index}
           value={getSelectedContent()}
-          onChange={(_event, value) => {
+          onChange={(_e, value) => {
             handleContentChange(value);
+          }}
+          renderInput={(params) => {
+            const { InputLabelProps, InputProps, inputProps, ...rest } = params;
+            return (
+              <TextField
+                {...rest}
+                label="Select content"
+                size="small"
+                slotProps={{
+                  htmlInput: {
+                    ...inputProps,
+                    readOnly: true,
+                  },
+                  inputLabel: InputLabelProps,
+                  input: InputProps,
+                }}
+              />
+            );
           }}
         />
       </Stack>

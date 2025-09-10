@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-
   build: {
     outDir: '../server/src/www',
     emptyOutDir: true,
@@ -21,7 +20,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:80',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, 'api'),
+        rewrite: (path) => path,
       },
     },
   },

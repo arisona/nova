@@ -51,16 +51,22 @@ export const App = () => {
   const [status, setStatus] = React.useState(defaultNovaStatus);
 
   React.useEffect(() => {
-    apiGetState().then((newState) => setState(newState));
+    void apiGetState().then((newState) => {
+      setState(newState);
+    });
   }, []);
 
   React.useEffect(() => {
     const intervalId = setInterval(handleRefresh, pollInterval);
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   const handleRefresh = () => {
-    apiGetStatus().then((newStatus) => setStatus(newStatus));
+    void apiGetStatus().then((newStatus) => {
+      setStatus(newStatus);
+    });
   };
 
   return (
