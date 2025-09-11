@@ -21,9 +21,9 @@ impl content::Content for Fill {
     fn render(
         &mut self,
         state: &RenderState,
-        _: f32,
-        _: f32,
-        _: &VoxelImage,
+        _elapsed: f32,
+        _delta: f32,
+        _prev: &VoxelImage,
         next: &mut VoxelImage,
     ) {
         let rgb = hsb_to_rgb(vec3(state.hue(), state.saturation(), state.brightness()));
