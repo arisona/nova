@@ -19,7 +19,6 @@ import { NovaState } from './App';
 import { ToneChip } from './ToneChip';
 import { Slider } from './Slider';
 import { apiSetValue } from './api';
-import { hsvToRgb } from './color';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -93,8 +92,6 @@ export const MainPage = ({
     return selectedContent ?? null;
   };
 
-  const rgb = hsvToRgb(state.tone, state.punch, state.glow);
-
   return (
     <>
       <Stack
@@ -158,7 +155,7 @@ export const MainPage = ({
         label="Tone"
         value={state.tone}
         onChange={handleToneChange}
-        endAdornment={<ToneChip r={rgb[0]} g={rgb[1]} b={rgb[2]} />}
+        endAdornment={<ToneChip tone={state.tone} />}
       />
       <Slider
         icon={<Contrast />}
