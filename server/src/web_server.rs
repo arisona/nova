@@ -40,10 +40,11 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "available-content": state.available_content(),
         "enabled-content-indices": state.enabled_content_indices(),
         "selected-content-index": state.selected_content_index(),
-        "hue": state.hue(),
-        "saturation": state.saturation(),
-        "brightness": state.brightness(),
-        "speed": state.speed(),
+        "glow": state.glow(),
+        "tone": state.tone(),
+        "punch": state.punch(),
+        "flow": state.flow(),
+        "form": state.form(),
         "flip-vertical": state.is_flip_vertical(),
         "cycle-duration": state.cycle_duration(),
         "ethernet-interface": state.ethernet_interface(),
@@ -85,24 +86,29 @@ async fn command(
                     state.set_selected_content_index(parsed_value);
                 }
             }
-            "hue" => {
+            "glow" => {
                 if let Ok(parsed_value) = value.parse() {
-                    state.set_hue(parsed_value);
+                    state.set_glow(parsed_value);
                 }
             }
-            "saturation" => {
+            "tone" => {
                 if let Ok(parsed_value) = value.parse() {
-                    state.set_saturation(parsed_value);
+                    state.set_tone(parsed_value);
                 }
             }
-            "brightness" => {
+            "punch" => {
                 if let Ok(parsed_value) = value.parse() {
-                    state.set_brightness(parsed_value);
+                    state.set_punch(parsed_value);
                 }
             }
-            "speed" => {
+            "flow" => {
                 if let Ok(parsed_value) = value.parse() {
-                    state.set_speed(parsed_value);
+                    state.set_flow(parsed_value);
+                }
+            }
+            "form" => {
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_form(parsed_value);
                 }
             }
             "flip-vertical" => {

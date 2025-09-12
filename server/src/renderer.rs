@@ -3,10 +3,11 @@ use crate::content::get_all_content;
 use crate::voxel_image::VoxelImage;
 
 pub struct RenderState {
-    hue: f32,
-    saturation: f32,
-    brightness: f32,
-    speed: f32,
+    glow: f32,
+    tone: f32,
+    punch: f32,
+    flow: f32,
+    form: f32,
 
     reset: bool,
 
@@ -16,10 +17,11 @@ pub struct RenderState {
 impl RenderState {
     pub fn from(state: &AppState) -> Self {
         Self {
-            hue: state.hue(),
-            saturation: state.saturation(),
-            brightness: state.brightness(),
-            speed: state.speed(),
+            glow: state.glow(),
+            tone: state.tone(),
+            punch: state.punch(),
+            flow: state.flow(),
+            form: state.form(),
 
             reset: false,
 
@@ -27,20 +29,20 @@ impl RenderState {
         }
     }
 
-    pub fn hue(&self) -> f32 {
-        self.hue
+    pub fn glow(&self) -> f32 {
+        self.glow
     }
-
-    pub fn saturation(&self) -> f32 {
-        self.saturation
+    pub fn tone(&self) -> f32 {
+        self.tone
     }
-
-    pub fn brightness(&self) -> f32 {
-        self.brightness
+    pub fn punch(&self) -> f32 {
+        self.punch
     }
-
-    pub fn speed(&self) -> f32 {
-        self.speed
+    pub fn flow(&self) -> f32 {
+        self.flow
+    }
+    pub fn form(&self) -> f32 {
+        self.form
     }
 
     pub fn should_reset(&self) -> bool {

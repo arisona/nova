@@ -26,7 +26,7 @@ impl content::Content for Fill {
         _prev: &VoxelImage,
         next: &mut VoxelImage,
     ) {
-        let rgb = hsb_to_rgb(vec3(state.hue(), state.saturation(), state.brightness()));
+        let rgb = hsb_to_rgb(vec3(state.tone(), state.punch(), state.glow()));
         next.fill(rgb);
     }
 }

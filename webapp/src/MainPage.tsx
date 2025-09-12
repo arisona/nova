@@ -4,6 +4,7 @@ import {
   Settings,
   Speed,
   WbSunny,
+  ScatterPlot,
 } from '@mui/icons-material';
 import {
   Autocomplete,
@@ -15,7 +16,7 @@ import {
 import * as React from 'react';
 
 import { NovaState } from './App';
-import { ColorBox } from './ColorBox';
+import { ToneChip } from './ToneChip';
 import { Slider } from './Slider';
 import { apiSetValue } from './api';
 import { hsvToRgb } from './color';
@@ -48,38 +49,40 @@ export const MainPage = ({
     }));
   };
 
-  const handleBrightnessChange = (
-    _event: Event,
-    newValue: number | number[]
-  ) => {
-    apiSetValue('brightness', newValue as number);
+  const handleGlowChange = (_event: Event, newValue: number | number[]) => {
+    apiSetValue('glow', newValue as number);
     setState((prevState) => ({
       ...prevState,
-      brightness: newValue as number,
+      glow: newValue as number,
     }));
   };
 
-  const handleHueChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue('hue', newValue as number);
-    setState((prevState) => ({ ...prevState, hue: newValue as number }));
+  const handleToneChange = (_event: Event, newValue: number | number[]) => {
+    apiSetValue('tone', newValue as number);
+    setState((prevState) => ({ ...prevState, tone: newValue as number }));
   };
 
-  const handleSaturationChange = (
-    _event: Event,
-    newValue: number | number[]
-  ) => {
-    apiSetValue('saturation', newValue as number);
+  const handlePunchChange = (_event: Event, newValue: number | number[]) => {
+    apiSetValue('punch', newValue as number);
     setState((prevState) => ({
       ...prevState,
-      saturation: newValue as number,
+      punch: newValue as number,
     }));
   };
 
-  const handleSpeedChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue('speed', newValue as number);
+  const handleFlowChange = (_event: Event, newValue: number | number[]) => {
+    apiSetValue('flow', newValue as number);
     setState((prevState) => ({
       ...prevState,
-      speed: newValue as number,
+      flow: newValue as number,
+    }));
+  };
+
+  const handleFormChange = (_event: Event, newValue: number | number[]) => {
+    apiSetValue('form', newValue as number);
+    setState((prevState) => ({
+      ...prevState,
+      form: newValue as number,
     }));
   };
 
@@ -90,7 +93,7 @@ export const MainPage = ({
     return selectedContent ?? null;
   };
 
-  const rgb = hsvToRgb(state.hue, state.saturation, state.brightness);
+  const rgb = hsvToRgb(state.tone, state.punch, state.glow);
 
   return (
     <>
@@ -144,31 +147,36 @@ export const MainPage = ({
         />
       </Stack>
 
-      <ColorBox r={rgb[0]} g={rgb[1]} b={rgb[2]} />
-
       <Slider
         icon={<WbSunny />}
-        label="Brightness"
-        value={state.brightness}
-        onChange={handleBrightnessChange}
+        label="Glow"
+        value={state.glow}
+        onChange={handleGlowChange}
       />
       <Slider
         icon={<Palette />}
-        label="Hue"
-        value={state.hue}
-        onChange={handleHueChange}
+        label="Tone"
+        value={state.tone}
+        onChange={handleToneChange}
+        endAdornment={<ToneChip r={rgb[0]} g={rgb[1]} b={rgb[2]} />}
       />
       <Slider
         icon={<Contrast />}
-        label="Saturation"
-        value={state.saturation}
-        onChange={handleSaturationChange}
+        label="Punch"
+        value={state.punch}
+        onChange={handlePunchChange}
       />
       <Slider
         icon={<Speed />}
-        label="Speed"
-        value={state.speed}
-        onChange={handleSpeedChange}
+        label="Flow"
+        value={state.flow}
+        onChange={handleFlowChange}
+      />
+      <Slider
+        icon={<ScatterPlot />}
+        label="Form"
+        value={state.form}
+        onChange={handleFormChange}
       />
     </>
   );

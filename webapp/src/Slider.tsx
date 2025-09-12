@@ -1,4 +1,4 @@
-import { Slider as MuiSlider, Stack } from '@mui/material';
+import { Box, Slider as MuiSlider, Stack } from '@mui/material';
 import * as React from 'react';
 
 interface SliderProps {
@@ -13,6 +13,7 @@ interface SliderProps {
     value: number | number[],
     activeThumb: number
   ) => void;
+  endAdornment?: React.ReactNode;
 }
 
 export const Slider = ({
@@ -23,6 +24,7 @@ export const Slider = ({
   step = 0.01,
   value = 0,
   onChange,
+  endAdornment,
 }: SliderProps) => {
   return (
     <Stack spacing={2} direction="row" alignItems="center" sx={{ mb: 2 }}>
@@ -34,7 +36,9 @@ export const Slider = ({
         step={step}
         value={value}
         onChange={onChange}
+        sx={{ flexGrow: 1 }}
       />
+      {endAdornment ? <Box>{endAdornment}</Box> : null}
     </Stack>
   );
 };

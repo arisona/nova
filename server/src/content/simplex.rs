@@ -37,9 +37,9 @@ impl content::Content for Simplex {
         _prev: &VoxelImage,
         next: &mut VoxelImage,
     ) {
-        let entropy = state.hue() as f64;
-        let scale = state.saturation() as f64;
-        let speed = state.speed() as f64;
+        let entropy = state.tone() as f64;
+        let scale = state.punch() as f64;
+        let speed = state.flow() as f64;
 
         self.elapsed += speed * delta as f64;
 
@@ -84,7 +84,7 @@ impl content::Content for Simplex {
                     };
 
                     let rgb: Srgb<f32> = color.into_color();
-                    let vec3 = glam::Vec3::new(rgb.red, rgb.green, rgb.blue) * state.brightness();
+                    let vec3 = glam::Vec3::new(rgb.red, rgb.green, rgb.blue) * state.glow();
                     next.set(x, y, z, vec3);
                 }
             }

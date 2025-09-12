@@ -17,10 +17,11 @@ pub struct AppState {
     enabled_content_indices: Vec<u32>,
     selected_content_index: usize,
 
-    hue: f32,
-    saturation: f32,
-    brightness: f32,
-    speed: f32,
+    glow: f32,
+    tone: f32,
+    punch: f32,
+    flow: f32,
+    form: f32,
     flip_vertical: bool,
     cycle_duration: f32, // TODO: currently ignored, need to rework
 
@@ -55,10 +56,11 @@ impl AppState {
             if let Ok(parsed_settings) = serde_json::from_str::<AppState>(&json_string) {
                 settings.set_selected_content_index(parsed_settings.selected_content_index);
                 settings.set_enabled_content_indices(parsed_settings.enabled_content_indices);
-                settings.set_hue(parsed_settings.hue);
-                settings.set_saturation(parsed_settings.saturation);
-                settings.set_brightness(parsed_settings.brightness);
-                settings.set_speed(parsed_settings.speed);
+                settings.set_glow(parsed_settings.glow);
+                settings.set_tone(parsed_settings.tone);
+                settings.set_punch(parsed_settings.punch);
+                settings.set_flow(parsed_settings.flow);
+                settings.set_form(parsed_settings.form);
                 settings.set_flip_vertical(parsed_settings.flip_vertical);
                 settings.set_cycle_duration(parsed_settings.cycle_duration);
                 settings.set_ethernet_interface(&parsed_settings.ethernet_interface);
@@ -131,36 +133,40 @@ impl AppState {
         self.selected_content_index = index;
     }
 
-    pub fn hue(&self) -> f32 {
-        self.hue
+    pub fn glow(&self) -> f32 {
+        self.glow
+    }
+    pub fn set_glow(&mut self, glow: f32) {
+        self.glow = glow.clamp(0.0, 1.0);
     }
 
-    pub fn set_hue(&mut self, hue: f32) {
-        self.hue = hue.clamp(0.0, 360.0);
+    pub fn tone(&self) -> f32 {
+        self.tone
+    }
+    pub fn set_tone(&mut self, tone: f32) {
+        self.tone = tone.clamp(0.0, 1.0);
     }
 
-    pub fn saturation(&self) -> f32 {
-        self.saturation
+    pub fn punch(&self) -> f32 {
+        self.punch
+    }
+    pub fn set_punch(&mut self, punch: f32) {
+        self.punch = punch.clamp(0.0, 1.0);
     }
 
-    pub fn set_saturation(&mut self, saturation: f32) {
-        self.saturation = saturation.clamp(0.0, 1.0);
+    pub fn flow(&self) -> f32 {
+        self.flow
+    }
+    pub fn set_flow(&mut self, flow: f32) {
+        self.flow = flow.clamp(0.0, 1.0);
     }
 
-    pub fn brightness(&self) -> f32 {
-        self.brightness
+    pub fn form(&self) -> f32 {
+        self.form
     }
 
-    pub fn set_brightness(&mut self, brightness: f32) {
-        self.brightness = brightness.clamp(0.0, 1.0);
-    }
-
-    pub fn speed(&self) -> f32 {
-        self.speed
-    }
-
-    pub fn set_speed(&mut self, speed: f32) {
-        self.speed = speed.clamp(0.0, 1.0);
+    pub fn set_form(&mut self, form: f32) {
+        self.form = form.clamp(0.0, 1.0);
     }
 
     pub fn is_flip_vertical(&self) -> bool {
@@ -233,11 +239,11 @@ impl Default for AppState {
         Self {
             enabled_content_indices: vec![0, 1],
             selected_content_index: 0,
-
-            hue: 0.0,
-            saturation: 1.0,
-            brightness: 0.5,
-            speed: 0.1,
+            glow: 0.5,
+            tone: 0.0,
+            punch: 0.0,
+            flow: 0.0,
+            form: 0.0,
             flip_vertical: false,
             cycle_duration: 0.0,
             ethernet_interface: "eth0".to_string(),

@@ -16,10 +16,11 @@ interface ApiStateResponse {
   'available-content': string[];
   'enabled-content-indices': string[]; // indices as strings
   'selected-content-index': number;
-  hue: number;
-  saturation: number;
-  brightness: number;
-  speed: number;
+  glow: number;
+  tone: number;
+  punch: number;
+  flow: number;
+  form: number;
   'flip-vertical': boolean;
   'cycle-duration': string;
   'ethernet-interface': string;
@@ -67,10 +68,11 @@ export const apiGetState = async (): Promise<NovaState> => {
         index,
       })),
       selectedContentIndex: payload['selected-content-index'] ?? -1,
-      hue: payload.hue ?? defaultNovaState.hue,
-      saturation: payload.saturation ?? defaultNovaState.saturation,
-      brightness: payload.brightness ?? defaultNovaState.brightness,
-      speed: payload.speed ?? defaultNovaState.speed,
+      glow: payload.glow ?? defaultNovaState.glow,
+      tone: payload.tone ?? defaultNovaState.tone,
+      punch: payload.punch ?? defaultNovaState.punch,
+      flow: payload.flow ?? defaultNovaState.flow,
+      form: payload.form ?? defaultNovaState.form,
       flip: payload['flip-vertical'] ?? defaultNovaState.flip,
       cycleDuration:
         payload['cycle-duration'] ?? defaultNovaState.cycleDuration,

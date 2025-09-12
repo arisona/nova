@@ -10,10 +10,11 @@ export interface NovaState {
   availableContent: { index: number; name: string }[];
   enabledContent: { index: number; name: string }[];
   selectedContentIndex: number;
-  hue: number;
-  saturation: number;
-  brightness: number;
-  speed: number;
+  glow: number;
+  tone: number;
+  punch: number;
+  flow: number;
+  form: number;
   flip: boolean;
   cycleDuration: string;
   ethernetInterface: string;
@@ -24,10 +25,11 @@ export const defaultNovaState: NovaState = {
   availableContent: [],
   enabledContent: [],
   selectedContentIndex: -1,
-  hue: 0.5,
-  saturation: 1,
-  brightness: 0.5,
-  speed: 0.5,
+  glow: 0.5,
+  tone: 0.0,
+  punch: 0.0,
+  flow: 0.0,
+  form: 0.0,
   flip: false,
   cycleDuration: '0',
   ethernetInterface: 'eth0',
