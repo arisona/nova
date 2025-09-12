@@ -1,6 +1,7 @@
 ## 1. Overview
 
-Nova hardware drives modules at **50 Hz** (20 ms frame period) over raw Ethernet + UDP.
+Nova hardware drives sends sync at **50 Hz** (20 ms frame period) over raw Ethernet + UDP. However, the real frame rate is only 25 Hz, since the the packet stream toggles between 'send pixels' and 'shift pixels' (in the latter case, the previously sent pixels are shifted to the output).
+
 There are two packet types in use:
 
 - **Sync packets** (`EtherType 0x0810`) for timing, status polls/replies, and shift commands
@@ -26,7 +27,7 @@ Offset  Len  Field           Value / Meaning
 
 - **Packet size**: 6 + 6 + 2 + 46 = 60 bytes
 - **Usage**:
-  - Every 20 ms: send SYNC with `Shift flag` toggling each frame
+  - Every 20 ms: send SYNC with `send pixels` and `shift pixels` flag alternating
   - Every 5 s: send STATUS (`Command=0x04`) to poll modules
   - Modules reply with `Command=0x04`, DST MAC = host MAC
 

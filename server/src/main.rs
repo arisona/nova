@@ -12,7 +12,7 @@ mod web_server;
 #[macro_use]
 mod macros;
 
-const USE_NOVA_HARDWARE: bool = true;
+const USE_NOVA_HARDWARE: bool = false;
 fn main() {
     let env = env_logger::Env::default().default_filter_or("debug,actix_server=warn");
     env_logger::Builder::from_env(env).init();
