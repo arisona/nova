@@ -11,7 +11,7 @@ include_dir = "0.7"
 mime_guess = "2.0"
 noise = "0.9"
 palette = "0.7"
-rand = "0.9"
+rand = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
@@ -21,8 +21,8 @@ log = "0.4"
 
 ## networking 
 mac_address = "1.1"
-pcap = "2.3"
+pcap = "2.4"
 
 ## simulator
 miniquad = "0.4"
-glam = "0.30"
+glam = "0.32"
