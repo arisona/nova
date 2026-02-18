@@ -40,9 +40,9 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "available-content": state.available_content(),
         "enabled-content-indices": state.enabled_content_indices(),
         "selected-content-index": state.selected_content_index(),
-        "glow": state.glow(),
+        "brightness": state.brightness(),
         "tone": state.tone(),
-        "punch": state.punch(),
+        "heat": state.heat(),
         "flow": state.flow(),
         "form": state.form(),
         "flip-vertical": state.is_flip_vertical(),
@@ -86,9 +86,9 @@ async fn command(
                     state.set_selected_content_index(parsed_value);
                 }
             }
-            "glow" => {
+            "brightness" | "glow" => {
                 if let Ok(parsed_value) = value.parse() {
-                    state.set_glow(parsed_value);
+                    state.set_brightness(parsed_value);
                 }
             }
             "tone" => {
@@ -96,9 +96,9 @@ async fn command(
                     state.set_tone(parsed_value);
                 }
             }
-            "punch" => {
+            "heat" => {
                 if let Ok(parsed_value) = value.parse() {
-                    state.set_punch(parsed_value);
+                    state.set_heat(parsed_value);
                 }
             }
             "flow" => {

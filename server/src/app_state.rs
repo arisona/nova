@@ -14,12 +14,15 @@ pub enum Status {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
+    #[serde(default)]
+    content_version: u32,
     enabled_content_indices: Vec<u32>,
     selected_content_index: usize,
 
-    glow: f32,
+    #[serde(alias = "glow")]
+    brightness: f32,
     tone: f32,
-    punch: f32,
+    heat: f32,
     flow: f32,
     form: f32,
     flip_vertical: bool,
@@ -53,12 +56,13 @@ impl AppState {
     pub fn load() -> Self {
         let mut settings = Self::default();
         if let Ok(json_string) = fs::read_to_string(Self::SETTINGS_FILE) {
-            if let Ok(parsed_settings) = serde_json::from_str::<AppState>(&json_string) {
+            if let Ok(mut parsed_settings) = serde_json::from_str::<AppState>(&json_string) {
+                let migrated = parsed_settings.migrate_content();
                 settings.set_selected_content_index(parsed_settings.selected_content_index);
                 settings.set_enabled_content_indices(parsed_settings.enabled_content_indices);
-                settings.set_glow(parsed_settings.glow);
+                settings.set_brightness(parsed_settings.brightness);
                 settings.set_tone(parsed_settings.tone);
-                settings.set_punch(parsed_settings.punch);
+                settings.set_heat(parsed_settings.heat);
                 settings.set_flow(parsed_settings.flow);
                 settings.set_form(parsed_settings.form);
                 settings.set_flip_vertical(parsed_settings.flip_vertical);
@@ -96,6 +100,9 @@ impl AppState {
                 }
 
                 settings.set_webserver_port(parsed_settings.webserver_port);
+                if migrated {
+                    settings.save();
+                }
             } else {
                 log::error!("Failed to parse settings, using defaults");
                 settings.save();
@@ -117,12 +124,34 @@ impl AppState {
         }
     }
 
+    fn migrate_content(&mut self) -> bool {
+        if self.content_version >= 1 {
+            return false;
+        }
+        self.selected_content_index = match self.selected_content_index {
+            2 | 5 => 3,
+            3 => 1,
+            4 => 2,
+            _ => 0,
+        };
+        self.enabled_content_indices = (0..get_all_content_names().len() as u32).collect();
+        self.content_version = 1;
+        true
+    }
+
     pub fn enabled_content_indices(&self) -> &Vec<u32> {
         &self.enabled_content_indices
     }
 
     pub fn set_enabled_content_indices(&mut self, indices: Vec<u32>) {
-        self.enabled_content_indices = indices;
+        self.enabled_content_indices.clear();
+        for index in indices {
+            if (index as usize) < self.available_content.len()
+                && !self.enabled_content_indices.contains(&index)
+            {
+                self.enabled_content_indices.push(index);
+            }
+        }
     }
 
     pub fn selected_content_index(&self) -> usize {
@@ -130,14 +159,18 @@ impl AppState {
     }
 
     pub fn set_selected_content_index(&mut self, index: usize) {
-        self.selected_content_index = index;
+        if index < self.available_content.len() {
+            self.selected_content_index = index;
+        }
     }
 
-    pub fn glow(&self) -> f32 {
-        self.glow
+    pub fn brightness(&self) -> f32 {
+        self.brightness
     }
-    pub fn set_glow(&mut self, glow: f32) {
-        self.glow = glow.clamp(0.0, 1.0);
+    pub fn set_brightness(&mut self, brightness: f32) {
+        if brightness.is_finite() {
+            self.brightness = brightness.clamp(0.0, 1.0);
+        }
     }
 
     pub fn tone(&self) -> f32 {
@@ -147,11 +180,11 @@ impl AppState {
         self.tone = tone.clamp(0.0, 1.0);
     }
 
-    pub fn punch(&self) -> f32 {
-        self.punch
+    pub fn heat(&self) -> f32 {
+        self.heat
     }
-    pub fn set_punch(&mut self, punch: f32) {
-        self.punch = punch.clamp(0.0, 1.0);
+    pub fn set_heat(&mut self, heat: f32) {
+        self.heat = heat.clamp(0.0, 1.0);
     }
 
     pub fn flow(&self) -> f32 {
@@ -237,11 +270,12 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            enabled_content_indices: vec![0, 1],
+            content_version: 1,
+            enabled_content_indices: vec![0, 1, 2, 3],
             selected_content_index: 0,
-            glow: 0.5,
+            brightness: 0.5,
             tone: 0.0,
-            punch: 0.0,
+            heat: 0.0,
             flow: 0.0,
             form: 0.0,
             flip_vertical: false,
@@ -261,5 +295,49 @@ impl Default for AppState {
 
             status: Status::Unknown,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_settings_keep_levels_and_migrate_content() {
+        for (old_index, new_index) in [(0, 0), (1, 0), (2, 3), (3, 1), (4, 2), (5, 3), (99, 0)] {
+            let mut json = serde_json::to_value(AppState::default()).unwrap();
+            let object = json.as_object_mut().unwrap();
+            object.remove("content_version");
+            object.remove("brightness");
+            object.insert("glow".into(), serde_json::json!(0.37));
+            object.insert(
+                "selected_content_index".into(),
+                serde_json::json!(old_index),
+            );
+            let mut settings: AppState = serde_json::from_value(json).unwrap();
+            assert!(settings.migrate_content());
+            assert!(!settings.migrate_content());
+            assert_eq!(settings.selected_content_index, new_index);
+            assert_eq!(settings.enabled_content_indices, [0, 1, 2, 3]);
+            assert_eq!(settings.brightness(), 0.37);
+            let saved = serde_json::to_value(settings).unwrap();
+            assert_eq!(saved["brightness"], 0.37_f32);
+            assert!(saved.get("glow").is_none());
+        }
+    }
+
+    #[test]
+    fn current_settings_and_invalid_indices_are_safe() {
+        let mut settings = AppState::default();
+        settings.set_selected_content_index(3);
+        settings.set_selected_content_index(usize::MAX);
+        assert_eq!(settings.selected_content_index(), 3);
+        settings.set_enabled_content_indices(vec![3, 2, 3, 99]);
+        assert_eq!(settings.enabled_content_indices(), &[3, 2]);
+        let json = serde_json::to_string(&settings).unwrap();
+        let mut restored: AppState = serde_json::from_str(&json).unwrap();
+        assert!(!restored.migrate_content());
+        assert_eq!(restored.selected_content_index(), 3);
+        assert_eq!(restored.enabled_content_indices(), &[3, 2]);
     }
 }

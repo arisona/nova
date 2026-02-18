@@ -16,9 +16,9 @@ interface ApiStateResponse {
   'available-content': string[];
   'enabled-content-indices': string[]; // indices as strings
   'selected-content-index': number;
-  glow: number;
+  brightness: number;
   tone: number;
-  punch: number;
+  heat: number;
   flow: number;
   form: number;
   'flip-vertical': boolean;
@@ -68,9 +68,9 @@ export const apiGetState = async (): Promise<NovaState> => {
         index,
       })),
       selectedContentIndex: payload['selected-content-index'] ?? -1,
-      glow: payload.glow ?? defaultNovaState.glow,
+      brightness: payload.brightness ?? defaultNovaState.brightness,
       tone: payload.tone ?? defaultNovaState.tone,
-      punch: payload.punch ?? defaultNovaState.punch,
+      heat: payload.heat ?? defaultNovaState.heat,
       flow: payload.flow ?? defaultNovaState.flow,
       form: payload.form ?? defaultNovaState.form,
       flip: payload['flip-vertical'] ?? defaultNovaState.flip,

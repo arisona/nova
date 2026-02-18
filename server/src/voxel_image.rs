@@ -56,6 +56,13 @@ impl VoxelImage {
         self.data.fill(0.0);
     }
 
+    pub fn copy_scaled_from(&mut self, source: &Self, brightness: f32) {
+        assert_eq!(self.dim(), source.dim());
+        for (output, input) in self.data.iter_mut().zip(&source.data) {
+            *output = input.clamp(0.0, 1.0) * brightness;
+        }
+    }
+
     pub fn fill(&mut self, color: Vec3) {
         self.data.chunks_exact_mut(3).for_each(|chunk| {
             chunk[0] = color.x;
@@ -65,7 +72,8 @@ impl VoxelImage {
     }
 }
 
-pub fn rgb_to_hsb(rgb: Vec3) -> Vec3 {
+// currently unused, but may be useful for future color manipulations
+pub fn _rgb_to_hsb(rgb: Vec3) -> Vec3 {
     let (r, g, b) = (rgb.x, rgb.y, rgb.z);
     let max = r.max(g).max(b);
     let min = r.min(g).min(b);
@@ -88,7 +96,7 @@ pub fn rgb_to_hsb(rgb: Vec3) -> Vec3 {
     vec3(h, s, b)
 }
 
-pub(crate) fn hsb_to_rgb(hsb: Vec3) -> Vec3 {
+pub(crate) fn _hsb_to_rgb(hsb: Vec3) -> Vec3 {
     let (h, s, b) = (hsb.x, hsb.y, hsb.z);
     let h = h * 360.0;
     let c = b * s;

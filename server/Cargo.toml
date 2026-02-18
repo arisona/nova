@@ -25,4 +25,4 @@ pcap = "2.4"
 
 ## simulator
 miniquad = "0.4"
-glam = "0.32"
+glam = "0.33"

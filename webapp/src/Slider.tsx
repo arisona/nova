@@ -1,4 +1,4 @@
-import { Box, Slider as MuiSlider, Stack } from '@mui/material';
+import { Box, Slider as MuiSlider, Stack, Typography } from '@mui/material';
 import * as React from 'react';
 
 interface SliderProps {
@@ -27,8 +27,13 @@ export const Slider = ({
   endAdornment,
 }: SliderProps) => {
   return (
-    <Stack spacing={2} direction="row" alignItems="center" sx={{ mb: 2 }}>
-      {icon}
+    <Stack spacing={1.5} direction="row" alignItems="center" sx={{ mb: 2 }}>
+      <Box aria-hidden sx={{ display: 'flex', width: 24, flexShrink: 0 }}>
+        {icon}
+      </Box>
+      <Typography variant="body2" sx={{ width: 72, flexShrink: 0 }}>
+        {label}
+      </Typography>
       <MuiSlider
         aria-label={label}
         min={min}
@@ -36,9 +41,9 @@ export const Slider = ({
         step={step}
         value={value}
         onChange={onChange}
-        sx={{ flexGrow: 1 }}
+        sx={{ flexGrow: 1, minWidth: 0 }}
       />
-      {endAdornment ? <Box>{endAdornment}</Box> : null}
+      <Box sx={{ width: 28, flexShrink: 0 }}>{endAdornment}</Box>
     </Stack>
   );
 };

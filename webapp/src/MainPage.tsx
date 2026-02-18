@@ -8,9 +8,11 @@ import {
 } from '@mui/icons-material';
 import {
   Autocomplete,
+  Divider,
   IconButton,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import * as React from 'react';
@@ -40,7 +42,8 @@ export const MainPage = ({
   const handleContentChange = (
     value: { index: number; name: string } | null
   ) => {
-    const index = value ? value.index : -1;
+    if (!value) return;
+    const index = value.index;
     apiSetValue('selected-content-index', index);
     setState((prevState) => ({
       ...prevState,
@@ -48,11 +51,14 @@ export const MainPage = ({
     }));
   };
 
-  const handleGlowChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue('glow', newValue as number);
+  const handleBrightnessChange = (
+    _event: Event,
+    newValue: number | number[]
+  ) => {
+    apiSetValue('brightness', newValue as number);
     setState((prevState) => ({
       ...prevState,
-      glow: newValue as number,
+      brightness: newValue as number,
     }));
   };
 
@@ -61,11 +67,11 @@ export const MainPage = ({
     setState((prevState) => ({ ...prevState, tone: newValue as number }));
   };
 
-  const handlePunchChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue('punch', newValue as number);
+  const handleHeatChange = (_event: Event, newValue: number | number[]) => {
+    apiSetValue('heat', newValue as number);
     setState((prevState) => ({
       ...prevState,
-      punch: newValue as number,
+      heat: newValue as number,
     }));
   };
 
@@ -104,9 +110,11 @@ export const MainPage = ({
           NOVA
         </Typography>
         <Stack direction="row" alignItems="center">
-          <IconButton aris-able="Settings" onClick={handleSettings}>
-            <Settings />
-          </IconButton>
+          <Tooltip title="Settings">
+            <IconButton aria-label="Settings" onClick={handleSettings}>
+              <Settings />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </Stack>
 
@@ -146,22 +154,23 @@ export const MainPage = ({
 
       <Slider
         icon={<WbSunny />}
-        label="Glow"
-        value={state.glow}
-        onChange={handleGlowChange}
+        label="Brightness"
+        value={state.brightness}
+        onChange={handleBrightnessChange}
       />
+      <Divider sx={{ my: 3 }} />
       <Slider
         icon={<Palette />}
         label="Tone"
         value={state.tone}
         onChange={handleToneChange}
-        endAdornment={<ToneChip tone={state.tone} />}
+        endAdornment={<ToneChip tone={state.tone} heat={state.heat} />}
       />
       <Slider
         icon={<Contrast />}
-        label="Punch"
-        value={state.punch}
-        onChange={handlePunchChange}
+        label="Heat"
+        value={state.heat}
+        onChange={handleHeatChange}
       />
       <Slider
         icon={<Speed />}

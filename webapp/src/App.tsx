@@ -10,9 +10,9 @@ export interface NovaState {
   availableContent: { index: number; name: string }[];
   enabledContent: { index: number; name: string }[];
   selectedContentIndex: number;
-  glow: number;
+  brightness: number;
   tone: number;
-  punch: number;
+  heat: number;
   flow: number;
   form: number;
   flip: boolean;
@@ -25,9 +25,9 @@ export const defaultNovaState: NovaState = {
   availableContent: [],
   enabledContent: [],
   selectedContentIndex: -1,
-  glow: 0.5,
+  brightness: 0.5,
   tone: 0.0,
-  punch: 0.0,
+  heat: 0.0,
   flow: 0.0,
   form: 0.0,
   flip: false,
