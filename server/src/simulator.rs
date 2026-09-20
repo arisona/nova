@@ -10,6 +10,9 @@ use crate::check_run_once;
 use crate::app_state::{AppState, Status};
 use crate::renderer::{RenderState, Renderer};
 
+const VOXEL_SPACING: f32 = 4.0;
+const VOXEL_HALF_SIZE: f32 = 1.0;
+
 pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova simulator already running.");
 
@@ -34,7 +37,6 @@ struct Stage {
 
     instances: Vec<(f32, f32, f32, f32, f32, f32, f32)>,
     rot: f32,
-    distance_factor: f32,
 
     last_frame_time: std::time::Instant,
 }
@@ -43,7 +45,7 @@ impl Stage {
     fn new(state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
         let mut ctx: Box<dyn RenderingBackend> = window::new_rendering_backend();
 
-        let r = 1.0;
+        let r = VOXEL_HALF_SIZE;
         #[rustfmt::skip]
         let vertices: &[f32] = &[
             -r, -r, 0.0,
@@ -129,7 +131,6 @@ impl Stage {
             bindings,
             instances: Vec::with_capacity(DX * DY * DZ),
             rot: 0.0,
-            distance_factor: 1.0,
             last_frame_time: std::time::Instant::now(),
         }
     }
@@ -162,15 +163,13 @@ impl EventHandler for Stage {
                     );
                     // convert z-up to y-up and flip if needed
                     let p = vec3(p.x, if flip { p.z } else { -p.z }, -p.y);
-                    let p = 4.0 * rot * p;
+                    let p = VOXEL_SPACING * rot * p;
                     let rgb = self.renderer.image().get(x, y, z);
                     let c = vec4(rgb.x, rgb.y, rgb.z, 1.0);
                     self.instances.push((p.x, p.y, p.z, c.x, c.y, c.z, c.w));
                 }
             }
         }
-        // TODO: this is incorrect for other resultions, needs a fix
-        self.distance_factor = (dx as f32).max(dy as f32) / 5.0;
     }
 
     fn draw(&mut self) {
@@ -181,30 +180,43 @@ impl EventHandler for Stage {
 
         // model-view-projection matrix
         let (width, height) = window::screen_size();
-
-        let proj = glam::camera::rh::proj::opengl::perspective(
-            60.0f32.to_radians(),
-            width / height,
-            0.01,
-            1000.0,
-        );
-        let view = glam::camera::rh::view::look_at_mat4(
-            vec3(0.0, 5.0 * self.distance_factor, 50.0 * self.distance_factor),
-            vec3(0.0, 0.0, 0.0),
-            vec3(0.0, 1.0, 0.0),
-        );
+        let uniforms = camera_uniforms(self.renderer.image().dim(), width, height);
 
         self.ctx.begin_default_pass(Default::default());
 
         self.ctx.apply_pipeline(&self.pipeline);
         self.ctx.apply_bindings(&self.bindings);
-        self.ctx
-            .apply_uniforms(UniformsSource::table(&shader::Uniforms { view, proj }));
+        self.ctx.apply_uniforms(UniformsSource::table(&uniforms));
         self.ctx.draw(0, 6, self.instances.len() as i32);
         self.ctx.end_render_pass();
 
         self.ctx.commit_frame();
     }
+}
+
+fn camera_uniforms(dim: (usize, usize, usize), width: f32, height: f32) -> shader::Uniforms {
+    let half_extents = vec3(
+        dim.0.saturating_sub(1) as f32,
+        dim.1.saturating_sub(1) as f32,
+        dim.2.saturating_sub(1) as f32,
+    ) * (VOXEL_SPACING / 2.0);
+    let radius = half_extents.length() + std::f32::consts::SQRT_2 * VOXEL_HALF_SIZE;
+    let aspect = width.max(1.0) / height.max(1.0);
+    let vertical_fov = 60.0f32.to_radians();
+    let limiting_half_fov = ((vertical_fov / 2.0).tan() * aspect.min(1.0)).atan();
+    let distance = 1.05 * radius / limiting_half_fov.sin();
+    let proj = glam::camera::rh::proj::opengl::perspective(
+        vertical_fov,
+        aspect,
+        0.01,
+        distance + 2.0 * radius,
+    );
+    let view = glam::camera::rh::view::look_at_mat4(
+        vec3(0.0, 0.1, 1.0).normalize() * distance,
+        vec3(0.0, 0.0, 0.0),
+        vec3(0.0, 1.0, 0.0),
+    );
+    shader::Uniforms { view, proj }
 }
 
 fn conf() -> conf::Conf {
@@ -218,6 +230,65 @@ fn conf() -> conf::Conf {
             big: [128; 64 * 64 * 4],
         }),
         ..Default::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn camera_fits_rotating_grids_and_voxel_quads() {
+        let max_x = AppState::MODULE_X_RES * AppState::MODULE_GRID_MAX;
+        let max_y = AppState::MODULE_Y_RES * AppState::MODULE_GRID_MAX;
+        for dim in [
+            (5, 5, 10),
+            (max_x, 5, 10),
+            (5, max_y, 10),
+            (max_x, max_y, AppState::MODULE_Z_RES),
+            (1, 1, 100),
+            (1, 1, 1),
+        ] {
+            for (width, height) in [
+                (1024.0, 768.0),
+                (768.0, 1024.0),
+                (1600.0, 400.0),
+                (100.0, 1600.0),
+                (800.0, 800.0),
+                (0.0, 0.0),
+            ] {
+                let uniforms = camera_uniforms(dim, width, height);
+                let transform = uniforms.proj * uniforms.view;
+                for step in 0..24 {
+                    let rotation =
+                        Mat3::from_rotation_y(step as f32 * std::f32::consts::TAU / 24.0);
+                    for grid_x in [0, dim.0 - 1] {
+                        for grid_y in [0, dim.1 - 1] {
+                            for grid_z in [0, dim.2 - 1] {
+                                let center = VOXEL_SPACING
+                                    * rotation
+                                    * vec3(
+                                        grid_x as f32 - (dim.0 - 1) as f32 / 2.0,
+                                        grid_z as f32 - (dim.2 - 1) as f32 / 2.0,
+                                        -(grid_y as f32 - (dim.1 - 1) as f32 / 2.0),
+                                    );
+                                for quad_x in [-VOXEL_HALF_SIZE, VOXEL_HALF_SIZE] {
+                                    for quad_y in [-VOXEL_HALF_SIZE, VOXEL_HALF_SIZE] {
+                                        let clip = transform
+                                            * (center + vec3(quad_x, quad_y, 0.0)).extend(1.0);
+                                        let ndc = clip.truncate() / clip.w;
+                                        assert!(
+                                            clip.w > 0.0 && ndc.abs().max_element() <= 1.0,
+                                            "dim={dim:?}, viewport={width}x{height}, step={step}, ndc={ndc:?}"
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
