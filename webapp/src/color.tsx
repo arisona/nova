@@ -43,22 +43,18 @@ export function rgbToHsv(
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const d = max - min;
-  let h = 0,
-    s = 0,
-    v = 0;
+  let hue: number;
 
   if (d === 0) {
-    h = 0;
+    hue = 0;
   } else if (max === r) {
-    h = ((g - b) / d) % 6;
+    hue = ((g - b) / d) % 6;
   } else if (max === g) {
-    h = (b - r) / d + 2;
+    hue = (b - r) / d + 2;
   } else {
-    h = (r - g) / d + 4;
+    hue = (r - g) / d + 4;
   }
 
-  h /= 6;
-  s = max === 0 ? 0 : d / max;
-  v = max;
-  return [h, s, v];
+  const saturation = max === 0 ? 0 : d / max;
+  return [hue / 6, saturation, max];
 }

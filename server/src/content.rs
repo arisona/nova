@@ -35,10 +35,10 @@ pub trait Content {
 
 pub fn get_all_content() -> Vec<Box<dyn Content>> {
     vec![
+        Box::new(cloud::Cloud::new()),
         Box::new(field::Field::new()),
         Box::new(layers::Layers::new()),
         Box::new(threads::Threads::new()),
-        Box::new(cloud::Cloud::new()),
     ]
 }
 

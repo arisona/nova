@@ -27,7 +27,7 @@ export const Slider = ({
   endAdornment,
 }: SliderProps) => {
   return (
-    <Stack spacing={1.5} direction="row" alignItems="center" sx={{ mb: 2 }}>
+    <Stack spacing={1.5} direction="row" sx={{ mb: 2, alignItems: 'center' }}>
       <Box aria-hidden sx={{ display: 'flex', width: 24, flexShrink: 0 }}>
         {icon}
       </Box>

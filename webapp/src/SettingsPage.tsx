@@ -139,9 +139,7 @@ export const SettingsPage = ({
     <>
       <Stack
         direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
+        sx={{ mb: 2, justifyContent: 'space-between', alignItems: 'center' }}
       >
         <Typography variant="h6" align="left">
           SETTINGS
@@ -197,9 +195,8 @@ export const SettingsPage = ({
 
       <Stack
         spacing={2}
-        justifyContent="space-between"
         direction="row"
-        sx={{ mb: 8 }}
+        sx={{ mb: 8, justifyContent: 'space-between' }}
       >
         <FormGroup sx={{ width: '100%', pt: 1 }}>
           <FormControlLabel

@@ -1,7 +1,7 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
-use glam::{Mat3, Mat4, vec3, vec4};
+use glam::{Mat3, vec3, vec4};
 use miniquad::conf::Icon;
 use miniquad::*;
 
@@ -182,8 +182,13 @@ impl EventHandler for Stage {
         // model-view-projection matrix
         let (width, height) = window::screen_size();
 
-        let proj = Mat4::perspective_rh_gl(60.0f32.to_radians(), width / height, 0.01, 1000.0);
-        let view = Mat4::look_at_rh(
+        let proj = glam::camera::rh::proj::opengl::perspective(
+            60.0f32.to_radians(),
+            width / height,
+            0.01,
+            1000.0,
+        );
+        let view = glam::camera::rh::view::look_at_mat4(
             vec3(0.0, 5.0 * self.distance_factor, 50.0 * self.distance_factor),
             vec3(0.0, 0.0, 0.0),
             vec3(0.0, 1.0, 0.0),

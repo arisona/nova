@@ -102,14 +102,12 @@ export const MainPage = ({
     <>
       <Stack
         direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
+        sx={{ mb: 2, justifyContent: 'space-between', alignItems: 'center' }}
       >
         <Typography variant="h6" align="left">
           NOVA
         </Typography>
-        <Stack direction="row" alignItems="center">
+        <Stack direction="row" sx={{ alignItems: 'center' }}>
           <Tooltip title="Settings">
             <IconButton aria-label="Settings" onClick={handleSettings}>
               <Settings />
@@ -132,19 +130,18 @@ export const MainPage = ({
             handleContentChange(value);
           }}
           renderInput={(params) => {
-            const { InputLabelProps, InputProps, inputProps, ...rest } = params;
+            const { slotProps, ...rest } = params;
             return (
               <TextField
                 {...rest}
                 label="Select content"
                 size="small"
                 slotProps={{
+                  ...slotProps,
                   htmlInput: {
-                    ...inputProps,
+                    ...slotProps.htmlInput,
                     readOnly: true,
                   },
-                  inputLabel: InputLabelProps,
-                  input: InputProps,
                 }}
               />
             );
