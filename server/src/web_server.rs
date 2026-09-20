@@ -3,8 +3,22 @@ use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
 use include_dir::{Dir, include_dir};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 use crate::app_state::{AppState, Status};
+
+type PendingSave = Mutex<Option<actix_web::rt::task::JoinHandle<()>>>;
+
+fn debounce_save(pending: &PendingSave, save: impl FnOnce() + 'static) {
+    let mut pending = pending.lock().unwrap();
+    if let Some(task) = pending.take() {
+        task.abort();
+    }
+    *pending = Some(actix_web::rt::spawn(async move {
+        actix_web::rt::time::sleep(Duration::from_millis(500)).await;
+        save();
+    }));
+}
 
 pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
     // we are running the web server in a separate thread, so we can still use the main thread for the simulator
@@ -15,9 +29,11 @@ pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
 
         log::info!("Starting web server at http://localhost:{port}/");
 
+        let pending_save = Data::new(PendingSave::default());
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(Data::new(Arc::clone(&state)))
+                .app_data(pending_save.clone())
                 .service(get_state)
                 .service(get_status)
                 .service(command)
@@ -77,6 +93,7 @@ async fn get_status(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
 #[get("/api/{command}")]
 async fn command(
     data: web::Data<Arc<Mutex<AppState>>>,
+    pending_save: web::Data<PendingSave>,
     command: web::Path<String>,
     query: web::Query<std::collections::HashMap<String, String>>,
 ) -> impl Responder {
@@ -159,7 +176,8 @@ async fn command(
             }
         }
     }
-    state.save();
+    drop(state);
+    debounce_save(&pending_save, move || data.lock().unwrap().save());
     HttpResponse::Ok()
 }
 
@@ -168,6 +186,22 @@ static WWW_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/www");
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[actix_web::test]
+    async fn save_is_debounced_by_500_ms() {
+        let pending = PendingSave::default();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let first_sender = sender.clone();
+        debounce_save(&pending, move || first_sender.send(1).unwrap());
+        actix_web::rt::time::sleep(Duration::from_millis(300)).await;
+        assert!(receiver.try_recv().is_err());
+        debounce_save(&pending, move || sender.send(2).unwrap());
+        actix_web::rt::time::sleep(Duration::from_millis(300)).await;
+        assert!(receiver.try_recv().is_err());
+        actix_web::rt::time::sleep(Duration::from_millis(250)).await;
+        assert_eq!(receiver.try_recv().unwrap(), 2);
+        assert!(receiver.try_recv().is_err());
+    }
 
     #[actix_web::test]
     async fn audio_api_reports_volume_and_independent_status() {
