@@ -63,25 +63,6 @@ export const SettingsPage = ({
     setState((prevState) => ({ ...prevState, flip: flip }));
   };
 
-  const [cycleDurationInputState, setCycleDurationInputState] =
-    React.useState<string>('');
-
-  const handleCycleDurationChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const duration = event.target.value;
-    if (duration === '' || isNaN(+duration) || +duration < 0) {
-      setCycleDurationInputState('Enter a valid duration (0 to disable)');
-    } else {
-      setCycleDurationInputState('');
-      apiSetValue('cycle-duration', +duration);
-    }
-    setState((prevState) => ({
-      ...prevState,
-      cycleDuration: duration,
-    }));
-  };
-
   const [ethernetInterfaceInputState, setEthernetInterfaceInputState] =
     React.useState<string>('');
 
@@ -130,7 +111,6 @@ export const SettingsPage = ({
       })
       .then((restoredState) => {
         setState(restoredState);
-        setCycleDurationInputState('');
         setEthernetInterfaceInputState('');
         setEthernetAddressInputState('');
       })
@@ -213,28 +193,12 @@ export const SettingsPage = ({
         </List>{' '}
       </Box>
 
-      <Stack
-        spacing={2}
-        direction="row"
-        sx={{ mb: 8, justifyContent: 'space-between' }}
-      >
-        <FormGroup sx={{ width: '100%', pt: 1 }}>
-          <FormControlLabel
-            control={
-              <Switch checked={state.flip} onChange={handleFlipChange} />
-            }
-            label="Flip content vertically"
-          />
-        </FormGroup>
-        <TextField
-          fullWidth
-          label="Cycle duration (0 to disable)"
-          value={state.cycleDuration}
-          onChange={handleCycleDurationChange}
-          error={cycleDurationInputState !== ''}
-          helperText={cycleDurationInputState}
+      <FormGroup sx={{ pt: 1, mb: 8 }}>
+        <FormControlLabel
+          control={<Switch checked={state.flip} onChange={handleFlipChange} />}
+          label="Flip content vertically"
         />
-      </Stack>
+      </FormGroup>
 
       <InputLabel id="network-settings-label" sx={{ mb: 2 }}>
         Ethernet settings (reload server to apply changes)

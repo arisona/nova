@@ -48,7 +48,6 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "flow": state.flow(),
         "form": state.form(),
         "flip-vertical": state.is_flip_vertical(),
-        "cycle-duration": state.cycle_duration(),
         "ethernet-interface": state.ethernet_interface(),
         "module0-address": state.module0_address(),
     }))
@@ -95,7 +94,7 @@ async fn command(
                     state.set_selected_content_index(parsed_value);
                 }
             }
-            "brightness" | "glow" => {
+            "brightness" => {
                 if let Ok(parsed_value) = value.parse() {
                     state.set_brightness(parsed_value);
                 }
@@ -128,11 +127,6 @@ async fn command(
             "flip-vertical" => {
                 if let Ok(parsed_value) = value.parse() {
                     state.set_flip_vertical(parsed_value);
-                }
-            }
-            "cycle-duration" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_cycle_duration(parsed_value);
                 }
             }
             "ethernet-interface" => {

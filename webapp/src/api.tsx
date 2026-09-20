@@ -1,10 +1,29 @@
 import { NovaState, NovaStatus, defaultNovaState } from './App';
 
-export const apiSet = (id: string) => {
+type ApiCommand = 'restore' | 'reset' | 'reload';
+
+interface ApiSettingValues {
+  'enabled-content-indices': string;
+  'selected-content-index': number;
+  brightness: number;
+  volume: number;
+  tone: number;
+  heat: number;
+  flow: number;
+  form: number;
+  'flip-vertical': boolean;
+  'ethernet-interface': string;
+  'module0-address': number;
+}
+
+export const apiSet = (id: ApiCommand) => {
   return fetch(`/api/${id}`);
 };
 
-export const apiSetValue = (id: string, value: string | number | boolean) => {
+export const apiSetValue = <Setting extends keyof ApiSettingValues>(
+  id: Setting,
+  value: ApiSettingValues[Setting]
+) => {
   void fetch(
     `/api/${encodeURIComponent(id)}?value=${encodeURIComponent(String(value))}`
   ).catch((err: unknown) => {
@@ -24,7 +43,6 @@ interface ApiStateResponse {
   flow: number;
   form: number;
   'flip-vertical': boolean;
-  'cycle-duration': string;
   'ethernet-interface': string;
   'module0-address': string;
 }
@@ -80,8 +98,6 @@ export const apiGetState = async (): Promise<NovaState> => {
       flow: payload.flow ?? defaultNovaState.flow,
       form: payload.form ?? defaultNovaState.form,
       flip: payload['flip-vertical'] ?? defaultNovaState.flip,
-      cycleDuration:
-        payload['cycle-duration'] ?? defaultNovaState.cycleDuration,
       ethernetInterface:
         payload['ethernet-interface'] ?? defaultNovaState.ethernetInterface,
       module0Address:

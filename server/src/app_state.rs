@@ -14,21 +14,16 @@ pub enum Status {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
-    #[serde(default)]
-    content_version: u32,
     enabled_content_indices: Vec<u32>,
     selected_content_index: usize,
 
-    #[serde(alias = "glow")]
     brightness: f32,
-    #[serde(default)]
     volume: f32,
     tone: f32,
     heat: f32,
     flow: f32,
     form: f32,
     flip_vertical: bool,
-    cycle_duration: f32, // TODO: currently ignored, need to rework
 
     ethernet_interface: String,
     modules: Vec<(usize, usize, u8)>,
@@ -60,8 +55,7 @@ impl AppState {
     pub fn load() -> Self {
         let mut settings = Self::default();
         if let Ok(json_string) = fs::read_to_string(Self::SETTINGS_FILE) {
-            if let Ok(mut parsed_settings) = serde_json::from_str::<AppState>(&json_string) {
-                let migrated = parsed_settings.migrate_content();
+            if let Ok(parsed_settings) = serde_json::from_str::<AppState>(&json_string) {
                 settings.set_selected_content_index(parsed_settings.selected_content_index);
                 settings.set_enabled_content_indices(parsed_settings.enabled_content_indices);
                 settings.set_brightness(parsed_settings.brightness);
@@ -71,7 +65,6 @@ impl AppState {
                 settings.set_flow(parsed_settings.flow);
                 settings.set_form(parsed_settings.form);
                 settings.set_flip_vertical(parsed_settings.flip_vertical);
-                settings.set_cycle_duration(parsed_settings.cycle_duration);
                 settings.set_ethernet_interface(&parsed_settings.ethernet_interface);
 
                 {
@@ -105,9 +98,6 @@ impl AppState {
                 }
 
                 settings.set_webserver_port(parsed_settings.webserver_port);
-                if migrated {
-                    settings.save();
-                }
             } else {
                 log::error!("Failed to parse settings, using defaults");
                 settings.save();
@@ -127,21 +117,6 @@ impl AppState {
         } else {
             log::error!("Failed to serialize settings");
         }
-    }
-
-    fn migrate_content(&mut self) -> bool {
-        if self.content_version >= 1 {
-            return false;
-        }
-        self.selected_content_index = match self.selected_content_index {
-            2 | 5 => 3,
-            3 => 1,
-            4 => 2,
-            _ => 0,
-        };
-        self.enabled_content_indices = (0..get_all_content_names().len() as u32).collect();
-        self.content_version = 1;
-        true
     }
 
     pub fn enabled_content_indices(&self) -> &Vec<u32> {
@@ -228,14 +203,6 @@ impl AppState {
         self.flip_vertical = flip_vertical;
     }
 
-    pub fn cycle_duration(&self) -> f32 {
-        self.cycle_duration
-    }
-
-    pub fn set_cycle_duration(&mut self, cycle_duration: f32) {
-        self.cycle_duration = cycle_duration.clamp(0.0, 3600.0);
-    }
-
     pub fn ethernet_interface(&self) -> &str {
         &self.ethernet_interface
     }
@@ -296,7 +263,6 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            content_version: 1,
             enabled_content_indices: vec![0, 1, 2, 3],
             selected_content_index: 0,
             brightness: 0.5,
@@ -306,7 +272,6 @@ impl Default for AppState {
             flow: 0.0,
             form: 0.0,
             flip_vertical: false,
-            cycle_duration: 0.0,
             ethernet_interface: "eth0".to_string(),
             modules: vec![(0, 0, AppState::MODULE_DEFAULT_ADDRESS)],
 
@@ -331,10 +296,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn audio_volume_migration_validation_and_status_are_independent() {
-        let mut json = serde_json::to_value(AppState::default()).unwrap();
-        json.as_object_mut().unwrap().remove("volume");
-        let mut state: AppState = serde_json::from_value(json).unwrap();
+    fn audio_volume_validation_and_status_are_independent() {
+        let mut state = AppState::default();
         assert_eq!(state.volume(), 0.0);
         state.set_volume(0.37);
         state.set_volume(f32::NAN);
@@ -360,30 +323,6 @@ mod tests {
     }
 
     #[test]
-    fn legacy_settings_keep_levels_and_migrate_content() {
-        for (old_index, new_index) in [(0, 0), (1, 0), (2, 3), (3, 1), (4, 2), (5, 3), (99, 0)] {
-            let mut json = serde_json::to_value(AppState::default()).unwrap();
-            let object = json.as_object_mut().unwrap();
-            object.remove("content_version");
-            object.remove("brightness");
-            object.insert("glow".into(), serde_json::json!(0.37));
-            object.insert(
-                "selected_content_index".into(),
-                serde_json::json!(old_index),
-            );
-            let mut settings: AppState = serde_json::from_value(json).unwrap();
-            assert!(settings.migrate_content());
-            assert!(!settings.migrate_content());
-            assert_eq!(settings.selected_content_index, new_index);
-            assert_eq!(settings.enabled_content_indices, [0, 1, 2, 3]);
-            assert_eq!(settings.brightness(), 0.37);
-            let saved = serde_json::to_value(settings).unwrap();
-            assert_eq!(saved["brightness"], 0.37_f32);
-            assert!(saved.get("glow").is_none());
-        }
-    }
-
-    #[test]
     fn current_settings_and_invalid_indices_are_safe() {
         let mut settings = AppState::default();
         settings.set_selected_content_index(3);
@@ -392,8 +331,7 @@ mod tests {
         settings.set_enabled_content_indices(vec![3, 2, 3, 99]);
         assert_eq!(settings.enabled_content_indices(), &[3, 2]);
         let json = serde_json::to_string(&settings).unwrap();
-        let mut restored: AppState = serde_json::from_str(&json).unwrap();
-        assert!(!restored.migrate_content());
+        let restored: AppState = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.selected_content_index(), 3);
         assert_eq!(restored.enabled_content_indices(), &[3, 2]);
     }

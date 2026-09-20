@@ -69,7 +69,7 @@ Nova's Rust server uses ALSA on Raspberry Pi OS. Connect speakers through the ch
 
 On a Lite installation ALSA can output directly without PulseAudio or PipeWire. If a sound server is installed, select an appropriate ALSA bridge/default configuration instead of competing for its hardware device. The user running Nova must have audio-device permissions, including when launched as a service. Check group membership and service configuration if interactive playback works but the service cannot open the device.
 
-New/legacy settings start with Volume zero. Raise it gradually using the web control after reducing the speaker/system volume. Sound is produced by the Pi, not the browser. Audio device failures do not stop the lights; Nova reports them separately and retries. For current Rust build/run instructions and listening previews, see [Native Audio](nova_control.md#native-audio). Evaluate a release build with the physical display active before deployment.
+New settings start with Volume zero. Raise it gradually using the web control after reducing the speaker/system volume. Sound is produced by the Pi, not the browser. Audio device failures do not stop the lights; Nova reports them separately and retries. For current Rust build/run instructions and listening previews, see [Native Audio](nova_control.md#native-audio). Evaluate a release build with the physical display active before deployment.
 
 _The legacy Java deployment instructions below are still TBD; use the current Rust build/run instructions linked above._
 

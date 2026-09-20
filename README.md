@@ -2,7 +2,7 @@
 
 Rust-based procedural content generation for the Nova voxel display, with a desktop simulator and a React control interface.
 
-Four content families explore the low-resolution volume: **Field**, **Layers**, **Threads**, and **Cloud**. Independent **Brightness** and **Volume** control visual and audio output; **Tone**, **Heat**, **Flow**, and **Form** shape both. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios. Audio starts muted on new installations and when upgrading settings without Volume.
+Four content families explore the low-resolution volume: **Field**, **Layers**, **Threads**, and **Cloud**. Independent **Brightness** and **Volume** control visual and audio output; **Tone**, **Heat**, **Flow**, and **Form** shape both. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios. Audio starts muted on new installations.
 
 This README is the canonical project guidance for both human contributors and coding agents. Follow the control semantics and design constraints below when changing the project.
 
@@ -97,8 +97,6 @@ Cloud starts with a compact, full-strength pool at Form zero and blends into bro
 - The read-only `audio-enabled` state field reflects `ENABLE_AUDIO`, independently of audio-device health. The web app hides Volume and audio errors when it is false.
 - Update a control: `GET /api/{brightness|volume|tone|heat|flow|form}?value=<0..1>` updates and persists its value.
 - `GET /api/get-status` reports independent `audio-ok` and `audio-message` fields alongside the existing display status.
-- Legacy `glow` settings and the setter endpoint remain accepted.
-- Versioned content settings migrate the old six-effect indices to the four new families and enable all four on first upgrade.
 
 ## Development checks
 

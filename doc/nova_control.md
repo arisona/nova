@@ -138,7 +138,7 @@ Field's Form reveals a fixed-scale gradient through broad, soft coverage masks. 
 
 At Form zero, Layers and Threads use voxel-thick structures with soft overlapping handoffs. Each structure reaches full palette intensity and holds until its replacement starts before fading out. Increasing Form adds hold time in event-cycle units after both conditions are met, retaining more events even at maximum Flow, and varies positions. Normalized soft edges prevent fractional sampling from attenuating a structure's peak. Faster cycling can overlap several fading tails even at Form zero; existing tails are allowed to finish rather than being abruptly removed. Overlaps blend colors by their intensity weights and cap total intensity at one instead of clipping RGB channels. Brightness remains the final output multiplier.
 
-Automatic content cycling is not implemented yet, despite the legacy cycle-duration setting. Effect changes reset the selected animation and currently switch directly without a crossfade.
+Content selection is manual. Effect changes reset the selected animation and currently switch directly without a crossfade.
 
 Layers and Threads use two clocks: Flow drives event cycling at `FADE_EVENTS_PER_PHASE_UNIT = 0.18` through the shared phase, while fade envelopes advance in active seconds. With the current global multiplier, full Flow starts about 1.8 events per second. Fade-in and fade-out each take `FADE_SECONDS = 1.875`, independent of nonzero Flow. Lower Flow spaces out births and lengthens holds rather than slowing the fades. Flow zero freezes births, holds, and fades together; resuming or changing Flow does not jump their phase or intensity. These timing constants live in `server/src/content.rs`.
 
@@ -148,7 +148,7 @@ Cloud's Form-zero pool uses a 1.3-voxel Gaussian width and retains its full-stre
 
 ## Native Audio
 
-Audio plays through the server machine's default output, not the browser. It runs in both simulator and hardware modes. Select the output through the OS (or ALSA configuration on a headless Pi) before launching Nova. New and legacy settings default to Volume zero. Raise it gradually with system/speaker volume low; saved Volume is restored on the next launch.
+Audio plays through the server machine's default output, not the browser. It runs in both simulator and hardware modes. Select the output through the OS (or ALSA configuration on a headless Pi) before launching Nova. New settings default to Volume zero. Raise it gradually with system/speaker volume low; saved Volume is restored on the next launch.
 
 The synth uses CPAL output and FunDSP band-limited oscillators/resonant state-variable filters. No desktop sound server is required on a headless ALSA system. Device failures appear separately from display status; the service retries, and the lights and web API remain operational. If output is unavailable, check the OS default device, permissions for the account running Nova, and whether another process has exclusive access.
 
@@ -168,7 +168,6 @@ All settings are stored in `nova_settings.json`. Example:
 
 ```json
 {
-  "content_version": 1,
   "ethernet_interface": "eth0",
   "webserver_port": 8080,
   "modules": [
@@ -183,7 +182,6 @@ All settings are stored in `nova_settings.json`. Example:
   "flow": 0.25,
   "form": 0.0,
   "flip_vertical": false,
-  "cycle_duration": 0.0,
   "enabled_content_indices": [0, 1, 2, 3],
   "selected_content_index": 0
 }
@@ -191,8 +189,7 @@ All settings are stored in `nova_settings.json`. Example:
 
 - `modules`: list of `[x, y, address]` tuples.
 - Other fields mirror UI controls.
-- Legacy `glow` is read as `brightness`. Unversioned content settings are migrated once: Fill/Ramp to Field, Wave to Layers, Rain to Threads, and Simplex/Pulse to Cloud. All four new families are enabled on upgrade; other settings are retained. Subsequent saves use the new names and version.
-- GET `/api/get-state` exposes `brightness`, `volume`, `tone`, `heat`, `flow`, and `form`. SET via GET `/api/{control}?value=<0..1>` persists a value. Missing `volume` loads as zero; other settings are preserved. The old `/api/glow` setter remains an alias for compatibility.
+- GET `/api/get-state` exposes `brightness`, `volume`, `tone`, `heat`, `flow`, and `form`. SET via GET `/api/{control}?value=<0..1>` persists a value.
 
 ---
 
@@ -238,7 +235,7 @@ Ensure `render()` completes within 20 ms to avoid underruns.
 
 Content writes unscaled RGB to `next`; the renderer keeps `prev` unscaled and applies Brightness only to a separate output image. Use the shared palette and accumulated Flow-driven phase. Reset animation state when `should_reset()` is true, and do not use wall-clock elapsed time for motion that must freeze at zero Flow.
 
-Run `cargo test` in `server` for palette, geometry, freeze/reset, brightness, and settings-migration checks. Run `npm run build` in `webapp` before building the server so its embedded UI matches the API.
+Run `cargo test` in `server` for palette, geometry, freeze/reset, brightness, and settings-validation checks. Run `npm run build` in `webapp` before building the server so its embedded UI matches the API.
 
 For a diagnostic contact sheet and local render timings, run `cargo test content_preview_and_timings -- --ignored --nocapture` in `server`. It writes `nova-content-preview.ppm` to the OS temporary directory. Columns are Field, Layers, Threads, and Cloud. The first five rows use Heat 0, 0.25, 0.5, 0.75, and 1 at Form zero; the next two use Heat 1 at Form 0.5 and 1; the final two use Heat 0 at Form 0.5 and 1. Sparse fades are captured at their peak. These synthetic previews and local timings do not replace physical-display evaluation or Raspberry Pi profiling.
 
