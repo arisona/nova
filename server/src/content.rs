@@ -60,6 +60,26 @@ pub fn advance(phase: &mut f64, state: &RenderState, delta: f32) -> f32 {
     *phase as f32
 }
 
+#[derive(Default)]
+pub struct PaletteCache {
+    cached: Option<(f32, f32, Palette)>,
+}
+
+impl PaletteCache {
+    pub fn get(&mut self, tone: f32, heat: f32) -> &Palette {
+        if self
+            .cached
+            .as_ref()
+            .is_none_or(|(cached_tone, cached_heat, _)| {
+                *cached_tone != tone || *cached_heat != heat
+            })
+        {
+            self.cached = Some((tone, heat, Palette::new(tone, heat)));
+        }
+        &self.cached.as_ref().unwrap().2
+    }
+}
+
 pub struct Palette {
     colors: [Vec3; 64],
 }
@@ -212,6 +232,18 @@ pub fn structure_weight(distance: f32, form: f32) -> f32 {
 mod tests {
     use super::*;
     use palette::IntoColor;
+
+    #[test]
+    fn palette_cache_reuses_unchanged_inputs_and_rebuilds_on_changes() {
+        let mut cache = PaletteCache::default();
+        assert!(cache.cached.is_none());
+        for (tone, heat) in [(0.0, 0.0), (0.25, 0.0), (0.25, 0.8), (0.0, 0.0)] {
+            let expected = Palette::new(tone, heat);
+            assert_eq!(cache.get(tone, heat).colors, expected.colors);
+            cache.cached.as_mut().unwrap().2.colors = [Vec3::splat(-1.0); 64];
+            assert_eq!(cache.get(tone, heat).colors, [Vec3::splat(-1.0); 64]);
+        }
+    }
 
     #[test]
     fn overlapping_structures_preserve_monochromatic_palette_colors() {

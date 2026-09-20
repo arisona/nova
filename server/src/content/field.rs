@@ -1,4 +1,4 @@
-use crate::content::{Content, Palette, advance};
+use crate::content::{Content, PaletteCache, advance};
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 
@@ -36,11 +36,15 @@ fn coverage(position: [f32; 3], offset: [f32; 3], form: f32) -> f32 {
 
 pub struct Field {
     phase: f64,
+    palette: PaletteCache,
 }
 
 impl Field {
     pub fn new() -> Self {
-        Self { phase: 0.0 }
+        Self {
+            phase: 0.0,
+            palette: PaletteCache::default(),
+        }
     }
 }
 
@@ -58,7 +62,7 @@ impl Content for Field {
         next: &mut VoxelImage,
     ) {
         let phase = advance(&mut self.phase, state, delta);
-        let palette = Palette::new(state.tone(), state.heat());
+        let palette = self.palette.get(state.tone(), state.heat());
         let dim = next.dim();
         let center = [
             dim.0.saturating_sub(1) as f32 * 0.5,

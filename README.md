@@ -86,6 +86,7 @@ Cloud starts with a compact, full-strength pool at Form zero and blends into bro
 
 - Prefer OKLCH for palette operations and previews to keep saturation and lightness perceptually even across hues.
 - All families share one gamut-relative palette response. Reduce chroma using unclamped RGB conversion to preserve hue and lightness; do not independently clip color channels as a gamut-mapping strategy.
+- Each content instance caches its palette by Tone and Heat, building it on first render and rebuilding only when either value changes.
 - All families stay monochromatic through Heat 0.5; palette contrast begins above that shared threshold.
 - The Tone preview chip uses CSS `oklch(L C Hdeg)` and the same fast Heat curve. It approximates the dominant color, not accents or output brightness; browser gamut mapping differs from the renderer.
 - Aim for no more than 20 ms render time per frame on a Raspberry Pi 4 (50 Hz loop). Keep turbulence and noise octaves in check.

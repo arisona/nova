@@ -1,6 +1,6 @@
 use noise::{NoiseFn, Simplex};
 
-use crate::content::{Content, HEAT_CONTRAST_START, Palette, advance};
+use crate::content::{Content, HEAT_CONTRAST_START, PaletteCache, advance};
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 
@@ -20,6 +20,7 @@ fn palette_position(shape: f32, heat: f32) -> f32 {
 pub struct Cloud {
     phase: f64,
     noise: Simplex,
+    palette: PaletteCache,
 }
 
 impl Cloud {
@@ -27,6 +28,7 @@ impl Cloud {
         Self {
             phase: 0.0,
             noise: Simplex::new(0x8240),
+            palette: PaletteCache::default(),
         }
     }
 }
@@ -45,7 +47,7 @@ impl Content for Cloud {
         next: &mut VoxelImage,
     ) {
         let phase = advance(&mut self.phase, state, delta);
-        let palette = Palette::new(state.tone(), state.heat());
+        let palette = self.palette.get(state.tone(), state.heat());
         let dim = next.dim();
         let center = [
             dim.0.saturating_sub(1) as f32 * (0.5 + 0.22 * (phase * 0.23).sin()),
@@ -80,6 +82,7 @@ impl Content for Cloud {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::content::Palette;
 
     #[test]
     fn heat_stays_on_tone_then_smoothly_opens_the_palette() {

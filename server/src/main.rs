@@ -14,7 +14,7 @@ mod web_server;
 mod macros;
 
 const ENABLE_SIMULATOR: bool = true;
-const ENABLE_AUDIO: bool = false;
+const ENABLE_AUDIO: bool = true;
 fn main() {
     let env = env_logger::Env::default().default_filter_or("debug,actix_server=warn");
     env_logger::Builder::from_env(env).init();

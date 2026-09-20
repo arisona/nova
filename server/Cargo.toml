@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 actix-web = "4.15.0"
-actix-files = "0.7.0"
 ctrlc = "3.5.2"
 cpal = "0.18.2"
 fundsp = { version = "0.23.0", default-features = false, features = ["std"] }

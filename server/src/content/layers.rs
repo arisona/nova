@@ -1,18 +1,20 @@
 use glam::Vec3;
 use rand::{RngExt, SeedableRng, rngs::StdRng};
 
-use crate::content::{Content, FadeSequence, Palette, structure_weight};
+use crate::content::{Content, FadeSequence, PaletteCache, structure_weight};
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 
 pub struct Layers {
     fades: FadeSequence,
+    palette: PaletteCache,
 }
 
 impl Layers {
     pub fn new() -> Self {
         Self {
             fades: FadeSequence::new(),
+            palette: PaletteCache::default(),
         }
     }
 }
@@ -30,7 +32,7 @@ impl Content for Layers {
         _prev: &VoxelImage,
         next: &mut VoxelImage,
     ) {
-        let palette = Palette::new(state.tone(), state.heat());
+        let palette = self.palette.get(state.tone(), state.heat());
         let dim = next.dim();
         let slices: Vec<_> = self
             .fades
