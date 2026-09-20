@@ -104,15 +104,21 @@ impl NovaHardware {
             let mut status_time = Instant::now();
             loop {
                 // Make sure app_state is unlocked quickly otherwise webserver thread will starve
-                let (interface_name, modules, mut render_state, flip) = {
-                    let app_state = self.app_state.lock().unwrap();
+                let (interface_name, modules, mut render_state, flip, reset_requested) = {
+                    let mut app_state = self.app_state.lock().unwrap();
                     (
                         app_state.ethernet_interface().to_string(),
                         app_state.modules().clone(),
                         RenderState::from(&app_state),
                         app_state.is_flip_vertical(),
+                        app_state.take_hardware_reset_request(),
                     )
                 };
+
+                if reset_requested {
+                    log::info!("Hardware reset requested.");
+                    break;
+                }
 
                 if &interface_name != interface.name() {
                     log::info!("Interface changed to {interface_name}.");

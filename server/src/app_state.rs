@@ -39,6 +39,8 @@ pub struct AppState {
     status: Status,
     #[serde(skip)]
     audio_status: Status,
+    #[serde(skip)]
+    hardware_reset_requested: bool,
 }
 
 impl AppState {
@@ -258,6 +260,14 @@ impl AppState {
     pub fn set_audio_status(&mut self, status: Status) {
         self.audio_status = status;
     }
+
+    pub fn request_hardware_reset(&mut self) {
+        self.hardware_reset_requested = true;
+    }
+
+    pub fn take_hardware_reset_request(&mut self) -> bool {
+        std::mem::take(&mut self.hardware_reset_requested)
+    }
 }
 
 impl Default for AppState {
@@ -287,6 +297,7 @@ impl Default for AppState {
 
             status: Status::Unknown,
             audio_status: Status::Unknown,
+            hardware_reset_requested: false,
         }
     }
 }
@@ -294,6 +305,20 @@ impl Default for AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hardware_reset_request_is_consumed_once_and_not_persisted() {
+        let mut state = AppState::default();
+        assert!(!state.take_hardware_reset_request());
+        state.request_hardware_reset();
+        state.request_hardware_reset();
+        let saved = serde_json::to_value(&state).unwrap();
+        assert!(saved.get("hardware_reset_requested").is_none());
+        let mut restored: AppState = serde_json::from_value(saved).unwrap();
+        assert!(!restored.take_hardware_reset_request());
+        assert!(state.take_hardware_reset_request());
+        assert!(!state.take_hardware_reset_request());
+    }
 
     #[test]
     fn audio_volume_validation_and_status_are_independent() {

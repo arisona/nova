@@ -166,10 +166,13 @@ async fn command(
                 *state = AppState::default();
             }
             "reset" => {
-                // TODO: request hw reset
+                state.request_hardware_reset();
+                return HttpResponse::Ok();
             }
             "reload" => {
-                // TODO: server exit and relaunch
+                // save state and exit the application (rely on external process manager to restart)
+                state.save();
+                std::process::exit(0);
             }
             _ => {
                 return HttpResponse::NotFound();
@@ -186,6 +189,27 @@ static WWW_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/www");
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[actix_web::test]
+    async fn reset_requests_hardware_reset_without_saving() {
+        let state = Arc::new(Mutex::new(AppState::default()));
+        let pending_save = Data::new(PendingSave::default());
+        let app = actix_web::test::init_service(
+            App::new()
+                .app_data(Data::new(Arc::clone(&state)))
+                .app_data(pending_save.clone())
+                .service(command),
+        )
+        .await;
+        let request = actix_web::test::TestRequest::get()
+            .uri("/api/reset")
+            .to_request();
+        let response = actix_web::test::call_service(&app, request).await;
+        assert!(response.status().is_success());
+        assert!(state.lock().unwrap().take_hardware_reset_request());
+        assert!(!state.lock().unwrap().take_hardware_reset_request());
+        assert!(pending_save.lock().unwrap().is_none());
+    }
 
     #[actix_web::test]
     async fn save_is_debounced_by_500_ms() {

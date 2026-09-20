@@ -96,6 +96,7 @@ Cloud starts with a compact, full-strength pool at Form zero and blends into bro
 - Read state: `GET /api/get-state` returns `brightness`, `volume`, `tone`, `heat`, `flow`, and `form`, plus other settings.
 - The read-only `audio-enabled` state field reflects `ENABLE_AUDIO`, independently of audio-device health. The web app hides Volume and audio errors when it is false.
 - Update a control: `GET /api/{brightness|volume|tone|heat|flow|form}?value=<0..1>` updates its value immediately. The web server debounces saving settings by 500 ms; pending changes are not flushed on shutdown.
+- `GET /api/reset` queues a one-shot hardware reset. The hardware loop consumes it and reopens the interface to run the existing module reset sequence; the request is not persisted and has no effect in simulator mode.
 - `GET /api/get-status` reports independent `audio-ok` and `audio-message` fields alongside the existing display status.
 
 ## Development checks
