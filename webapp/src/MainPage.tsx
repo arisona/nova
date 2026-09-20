@@ -5,6 +5,8 @@ import {
   Speed,
   WbSunny,
   ScatterPlot,
+  VolumeUp,
+  VolumeOff,
 } from '@mui/icons-material';
 import {
   Autocomplete,
@@ -62,6 +64,11 @@ export const MainPage = ({
     }));
   };
 
+  const handleVolumeChange = (_event: Event, newValue: number | number[]) => {
+    apiSetValue('volume', newValue as number);
+    setState((prevState) => ({ ...prevState, volume: newValue as number }));
+  };
+
   const handleToneChange = (_event: Event, newValue: number | number[]) => {
     apiSetValue('tone', newValue as number);
     setState((prevState) => ({ ...prevState, tone: newValue as number }));
@@ -116,38 +123,40 @@ export const MainPage = ({
         </Stack>
       </Stack>
 
-      <Stack direction="row" sx={{ mb: 4 }}>
-        <Autocomplete
-          fullWidth
-          disablePortal
-          id="select-content"
-          disableCloseOnSelect
-          options={state.enabledContent}
-          getOptionLabel={(option) => option.name}
-          isOptionEqualToValue={(o, v) => o.index === v.index}
-          value={getSelectedContent()}
-          onChange={(_e, value) => {
-            handleContentChange(value);
-          }}
-          renderInput={(params) => {
-            const { slotProps, ...rest } = params;
-            return (
-              <TextField
-                {...rest}
-                label="Select content"
-                size="small"
-                slotProps={{
-                  ...slotProps,
-                  htmlInput: {
-                    ...slotProps.htmlInput,
-                    readOnly: true,
-                  },
-                }}
-              />
-            );
-          }}
-        />
-      </Stack>
+      {state.enabledContent.length > 1 && (
+        <Stack direction="row" sx={{ mb: 4 }}>
+          <Autocomplete
+            fullWidth
+            disablePortal
+            id="select-content"
+            disableCloseOnSelect
+            options={state.enabledContent}
+            getOptionLabel={(option) => option.name}
+            isOptionEqualToValue={(o, v) => o.index === v.index}
+            value={getSelectedContent()}
+            onChange={(_e, value) => {
+              handleContentChange(value);
+            }}
+            renderInput={(params) => {
+              const { slotProps, ...rest } = params;
+              return (
+                <TextField
+                  {...rest}
+                  label="Select content"
+                  size="small"
+                  slotProps={{
+                    ...slotProps,
+                    htmlInput: {
+                      ...slotProps.htmlInput,
+                      readOnly: true,
+                    },
+                  }}
+                />
+              );
+            }}
+          />
+        </Stack>
+      )}
 
       <Slider
         icon={<WbSunny />}
@@ -155,6 +164,14 @@ export const MainPage = ({
         value={state.brightness}
         onChange={handleBrightnessChange}
       />
+      {state.audioEnabled && (
+        <Slider
+          icon={state.volume === 0 ? <VolumeOff /> : <VolumeUp />}
+          label="Volume"
+          value={state.volume}
+          onChange={handleVolumeChange}
+        />
+      )}
       <Divider sx={{ my: 3 }} />
       <Slider
         icon={<Palette />}

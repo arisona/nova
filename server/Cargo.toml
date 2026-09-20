@@ -7,6 +7,8 @@ edition = "2024"
 actix-web = "4.15.0"
 actix-files = "0.7.0"
 ctrlc = "3.5.2"
+cpal = "0.18.2"
+fundsp = { version = "0.23.0", default-features = false, features = ["std"] }
 include_dir = "0.7.4"
 mime_guess = "2.0.5"
 noise = "0.9.0"

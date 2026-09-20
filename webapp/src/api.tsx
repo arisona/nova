@@ -16,7 +16,9 @@ interface ApiStateResponse {
   'available-content': string[];
   'enabled-content-indices': string[]; // indices as strings
   'selected-content-index': number;
+  'audio-enabled': boolean;
   brightness: number;
+  volume: number;
   tone: number;
   heat: number;
   flow: number;
@@ -30,6 +32,8 @@ interface ApiStateResponse {
 interface ApiStatusResponse {
   'status-ok': boolean;
   'status-message': string;
+  'audio-ok': boolean;
+  'audio-message': string;
 }
 
 function isStringArray(v: unknown): v is string[] {
@@ -68,7 +72,9 @@ export const apiGetState = async (): Promise<NovaState> => {
         index,
       })),
       selectedContentIndex: payload['selected-content-index'] ?? -1,
+      audioEnabled: payload['audio-enabled'] ?? defaultNovaState.audioEnabled,
       brightness: payload.brightness ?? defaultNovaState.brightness,
+      volume: payload.volume ?? defaultNovaState.volume,
       tone: payload.tone ?? defaultNovaState.tone,
       heat: payload.heat ?? defaultNovaState.heat,
       flow: payload.flow ?? defaultNovaState.flow,
@@ -100,12 +106,16 @@ export const apiGetStatus = async (): Promise<NovaStatus> => {
     return {
       statusOk: payload['status-ok'] ?? false,
       statusMessage: payload['status-message'] ?? 'Unknown status',
+      audioOk: payload['audio-ok'] ?? false,
+      audioMessage: payload['audio-message'] ?? '',
     };
   } catch (error) {
     console.error('Request failed: ', error);
     return {
       statusOk: false,
       statusMessage: 'Cannot connect to the Nova server.',
+      audioOk: false,
+      audioMessage: '',
     };
   }
 };

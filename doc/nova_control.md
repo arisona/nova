@@ -18,8 +18,9 @@ The Nova Control server is a Rust application that drives Nova voxel hardware by
 
 ### Prerequisites
 
-- Rust toolchain (Rust 1.87 or later) with Cargo
+- Rust toolchain (Rust 1.89 or later) with Cargo
 - `libpcap` development headers (for packet capture/send)
+- Linux audio builds: ALSA development headers (`libasound2-dev` on Raspberry Pi OS/Debian) and `pkg-config`. macOS 14.2 or newer uses CoreAudio; Windows audio uses WASAPI (other Nova hardware dependencies still apply).
 - Node.js (v16+) and npm (for web UI development)
 - A code editor or IDE (VS Code preferred)
 
@@ -89,7 +90,7 @@ cargo run --release
 
 The Nova server starts a web server on port 8080. The Vite development server proxies `/api` to this port.
 
-The current default is the desktop simulator. `USE_NOVA_HARDWARE` in `server/src/main.rs` selects hardware output at build time; both modes use the same content renderer.
+The build-time switches `ENABLE_SIMULATOR` and `ENABLE_AUDIO` in `server/src/main.rs` both default to `true`. Set `ENABLE_SIMULATOR` to `false` to use hardware output; both modes use the same content renderer. Set `ENABLE_AUDIO` to `false` to skip audio startup and hide Volume in the web client. The state API exposes this choice as `audio-enabled`, independently of device availability. Rebuild the server after changing either switch.
 
 By default, the server reads its settings from `nova_settings.json` in the working directory. On first run, a default file is created.
 
@@ -101,6 +102,7 @@ The built web client uses React and Material UI. It provides controls for:
 
 - Selecting and ordering content modules
 - Adjusting Brightness, Tone, Heat, Flow, and Form
+- Adjusting independent audio Volume
 - Toggling vertical flip
 - Monitoring module status
 
@@ -108,7 +110,7 @@ Access it in your browser at `http://<server-host>:<webserver_port>/`.
 
 ### Artistic controls
 
-Brightness is a final output multiplier, independent of content generation. Setting it to zero blacks out the display without stopping animation. Volume will be a separate output control when audio synthesis is added; it is not exposed yet.
+Brightness is a final output multiplier, independent of content generation. Setting it to zero blacks out the display without stopping animation. Volume independently controls the complete audio output, including echo tails; zero mutes without stopping musical time. See the [canonical audio semantics](../README.md#audio) for the shared controls' musical interpretation.
 
 Every content family uses the same four expressive controls:
 
@@ -144,6 +146,22 @@ Cloud's Form-zero pool uses a 1.3-voxel Gaussian width and retains its full-stre
 
 ---
 
+## Native Audio
+
+Audio plays through the server machine's default output, not the browser. It runs in both simulator and hardware modes. Select the output through the OS (or ALSA configuration on a headless Pi) before launching Nova. New and legacy settings default to Volume zero. Raise it gradually with system/speaker volume low; saved Volume is restored on the next launch.
+
+The synth uses CPAL output and FunDSP band-limited oscillators/resonant state-variable filters. No desktop sound server is required on a headless ALSA system. Device failures appear separately from display status; the service retries, and the lights and web API remain operational. If output is unavailable, check the OS default device, permissions for the account running Nova, and whether another process has exclusive access.
+
+From the repository root:
+
+```sh
+cargo test --manifest-path server/Cargo.toml audio
+cargo test --manifest-path server/Cargo.toml audio_listening_previews -- --ignored --nocapture
+cargo test --manifest-path server/Cargo.toml native_audio_output_smoke -- --ignored --nocapture
+```
+
+The preview test writes three 30-second WAV files (`slow`, `bleeps`, `arpeggios`) under `nova-audio` in the OS temporary directory and prints their paths, peak levels and render times. Files are not normalized; they preserve actual synth headroom at Volume one. They require no output device. The native smoke test requires a device and stays muted. For Pi installation/performance checks, use a release build with visuals active; desktop tests cannot establish Pi callback headroom or installation sound quality.
+
 ## Configuration
 
 All settings are stored in `nova_settings.json`. Example:
@@ -159,6 +177,7 @@ All settings are stored in `nova_settings.json`. Example:
     [1, 0, 4]
   ],
   "brightness": 0.5,
+  "volume": 0.0,
   "tone": 0.0,
   "heat": 0.5,
   "flow": 0.25,
@@ -173,7 +192,7 @@ All settings are stored in `nova_settings.json`. Example:
 - `modules`: list of `[x, y, address]` tuples.
 - Other fields mirror UI controls.
 - Legacy `glow` is read as `brightness`. Unversioned content settings are migrated once: Fill/Ramp to Field, Wave to Layers, Rain to Threads, and Simplex/Pulse to Cloud. All four new families are enabled on upgrade; other settings are retained. Subsequent saves use the new names and version.
-- GET `/api/get-state` exposes `brightness`, `tone`, `heat`, `flow`, and `form`. SET via GET `/api/{control}?value=<0..1>` persists a value. The old `/api/glow` setter remains an alias for compatibility.
+- GET `/api/get-state` exposes `brightness`, `volume`, `tone`, `heat`, `flow`, and `form`. SET via GET `/api/{control}?value=<0..1>` persists a value. Missing `volume` loads as zero; other settings are preserved. The old `/api/glow` setter remains an alias for compatibility.
 
 ---
 

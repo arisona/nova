@@ -10,7 +10,9 @@ export interface NovaState {
   availableContent: { index: number; name: string }[];
   enabledContent: { index: number; name: string }[];
   selectedContentIndex: number;
+  audioEnabled: boolean;
   brightness: number;
+  volume: number;
   tone: number;
   heat: number;
   flow: number;
@@ -25,7 +27,9 @@ export const defaultNovaState: NovaState = {
   availableContent: [],
   enabledContent: [],
   selectedContentIndex: -1,
+  audioEnabled: false,
   brightness: 0.5,
+  volume: 0.0,
   tone: 0.0,
   heat: 0.0,
   flow: 0.0,
@@ -39,11 +43,15 @@ export const defaultNovaState: NovaState = {
 export interface NovaStatus {
   statusOk: boolean;
   statusMessage: string;
+  audioOk: boolean;
+  audioMessage: string;
 }
 
 export const defaultNovaStatus: NovaStatus = {
   statusOk: false,
   statusMessage: 'Unknown error',
+  audioOk: false,
+  audioMessage: '',
 };
 
 const pollInterval = 500;
@@ -89,6 +97,9 @@ export const App = () => {
       </Box>
 
       <Status ok={status.statusOk} message={status.statusMessage} />
+      {state.audioEnabled && !status.audioOk && status.audioMessage && (
+        <Status ok={false} message={status.audioMessage} />
+      )}
     </Container>
   );
 };

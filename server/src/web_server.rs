@@ -40,7 +40,9 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "available-content": state.available_content(),
         "enabled-content-indices": state.enabled_content_indices(),
         "selected-content-index": state.selected_content_index(),
+        "audio-enabled": crate::ENABLE_AUDIO,
         "brightness": state.brightness(),
+        "volume": state.volume(),
         "tone": state.tone(),
         "heat": state.heat(),
         "flow": state.flow(),
@@ -60,9 +62,16 @@ async fn get_status(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         Status::Err(msg) => (false, msg.as_str()),
         Status::Unknown => (false, ""),
     };
+    let (audio_ok, audio_message): (bool, &str) = match state.audio_status() {
+        Status::Ok(message) => (true, message),
+        Status::Err(message) => (false, message),
+        Status::Unknown => (false, ""),
+    };
     HttpResponse::Ok().json(serde_json::json!({
         "status-ok": ok,
         "status-message": message,
+        "audio-ok": audio_ok,
+        "audio-message": audio_message,
     }))
 }
 
@@ -89,6 +98,11 @@ async fn command(
             "brightness" | "glow" => {
                 if let Ok(parsed_value) = value.parse() {
                     state.set_brightness(parsed_value);
+                }
+            }
+            "volume" => {
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_volume(parsed_value);
                 }
             }
             "tone" => {
@@ -156,6 +170,41 @@ async fn command(
 }
 
 static WWW_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/www");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[actix_web::test]
+    async fn audio_api_reports_volume_and_independent_status() {
+        let mut state = AppState::default();
+        state.set_volume(0.42);
+        state.set_status(Status::Ok("Display ready".into()));
+        state.set_audio_status(Status::Err("Audio unavailable".into()));
+        let app = actix_web::test::init_service(
+            App::new()
+                .app_data(Data::new(Arc::new(Mutex::new(state))))
+                .service(get_state)
+                .service(get_status),
+        )
+        .await;
+        let request = actix_web::test::TestRequest::get()
+            .uri("/api/get-state")
+            .to_request();
+        let response: serde_json::Value =
+            actix_web::test::call_and_read_body_json(&app, request).await;
+        assert_eq!(response["volume"], serde_json::json!(0.42_f32));
+        assert_eq!(response["audio-enabled"], crate::ENABLE_AUDIO);
+        let request = actix_web::test::TestRequest::get()
+            .uri("/api/get-status")
+            .to_request();
+        let response: serde_json::Value =
+            actix_web::test::call_and_read_body_json(&app, request).await;
+        assert_eq!(response["status-ok"], true);
+        assert_eq!(response["audio-ok"], false);
+        assert_eq!(response["audio-message"], "Audio unavailable");
+    }
+}
 
 #[get("/{path:.*}")]
 async fn files(path: web::Path<String>) -> impl Responder {

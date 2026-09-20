@@ -50,7 +50,7 @@ sudo reboot
 - Install required software:
 
 ```
-sudo apt-get install git libpcap-dev
+sudo apt-get install git libpcap-dev libasound2-dev pkg-config alsa-utils
 ```
 
 ### Install Rust toolchain
@@ -63,7 +63,15 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 If this fails for some reason, check out the documentation at <https://rust-lang.org>
 
-_Everything from here onwards is TBD_
+### Native audio output
+
+Nova's Rust server uses ALSA on Raspberry Pi OS. Connect speakers through the chosen USB DAC, supported audio HAT, HDMI audio or the Pi's available analog output. List devices with `aplay -l` and ALSA PCM names with `aplay -L`. Configure the desired OS/ALSA default output before starting Nova; a USB DAC with a stable card name is preferable to relying on card numbering.
+
+On a Lite installation ALSA can output directly without PulseAudio or PipeWire. If a sound server is installed, select an appropriate ALSA bridge/default configuration instead of competing for its hardware device. The user running Nova must have audio-device permissions, including when launched as a service. Check group membership and service configuration if interactive playback works but the service cannot open the device.
+
+New/legacy settings start with Volume zero. Raise it gradually using the web control after reducing the speaker/system volume. Sound is produced by the Pi, not the browser. Audio device failures do not stop the lights; Nova reports them separately and retries. For current Rust build/run instructions and listening previews, see [Native Audio](nova_control.md#native-audio). Evaluate a release build with the physical display active before deployment.
+
+_The legacy Java deployment instructions below are still TBD; use the current Rust build/run instructions linked above._
 
 ### Nova software setup and configuration
 

@@ -47,7 +47,14 @@ export const SettingsPage = ({
       : state.enabledContent.filter((item) => item.index !== value.index);
     const indices = enabledContent.map((value) => value.index).join(',');
     apiSetValue('enabled-content-indices', indices);
-    setState((prevState) => ({ ...prevState, enabledContent: enabledContent }));
+    setState((prevState) => ({
+      ...prevState,
+      enabledContent,
+      selectedContentIndex:
+        enabledContent.length === 1
+          ? enabledContent[0].index
+          : prevState.selectedContentIndex,
+    }));
   };
 
   const handleFlipChange = (event: React.ChangeEvent<HTMLInputElement>) => {

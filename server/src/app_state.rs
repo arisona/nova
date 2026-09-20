@@ -21,6 +21,8 @@ pub struct AppState {
 
     #[serde(alias = "glow")]
     brightness: f32,
+    #[serde(default)]
+    volume: f32,
     tone: f32,
     heat: f32,
     flow: f32,
@@ -40,6 +42,8 @@ pub struct AppState {
 
     #[serde(skip_serializing, skip_deserializing)]
     status: Status,
+    #[serde(skip)]
+    audio_status: Status,
 }
 
 impl AppState {
@@ -61,6 +65,7 @@ impl AppState {
                 settings.set_selected_content_index(parsed_settings.selected_content_index);
                 settings.set_enabled_content_indices(parsed_settings.enabled_content_indices);
                 settings.set_brightness(parsed_settings.brightness);
+                settings.set_volume(parsed_settings.volume);
                 settings.set_tone(parsed_settings.tone);
                 settings.set_heat(parsed_settings.heat);
                 settings.set_flow(parsed_settings.flow);
@@ -152,6 +157,9 @@ impl AppState {
                 self.enabled_content_indices.push(index);
             }
         }
+        if let [index] = self.enabled_content_indices.as_slice() {
+            self.selected_content_index = *index as usize;
+        }
     }
 
     pub fn selected_content_index(&self) -> usize {
@@ -170,6 +178,16 @@ impl AppState {
     pub fn set_brightness(&mut self, brightness: f32) {
         if brightness.is_finite() {
             self.brightness = brightness.clamp(0.0, 1.0);
+        }
+    }
+
+    pub fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    pub fn set_volume(&mut self, volume: f32) {
+        if volume.is_finite() {
+            self.volume = volume.clamp(0.0, 1.0);
         }
     }
 
@@ -265,6 +283,14 @@ impl AppState {
     pub fn set_status(&mut self, status: Status) {
         self.status = status;
     }
+
+    pub fn audio_status(&self) -> &Status {
+        &self.audio_status
+    }
+
+    pub fn set_audio_status(&mut self, status: Status) {
+        self.audio_status = status;
+    }
 }
 
 impl Default for AppState {
@@ -274,6 +300,7 @@ impl Default for AppState {
             enabled_content_indices: vec![0, 1, 2, 3],
             selected_content_index: 0,
             brightness: 0.5,
+            volume: 0.0,
             tone: 0.0,
             heat: 0.0,
             flow: 0.0,
@@ -294,6 +321,7 @@ impl Default for AppState {
             ),
 
             status: Status::Unknown,
+            audio_status: Status::Unknown,
         }
     }
 }
@@ -301,6 +329,35 @@ impl Default for AppState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn audio_volume_migration_validation_and_status_are_independent() {
+        let mut json = serde_json::to_value(AppState::default()).unwrap();
+        json.as_object_mut().unwrap().remove("volume");
+        let mut state: AppState = serde_json::from_value(json).unwrap();
+        assert_eq!(state.volume(), 0.0);
+        state.set_volume(0.37);
+        state.set_volume(f32::NAN);
+        state.set_volume(f32::INFINITY);
+        assert_eq!(state.volume(), 0.37);
+        let saved = serde_json::to_value(&state).unwrap();
+        let restored: AppState = serde_json::from_value(saved).unwrap();
+        assert_eq!(restored.volume(), 0.37);
+        state.set_volume(2.0);
+        assert_eq!(state.volume(), 1.0);
+        state.set_volume(-1.0);
+        assert_eq!(state.volume(), 0.0);
+        state.set_status(Status::Err("Display unavailable".into()));
+        state.set_audio_status(Status::Ok("Audio ready".into()));
+        assert_eq!(state.status(), &Status::Err("Display unavailable".into()));
+        assert_eq!(state.audio_status(), &Status::Ok("Audio ready".into()));
+        assert!(
+            serde_json::to_value(&state)
+                .unwrap()
+                .get("audio_status")
+                .is_none()
+        );
+    }
 
     #[test]
     fn legacy_settings_keep_levels_and_migrate_content() {
@@ -339,5 +396,18 @@ mod tests {
         assert!(!restored.migrate_content());
         assert_eq!(restored.selected_content_index(), 3);
         assert_eq!(restored.enabled_content_indices(), &[3, 2]);
+    }
+
+    #[test]
+    fn single_enabled_content_is_selected() {
+        let mut settings = AppState::default();
+        settings.set_selected_content_index(0);
+        settings.set_enabled_content_indices(vec![2, 2, 99]);
+        assert_eq!(settings.enabled_content_indices(), &[2]);
+        assert_eq!(settings.selected_content_index(), 2);
+        settings.set_enabled_content_indices(vec![1, 2]);
+        assert_eq!(settings.selected_content_index(), 2);
+        settings.set_enabled_content_indices(vec![]);
+        assert_eq!(settings.selected_content_index(), 2);
     }
 }

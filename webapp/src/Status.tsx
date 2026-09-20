@@ -23,7 +23,11 @@ export const Status = ({ ok, message }: StatusProps) => {
         sx={{ mt: 2, mb: 2, alignItems: 'center' }}
       >
         {ok ? <CheckCircle /> : <OfflineBolt />}
-        <Typography variant="body2" align="left">
+        <Typography
+          variant="body2"
+          align="left"
+          sx={{ overflowWrap: 'anywhere', minWidth: 0 }}
+        >
           {message}
         </Typography>
       </Stack>{' '}
