@@ -1,7 +1,7 @@
 import { NovaState, NovaStatus, defaultNovaState } from './App';
 
 export const apiSet = (id: string) => {
-  void fetch(`/api/${id}`);
+  return fetch(`/api/${id}`);
 };
 
 export const apiSetValue = (id: string, value: string | number | boolean) => {

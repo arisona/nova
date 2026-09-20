@@ -20,7 +20,7 @@ import {
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NovaState } from './App';
-import { apiSet, apiSetValue } from './api';
+import { apiGetState, apiSet, apiSetValue } from './api';
 
 export const SettingsPage = ({
   state,
@@ -116,15 +116,28 @@ export const SettingsPage = ({
   };
 
   const handleRestore = () => {
-    apiSet('restore');
+    void apiSet('restore')
+      .then((response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return apiGetState();
+      })
+      .then((restoredState) => {
+        setState(restoredState);
+        setCycleDurationInputState('');
+        setEthernetInterfaceInputState('');
+        setEthernetAddressInputState('');
+      })
+      .catch((error: unknown) => {
+        console.error('Restore defaults failed:', error);
+      });
   };
 
   const handleReset = () => {
-    apiSet('reset');
+    void apiSet('reset');
   };
 
   const handleReload = () => {
-    apiSet('reload');
+    void apiSet('reload');
   };
 
   const getEnabledContent = () => {
