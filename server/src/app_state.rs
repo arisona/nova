@@ -23,6 +23,9 @@ pub struct AppState {
     heat: f32,
     flow: f32,
     form: f32,
+    // Older settings files have no void; keep them loadable.
+    #[serde(default = "AppState::default_void")]
+    void: f32,
     flip_vertical: bool,
 
     ethernet_interface: String,
@@ -66,6 +69,7 @@ impl AppState {
                 settings.set_heat(parsed_settings.heat);
                 settings.set_flow(parsed_settings.flow);
                 settings.set_form(parsed_settings.form);
+                settings.set_void(parsed_settings.void);
                 settings.set_flip_vertical(parsed_settings.flip_vertical);
                 settings.set_ethernet_interface(&parsed_settings.ethernet_interface);
 
@@ -197,6 +201,20 @@ impl AppState {
         self.form = form.clamp(0.0, 1.0);
     }
 
+    pub fn void(&self) -> f32 {
+        self.void
+    }
+
+    pub fn set_void(&mut self, void: f32) {
+        if void.is_finite() {
+            self.void = void.clamp(0.0, 1.0);
+        }
+    }
+
+    fn default_void() -> f32 {
+        0.5
+    }
+
     pub fn is_flip_vertical(&self) -> bool {
         self.flip_vertical
     }
@@ -273,7 +291,7 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            enabled_content_indices: vec![0, 1, 2, 3],
+            enabled_content_indices: vec![0, 1, 2, 3, 4],
             selected_content_index: 0,
             brightness: 0.5,
             volume: 0.0,
@@ -281,6 +299,7 @@ impl Default for AppState {
             heat: 0.0,
             flow: 0.0,
             form: 0.0,
+            void: AppState::default_void(),
             flip_vertical: false,
             ethernet_interface: "eth0".to_string(),
             modules: vec![(0, 0, AppState::MODULE_DEFAULT_ADDRESS)],

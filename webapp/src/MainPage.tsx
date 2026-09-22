@@ -1,4 +1,5 @@
 import {
+  BlurOn,
   Contrast,
   Palette,
   Settings,
@@ -95,6 +96,14 @@ export const MainPage = ({
     setState((prevState) => ({
       ...prevState,
       form: newValue as number,
+    }));
+  };
+
+  const handleVoidChange = (_event: Event, newValue: number | number[]) => {
+    apiSetValue('void', newValue as number);
+    setState((prevState) => ({
+      ...prevState,
+      void: newValue as number,
     }));
   };
 
@@ -197,6 +206,12 @@ export const MainPage = ({
         label="Form"
         value={state.form}
         onChange={handleFormChange}
+      />
+      <Slider
+        icon={<BlurOn />}
+        label="Void"
+        value={state.void}
+        onChange={handleVoidChange}
       />
     </>
   );

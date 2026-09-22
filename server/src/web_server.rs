@@ -63,6 +63,7 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "heat": state.heat(),
         "flow": state.flow(),
         "form": state.form(),
+        "void": state.void(),
         "flip-vertical": state.is_flip_vertical(),
         "ethernet-interface": state.ethernet_interface(),
         "module0-address": state.module0_address(),
@@ -139,6 +140,11 @@ async fn command(
             "form" => {
                 if let Ok(parsed_value) = value.parse() {
                     state.set_form(parsed_value);
+                }
+            }
+            "void" => {
+                if let Ok(parsed_value) = value.parse() {
+                    state.set_void(parsed_value);
                 }
             }
             "flip-vertical" => {

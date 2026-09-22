@@ -39,6 +39,7 @@ Use one universal control set for all content modules. Keep this order consisten
 | **Heat** (`heat`)             | Quickly reaches rich color by 0.5; the upper range smoothly adds palette contrast and accents. Does not change occupancy, motion speed, or Form. |
 | **Flow** (`flow`)             | Evolution rate. Zero freezes the visual composition but retains slow audio evolution; changing the value must not jump either timeline.          |
 | **Form** (`form`)             | Simple to complex. Add overlap and positional variation within a family; never turn planes into lines or introduce sub-voxel noise.              |
+| **Void** (`void`)             | Fraction of the volume left dark. Lit voxels keep the same brightness at any value. Currently used by Flux only.                               |
 
 ### Design principles
 
@@ -93,9 +94,9 @@ Cloud starts with a compact, full-strength pool at Form zero and blends into bro
 
 ## Control API
 
-- Read state: `GET /api/get-state` returns `brightness`, `volume`, `tone`, `heat`, `flow`, and `form`, plus other settings.
+- Read state: `GET /api/get-state` returns `brightness`, `volume`, `tone`, `heat`, `flow`, `form`, and `void`, plus other settings.
 - The read-only `audio-enabled` state field reflects `ENABLE_AUDIO`, independently of audio-device health. The web app hides Volume and audio errors when it is false.
-- Update a control: `GET /api/{brightness|volume|tone|heat|flow|form}?value=<0..1>` updates its value immediately. The web server debounces saving settings by 500 ms; pending changes are not flushed on shutdown.
+- Update a control: `GET /api/{brightness|volume|tone|heat|flow|form|void}?value=<0..1>` updates its value immediately. The web server debounces saving settings by 500 ms; pending changes are not flushed on shutdown.
 - `GET /api/reset` queues a one-shot hardware reset. The hardware loop consumes it and reopens the interface to run the existing module reset sequence; the request is not persisted and has no effect in simulator mode.
 - `GET /api/get-status` reports independent `audio-ok` and `audio-message` fields alongside the existing display status.
 

@@ -8,6 +8,7 @@ pub struct RenderState {
     heat: f32,
     flow: f32,
     form: f32,
+    void: f32,
 
     reset: bool,
 
@@ -22,6 +23,7 @@ impl RenderState {
             heat: state.heat(),
             flow: state.flow(),
             form: state.form(),
+            void: state.void(),
 
             reset: false,
 
@@ -40,6 +42,9 @@ impl RenderState {
     }
     pub fn form(&self) -> f32 {
         self.form
+    }
+    pub fn void(&self) -> f32 {
+        self.void
     }
 
     pub fn should_reset(&self) -> bool {

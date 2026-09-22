@@ -7,7 +7,9 @@ use crate::voxel_image::VoxelImage;
 
 pub mod cloud;
 pub mod field;
+pub mod flux;
 pub mod layers;
+pub mod palettes;
 pub mod threads;
 
 const FLOW_SPEED_MULTIPLIER: f32 = 10.0;
@@ -35,6 +37,9 @@ pub trait Content {
 
 pub fn get_all_content() -> Vec<Box<dyn Content>> {
     vec![
+        // Flux is the unified module under active development; listed first so it is
+        // the default selection. The others stay until Flux supersedes them (Step 6).
+        Box::new(flux::Flux::new()),
         Box::new(cloud::Cloud::new()),
         Box::new(field::Field::new()),
         Box::new(layers::Layers::new()),
@@ -80,6 +85,8 @@ impl PaletteCache {
     }
 }
 
+// LEGACY (remove in Step 6): tone/heat palette used only by cloud/field/layers/threads.
+// Flux introduces named palettes in Step 2 and does not use this.
 pub struct Palette {
     colors: [Vec3; 64],
 }
@@ -137,6 +144,8 @@ struct TimedFade {
     released: Option<f64>,
 }
 
+// LEGACY (remove in Step 6): fade-event timing used only by layers/threads.
+// Flux drives structure directly from its samplers and does not use this.
 pub struct FadeSequence {
     phase: f64,
     seconds: f64,

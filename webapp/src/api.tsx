@@ -11,6 +11,7 @@ interface ApiSettingValues {
   heat: number;
   flow: number;
   form: number;
+  void: number;
   'flip-vertical': boolean;
   'ethernet-interface': string;
   'module0-address': number;
@@ -42,6 +43,7 @@ interface ApiStateResponse {
   heat: number;
   flow: number;
   form: number;
+  void: number;
   'flip-vertical': boolean;
   'ethernet-interface': string;
   'module0-address': string;
@@ -97,6 +99,7 @@ export const apiGetState = async (): Promise<NovaState> => {
       heat: payload.heat ?? defaultNovaState.heat,
       flow: payload.flow ?? defaultNovaState.flow,
       form: payload.form ?? defaultNovaState.form,
+      void: payload.void ?? defaultNovaState.void,
       flip: payload['flip-vertical'] ?? defaultNovaState.flip,
       ethernetInterface:
         payload['ethernet-interface'] ?? defaultNovaState.ethernetInterface,
