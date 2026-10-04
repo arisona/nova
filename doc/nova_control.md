@@ -112,37 +112,31 @@ Access it in your browser at `http://<server-host>:<webserver_port>/`.
 
 Brightness is a final output multiplier, independent of content generation. Setting it to zero blacks out the display without stopping animation. Volume independently controls the complete audio output, including echo tails; zero mutes without stopping musical time. See the [canonical audio semantics](../README.md#audio) for the shared controls' musical interpretation.
 
-Every content family uses the same four expressive controls:
+Every content module uses the same expressive controls:
 
-| Control | Meaning                                                                                                                      |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Tone    | Steers the dominant hue of an authored palette; the endpoints wrap around the hue wheel.                                     |
-| Heat    | Rich color by roughly 0.5, followed by smoothly increasing palette contrast and accents; independent of occupancy and speed. |
-| Flow    | Animation rate. Zero freezes the current image; raising it resumes from the same phase.                                      |
-| Form    | Simple to complex, with more overlap and positional variation while preserving spatial identity. Kept provisionally.         |
+| Control | Meaning                                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Tone    | Selects one of the curated Pantone palettes, in equal slices of the slider. Temporary until a palette picker replaces it.     |
+| Heat    | Gray at 0, the palette as published at 0.5, up to twice its saturation at 1, preserving hue; independent of occupancy and speed. |
+| Flow    | Animation rate. Zero freezes the current image; raising it resumes from the same phase.                                       |
+| Form    | Structure, from horizontal layers through columns, blobs and patches to per-voxel grain. Also sets how many colors show at once. |
+| Void    | Fraction of the volume left dark. Lit voxels keep the same brightness at any value.                                           |
 
-All families use the same OKLCH palette response, with chroma fitted to each hue's RGB gamut while preserving hue and lightness. Heat rises quickly from a subtle tint to rich color in its lower half, then smoothly introduces supporting hues and contrasting accents. Heat does not change geometry or couple to Form. The CSS tone chip approximates the dominant color using the same saturation curve; browser gamut mapping differs from the renderer. It does not preview the full composition or hardware brightness. Neither Heat nor Form normalizes total emitted light, so changes in color and occupied space can still affect perceived brightness.
+Palettes live in `server/src/content/palettes.rs`; neighbouring palette colors are mixed in Oklab. The CSS chip next to the Tone slider still shows a single hue from the earlier tone model and does not preview the selected palette. Neither Heat nor Form normalizes total emitted light, so changes in color and occupied space can still affect perceived brightness.
 
-### Content families
+### Content
 
-| Family  | Spatial character                                    | Form                                                         |
-| ------- | ---------------------------------------------------- | ------------------------------------------------------------ |
-| Field   | Broad, coherent color washes with soft edges.        | Sparse lit regions to a fully revealed gradient.             |
-| Layers  | Horizontal light slices fading at different heights. | Sparse soft handoffs to denser overlap and varied positions. |
-| Threads | Full-height vertical columns, fading in and out.     | Sparse soft handoffs to denser overlap and varied positions. |
-| Cloud   | A compact moving pool with dark surrounding space.   | Blends toward broad, evolving coherent noise.                |
+Flux is currently the only content module. Its complete specification is the pseudocode at the top of `server/src/content/flux.rs`; the tuning constants live next to it. In short:
 
-Features are sampled in voxel units rather than stretching a fixed number of details to each module layout. Gradients span several voxels; lines and slices have soft, fractionally sampled edges. Palette cycling, fades, and breathing are behaviors within families rather than additional modules. At zero Heat and full Form, Field is uniform and static even when Flow is raised; below full Form its coverage still moves.
+- One 4D simplex noise primitive covers the whole Form range. Form blends five fields that differ only in their per-axis frequencies: layers (Form 0), columns (0.25), blobs (0.5), patches (0.75) and grain (1). Frequencies are fixed, so moving Form never zooms the pattern, and blends are normalized to constant contrast.
+- Brightness is computed by rank, so Void is exactly the fraction of dark voxels.
+- The structure rises slowly and sways with a slow tide that now and then reverses its direction.
+- A separate, slower noise picks palette positions: about two neighbouring colors for smooth structures, all colors for grain. The visible colors slowly rotate through the palette.
+- All motion follows the Flow-integrated phase, so Flow zero freezes everything and changing Flow never jumps.
 
-Field's Form reveals a fixed-scale gradient through broad, soft coverage masks. At zero, a sparse lit region has a full-intensity core with darkness around it; intermediate values expand neighboring washes and close the dark gaps; at one the full gradient is visible. Increasing Form never reduces coverage or moves the underlying colors, avoiding frequency-driven color flicker while adjusting the slider. The mask drifts back and forth within the display bounds, keeping a full-strength core visible on small layouts. Drift speed is independent of Form. Heat changes palette colors while coverage remains visible even at zero Heat. Larger layouts repeat these broad washes in voxel units.
+Features are sampled in voxel units, so additional modules show more of the same field rather than a stretched one.
 
-At Form zero, Layers and Threads use voxel-thick structures with soft overlapping handoffs. Each structure reaches full palette intensity and holds until its replacement starts before fading out. Increasing Form adds hold time in event-cycle units after both conditions are met, retaining more events even at maximum Flow, and varies positions. Normalized soft edges prevent fractional sampling from attenuating a structure's peak. Faster cycling can overlap several fading tails even at Form zero; existing tails are allowed to finish rather than being abruptly removed. Overlaps blend colors by their intensity weights and cap total intensity at one instead of clipping RGB channels. Brightness remains the final output multiplier.
-
-Content selection is manual. Effect changes reset the selected animation and currently switch directly without a crossfade.
-
-Layers and Threads use two clocks: Flow drives event cycling at `FADE_EVENTS_PER_PHASE_UNIT = 0.18` through the shared phase, while fade envelopes advance in active seconds. With the current global multiplier, full Flow starts about 1.8 events per second. Fade-in and fade-out each take `FADE_SECONDS = 1.875`, independent of nonzero Flow. Lower Flow spaces out births and lengthens holds rather than slowing the fades. Flow zero freezes births, holds, and fades together; resuming or changing Flow does not jump their phase or intensity. These timing constants live in `server/src/content.rs`.
-
-Cloud's Form-zero pool uses a 1.3-voxel Gaussian width and retains its full-strength core; Form one preserves the broad organic noise envelope. Its 2x intensity gain is capped before multiplying palette RGB. Heat 0 through 0.5 samples the selected Tone, with increasing saturation. Above 0.5 the sampled palette range opens smoothly, bringing contrasting accents into brighter regions without altering coverage, motion, or intensity shaping. These tuning constants live in `server/src/content/cloud.rs`.
+Content selection is manual. Effect changes reset the selected animation and currently switch directly without a crossfade. The content chooser is hidden while only one module is enabled.
 
 ---
 
@@ -233,11 +227,11 @@ For examples, refer to existing content in `server/src/content/`.
 
 Ensure `render()` completes within 20 ms to avoid underruns.
 
-Content writes unscaled RGB to `next`; the renderer keeps `prev` unscaled and applies Brightness only to a separate output image. Use the shared palette and accumulated Flow-driven phase. Reset animation state when `should_reset()` is true, and do not use wall-clock elapsed time for motion that must freeze at zero Flow.
+Content writes unscaled RGB to `next`; the renderer keeps `prev` unscaled and applies Brightness only to a separate output image. Use the palettes in `palettes.rs` and the accumulated Flow-driven phase (`advance()`). Reset animation state when `should_reset()` is true, and do not use wall-clock elapsed time for motion that must freeze at zero Flow.
 
-Run `cargo test` in `server` for palette, geometry, freeze/reset, brightness, and settings-validation checks. Run `npm run build` in `webapp` before building the server so its embedded UI matches the API.
+Run `cargo test` in `server` for content bounds and freeze/reset, Flow timing, settings validation, API, and audio safety checks. Run `npm run build` in `webapp` before building the server so its embedded UI matches the API.
 
-For a diagnostic contact sheet and local render timings, run `cargo test content_preview_and_timings -- --ignored --nocapture` in `server`. It writes `nova-content-preview.ppm` to the OS temporary directory. Columns are Field, Layers, Threads, and Cloud. The first five rows use Heat 0, 0.25, 0.5, 0.75, and 1 at Form zero; the next two use Heat 1 at Form 0.5 and 1; the final two use Heat 0 at Form 0.5 and 1. Sparse fades are captured at their peak. These synthetic previews and local timings do not replace physical-display evaluation or Raspberry Pi profiling.
+For a diagnostic contact sheet, run `cargo test flux_form_sweep_dump -- --ignored --nocapture` in `server`. It writes `nova-flux-sweep.ppm` to the OS temporary directory: columns are Form 0 to 1 in steps of 0.125 (the five fields sit at 0, 0.25, 0.5, 0.75 and 1), rows are the palettes, each showing the middle slice of one module at Heat 0.5. These synthetic previews do not replace physical-display evaluation or Raspberry Pi profiling.
 
 ---
 

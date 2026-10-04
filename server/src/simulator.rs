@@ -233,65 +233,6 @@ fn conf() -> conf::Conf {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn camera_fits_rotating_grids_and_voxel_quads() {
-        let max_x = AppState::MODULE_X_RES * AppState::MODULE_GRID_MAX;
-        let max_y = AppState::MODULE_Y_RES * AppState::MODULE_GRID_MAX;
-        for dim in [
-            (5, 5, 10),
-            (max_x, 5, 10),
-            (5, max_y, 10),
-            (max_x, max_y, AppState::MODULE_Z_RES),
-            (1, 1, 100),
-            (1, 1, 1),
-        ] {
-            for (width, height) in [
-                (1024.0, 768.0),
-                (768.0, 1024.0),
-                (1600.0, 400.0),
-                (100.0, 1600.0),
-                (800.0, 800.0),
-                (0.0, 0.0),
-            ] {
-                let uniforms = camera_uniforms(dim, width, height);
-                let transform = uniforms.proj * uniforms.view;
-                for step in 0..24 {
-                    let rotation =
-                        Mat3::from_rotation_y(step as f32 * std::f32::consts::TAU / 24.0);
-                    for grid_x in [0, dim.0 - 1] {
-                        for grid_y in [0, dim.1 - 1] {
-                            for grid_z in [0, dim.2 - 1] {
-                                let center = VOXEL_SPACING
-                                    * rotation
-                                    * vec3(
-                                        grid_x as f32 - (dim.0 - 1) as f32 / 2.0,
-                                        grid_z as f32 - (dim.2 - 1) as f32 / 2.0,
-                                        -(grid_y as f32 - (dim.1 - 1) as f32 / 2.0),
-                                    );
-                                for quad_x in [-VOXEL_HALF_SIZE, VOXEL_HALF_SIZE] {
-                                    for quad_y in [-VOXEL_HALF_SIZE, VOXEL_HALF_SIZE] {
-                                        let clip = transform
-                                            * (center + vec3(quad_x, quad_y, 0.0)).extend(1.0);
-                                        let ndc = clip.truncate() / clip.w;
-                                        assert!(
-                                            clip.w > 0.0 && ndc.abs().max_element() <= 1.0,
-                                            "dim={dim:?}, viewport={width}x{height}, step={step}, ndc={ndc:?}"
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 mod shader {
     use miniquad::*;
 

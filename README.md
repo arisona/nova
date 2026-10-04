@@ -2,7 +2,7 @@
 
 Rust-based procedural content generation for the Nova voxel display, with a desktop simulator and a React control interface.
 
-Four content families explore the low-resolution volume: **Field**, **Layers**, **Threads**, and **Cloud**. Independent **Brightness** and **Volume** control visual and audio output; **Tone**, **Heat**, **Flow**, and **Form** shape both. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios. Audio starts muted on new installations.
+One content module, **Flux**, explores the low-resolution volume with a single noise primitive. Independent **Brightness** and **Volume** control visual and audio output; **Tone**, **Heat**, **Flow**, and **Form** shape both, and **Void** shapes the visuals. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios. Audio starts muted on new installations.
 
 This README is the canonical project guidance for both human contributors and coding agents. Follow the control semantics and design constraints below when changing the project.
 
@@ -35,11 +35,11 @@ Use one universal control set for all content modules. Keep this order consisten
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Brightness** (`brightness`) | Global visual output level. Apply once in the renderer, after content generation; never feed the scaled output back into content.                |
 | **Volume** (`volume`)         | Independent audio output level, after the complete synth/effects mix. Zero mutes, with a short click-preventing ramp; musical time continues.    |
-| **Tone** (`tone`)             | Dominant color steer, mapping to 0-360 degrees of hue. Steer an authored OKLCH palette, not independent random voxel colors.                     |
-| **Heat** (`heat`)             | Quickly reaches rich color by 0.5; the upper range smoothly adds palette contrast and accents. Does not change occupancy, motion speed, or Form. |
+| **Tone** (`tone`)             | Selects one of the curated Pantone palettes, in equal slices. Temporary until a palette picker replaces it.                                     |
+| **Heat** (`heat`)             | Gray at 0, the palette as published at 0.5, up to twice its saturation at 1, preserving hue. Does not change occupancy, motion speed, or Form.  |
 | **Flow** (`flow`)             | Evolution rate. Zero freezes the visual composition but retains slow audio evolution; changing the value must not jump either timeline.          |
-| **Form** (`form`)             | Simple to complex. Add overlap and positional variation within a family; never turn planes into lines or introduce sub-voxel noise.              |
-| **Void** (`void`)             | Fraction of the volume left dark. Lit voxels keep the same brightness at any value. Currently used by Flux only.                               |
+| **Form** (`form`)             | Structure, from horizontal layers through columns, blobs and patches to per-voxel grain. Also sets how many palette colors show at once.         |
+| **Void** (`void`)             | Fraction of the volume left dark. Lit voxels keep the same brightness at any value. Visual only.                                                |
 
 ### Design principles
 
@@ -64,32 +64,24 @@ The audio callback must not lock application state, allocate, log or access file
 
 `server/src/audio.rs` is the module entry point; sound constants and device-independent tests live in `server/src/audio/synth.rs`, and native output lives in `server/src/audio/output.rs`. CPAL 0.18.2 and FunDSP 0.23.0 provide output and DSP respectively; the resolved audio dependencies require Rust 1.89 or newer, and CoreAudio output requires macOS 14.2 or newer. FunDSP's optional file-decoding and FFT features remain disabled. Numerical tests do not establish sound quality: tune at installation listening levels and profile with visuals active on the actual Raspberry Pi.
 
-## Content families
+## Content
 
-| Family      | Spatial character                                          | Form behavior                                                |
-| ----------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
-| **Field**   | Broad, coherent color washes with soft edges.              | Sparse lit regions to a fully revealed gradient.             |
-| **Layers**  | Horizontal slices at different heights, fading in and out. | Sparse soft handoffs to denser overlap and varied positions. |
-| **Threads** | Full-height vertical columns, fading in and out.           | Sparse soft handoffs to denser overlap and varied positions. |
-| **Cloud**   | A compact moving light pool, opening into organic clouds.  | Sparse pool to broad coherent organic noise.                 |
+**Flux** is the only content module. Its complete specification is the pseudocode at the top of `server/src/content/flux.rs`; keep it in sync with the code.
 
-Preserve readable structures at 5 x 5 x 10. Favor broad regions and deliberate darkness, and sample spatial patterns in voxel units to retain physical scale across modules.
+- One 4D simplex noise primitive covers the whole Form range. Form blends five fields that differ only in their per-axis frequencies: layers (Form 0), columns (0.25), blobs (0.5), patches (0.75), and grain (1). Frequencies are fixed, so moving Form never zooms the pattern; blends are normalized to constant contrast.
+- Brightness is computed by rank, so Void is exactly the fraction of dark voxels and lit voxels look the same at any Void.
+- The structure rises slowly and sways with a slow tide that now and then reverses its direction.
+- All motion follows the Flow-integrated phase. Nothing may change the coefficient of that phase, or the pattern jumps; variation over time goes through bounded terms.
 
-Field's Form controls coverage over a fixed-scale gradient. At zero, a broad lit region has a full-intensity core, soft edges, and unlit surroundings; increasing Form expands neighboring washes until the entire gradient is revealed at one. The coverage mask drifts back and forth within the display bounds so a full-strength core remains visible, including on a single module. Form changes neither the underlying colors nor drift speed. Coverage remains visible at low Heat, including zero; only the fully covered, zero-Heat endpoint is uniform and static.
-
-Layers and Threads separate cycling from fades. Flow controls new events through the shared animation speed: `FADE_EVENTS_PER_PHASE_UNIT = 0.18` gives about 1.8 new events per second at maximum Flow with the current global multiplier. Each structure fades in and out over `FADE_SECONDS = 1.875` active seconds per direction, independent of nonzero Flow. Zero Flow freezes both clocks; changing Flow never retimes an existing fade.
-
-At Form zero, a structure holds until its replacement starts and it has reached full intensity, then fades out softly. Higher Form adds hold time in event-cycle units after both conditions are met and varies positions, retaining more events even at maximum Flow. Fast cycling naturally overlaps several slow fading tails, even at Form zero; tails are never truncated to impose a strict object count. Overlaps use intensity-weighted color blending with total intensity capped at one, preserving monochromatic colors without channel clipping. Sparse means fewer held structures, not reduced peak intensity. Brightness remains the final output multiplier. Both timing constants live in `server/src/content.rs`.
-
-Cloud starts with a compact, full-strength pool at Form zero and blends into broad organic coverage at one. Heat up to 0.5 stays on the selected Tone while building saturation; above 0.5, brighter regions progressively reach supporting hues and contrasting accents. Heat does not change the coverage or intensity envelope.
+Preserve readable structures at 5 x 5 x 10, and sample spatial patterns in voxel units so additional modules show more of the same field rather than a stretched one.
 
 ## Color and performance
 
-- Prefer OKLCH for palette operations and previews to keep saturation and lightness perceptually even across hues.
-- All families share one gamut-relative palette response. Reduce chroma using unclamped RGB conversion to preserve hue and lightness; do not independently clip color channels as a gamut-mapping strategy.
-- Each content instance caches its palette by Tone and Heat, building it on first render and rebuilding only when either value changes.
-- All families stay monochromatic through Heat 0.5; palette contrast begins above that shared threshold.
-- The Tone preview chip uses CSS `oklch(L C Hdeg)` and the same fast Heat curve. It approximates the dominant color, not accents or output brightness; browser gamut mapping differs from the renderer.
+- Palettes are curated Pantone sets in `server/src/content/palettes.rs`, compiled into the binary. Values come from Pantone Connect exports in `doc/palettes/`; colors marked `sampled` were measured from the exports' screenshots.
+- A separate, slower noise picks palette positions. Neighbouring colors are mixed in Oklab: about two colors show at once for smooth structures and all colors for grain, slowly rotating through the palette.
+- Heat preserves hue: it stops increasing saturation before any channel would clip.
+- Pantone colors describe surfaces, so dark palette colors drive the LEDs at low power. Evaluate brightness on the physical display before compensating.
+- The Tone chip in the web app still shows a single hue from the earlier tone model; it does not preview the selected palette.
 - Aim for no more than 20 ms render time per frame on a Raspberry Pi 4 (50 Hz loop). Keep turbulence and noise octaves in check.
 
 ## Control API

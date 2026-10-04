@@ -291,7 +291,7 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            enabled_content_indices: vec![0, 1, 2, 3, 4],
+            enabled_content_indices: vec![0],
             selected_content_index: 0,
             brightness: 0.5,
             volume: 0.0,
@@ -367,29 +367,24 @@ mod tests {
     }
 
     #[test]
-    fn current_settings_and_invalid_indices_are_safe() {
+    fn invalid_content_indices_are_ignored_and_settings_round_trip() {
         let mut settings = AppState::default();
-        settings.set_selected_content_index(3);
         settings.set_selected_content_index(usize::MAX);
-        assert_eq!(settings.selected_content_index(), 3);
-        settings.set_enabled_content_indices(vec![3, 2, 3, 99]);
-        assert_eq!(settings.enabled_content_indices(), &[3, 2]);
+        assert_eq!(settings.selected_content_index(), 0);
+        settings.set_enabled_content_indices(vec![0, 0, 99]);
+        assert_eq!(settings.enabled_content_indices(), &[0]);
+        settings.set_void(0.3);
         let json = serde_json::to_string(&settings).unwrap();
         let restored: AppState = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored.selected_content_index(), 3);
-        assert_eq!(restored.enabled_content_indices(), &[3, 2]);
+        assert_eq!(restored.enabled_content_indices(), &[0]);
+        assert_eq!(restored.void(), 0.3);
     }
 
     #[test]
-    fn single_enabled_content_is_selected() {
-        let mut settings = AppState::default();
-        settings.set_selected_content_index(0);
-        settings.set_enabled_content_indices(vec![2, 2, 99]);
-        assert_eq!(settings.enabled_content_indices(), &[2]);
-        assert_eq!(settings.selected_content_index(), 2);
-        settings.set_enabled_content_indices(vec![1, 2]);
-        assert_eq!(settings.selected_content_index(), 2);
-        settings.set_enabled_content_indices(vec![]);
-        assert_eq!(settings.selected_content_index(), 2);
+    fn settings_saved_before_void_still_load() {
+        let mut saved = serde_json::to_value(AppState::default()).unwrap();
+        saved.as_object_mut().unwrap().remove("void");
+        let restored: AppState = serde_json::from_value(saved).unwrap();
+        assert_eq!(restored.void(), AppState::default_void());
     }
 }

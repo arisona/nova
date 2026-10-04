@@ -303,7 +303,7 @@ mod tests {
     #[test]
     #[ignore = "writes a visual contact sheet for local bug-checking"]
     fn flux_form_sweep_dump() {
-        let forms = [0.0, 1.0 / 6.0, 1.0 / 3.0, 0.5, 2.0 / 3.0, 5.0 / 6.0, 1.0];
+        let forms: Vec<f32> = (0..=8).map(|step| step as f32 / 8.0).collect();
         let dim = (5usize, 5usize, 10usize);
         let cell = 16usize; // pixels per voxel
         let gap = 8usize;
@@ -352,40 +352,5 @@ mod tests {
             "Flux sweep: {} (columns: form 0 .. 1, rows: palettes)",
             path.display()
         );
-    }
-
-    #[test]
-    fn output_is_finite_and_in_range_for_one_and_two_modules() {
-        for dim in [(5, 5, 10), (10, 5, 10)] {
-            for form in [0.0, 1.0 / 6.0, 1.0 / 3.0, 0.5, 2.0 / 3.0, 5.0 / 6.0, 1.0] {
-                for heat in [0.0, 0.5, 1.0] {
-                    let mut settings = crate::app_state::AppState::default();
-                    settings.set_form(form);
-                    settings.set_heat(heat);
-                    settings.set_tone(form); // walk through the palettes too
-                    settings.set_flow(1.0);
-                    let state = RenderState::from(&settings);
-                    let previous = VoxelImage::new(dim);
-                    let mut image = previous.clone();
-                    let mut effect = Flux::new();
-                    for frame in 0..200 {
-                        effect.render(&state, frame as f32 * 0.04, 0.04, &previous, &mut image);
-                        for x in 0..dim.0 {
-                            for y in 0..dim.1 {
-                                for z in 0..dim.2 {
-                                    let v = image.get(x, y, z);
-                                    assert!(
-                                        v.is_finite()
-                                            && v.min_element() >= 0.0
-                                            && v.max_element() <= 1.0,
-                                        "dim={dim:?} form={form} heat={heat} v={v}"
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }

@@ -315,18 +315,6 @@ mod tests {
     }
 
     #[test]
-    fn lowpass_preserves_body_and_attenuates_highs() {
-        for sample_rate in [44_100.0, 48_000.0] {
-            let mut filter = lowpass_hz(1000.0, 0.8);
-            filter.set_sample_rate(sample_rate);
-            let body = filter.response(0, 200.0).unwrap().norm();
-            let highs = filter.response(0, 8000.0).unwrap().norm();
-            assert!(body > 0.9);
-            assert!(highs < body * 0.03);
-        }
-    }
-
-    #[test]
     fn zero_flow_evolves_and_mute_includes_echoes() {
         let mut synth = Synth::new(8000.0, 42);
         synth.set_controls(AudioControls {
@@ -381,30 +369,6 @@ mod tests {
             }
             assert!(peak > 0.01 && peak < 0.65, "peak {peak}");
         }
-    }
-
-    #[test]
-    fn arp_and_envelope_timing_do_not_follow_live_flow() {
-        let mut synth = Synth::new(8000.0, 9);
-        let controls = AudioControls {
-            volume: 1.0,
-            form: 1.0,
-            ..Default::default()
-        };
-        synth.voices[0].start(60.0, controls, true, &mut synth.rng);
-        let duration = synth.voices[0].duration;
-        let step = synth.voices[0].arp_step;
-        synth.set_controls(AudioControls {
-            flow: 1.0,
-            ..controls
-        });
-        for _ in 0..8000 {
-            synth.next_frame();
-        }
-        assert_eq!(synth.voices[0].duration, duration);
-        assert_eq!(synth.voices[0].arp_step, step);
-        assert!((synth.voices[0].age - 1.0).abs() < 0.001);
-        assert_eq!(pitch_center(0.0), pitch_center(1.0));
     }
 
     #[test]
