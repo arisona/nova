@@ -42,8 +42,8 @@ pub fn run_server(state: Arc<Mutex<AppState>>) {
                 .service(command)
                 .service(files)
         })
-        .bind(address)
-        .expect("Failed to bind address {address}")
+        .bind(&address)
+        .unwrap_or_else(|error| panic!("Failed to bind address {address}: {error}"))
         .run();
         sys.block_on(server).expect("Failed to run server");
     });
@@ -199,8 +199,7 @@ async fn command(
         log::debug!("command: {command}");
         match command.as_str() {
             "restore" => {
-                // restore settings to default
-                *state = AppState::default();
+                state.restore_defaults();
             }
             "reset" => {
                 state.request_hardware_reset();

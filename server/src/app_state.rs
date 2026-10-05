@@ -192,10 +192,9 @@ impl AppState {
     pub fn brightness(&self) -> f32 {
         self.brightness
     }
+
     pub fn set_brightness(&mut self, brightness: f32) {
-        if brightness.is_finite() {
-            self.brightness = brightness.clamp(0.0, 1.0);
-        }
+        set_control(&mut self.brightness, brightness);
     }
 
     pub fn volume(&self) -> f32 {
@@ -203,9 +202,7 @@ impl AppState {
     }
 
     pub fn set_volume(&mut self, volume: f32) {
-        if volume.is_finite() {
-            self.volume = volume.clamp(0.0, 1.0);
-        }
+        set_control(&mut self.volume, volume);
     }
 
     pub fn palette(&self) -> &str {
@@ -232,15 +229,17 @@ impl AppState {
     pub fn heat(&self) -> f32 {
         self.heat
     }
+
     pub fn set_heat(&mut self, heat: f32) {
-        self.heat = heat.clamp(0.0, 1.0);
+        set_control(&mut self.heat, heat);
     }
 
     pub fn flow(&self) -> f32 {
         self.flow
     }
+
     pub fn set_flow(&mut self, flow: f32) {
-        self.flow = flow.clamp(0.0, 1.0);
+        set_control(&mut self.flow, flow);
     }
 
     pub fn form(&self) -> f32 {
@@ -248,7 +247,7 @@ impl AppState {
     }
 
     pub fn set_form(&mut self, form: f32) {
-        self.form = form.clamp(0.0, 1.0);
+        set_control(&mut self.form, form);
     }
 
     pub fn void(&self) -> f32 {
@@ -256,9 +255,7 @@ impl AppState {
     }
 
     pub fn set_void(&mut self, void: f32) {
-        if void.is_finite() {
-            self.void = void.clamp(0.0, 1.0);
-        }
+        set_control(&mut self.void, void);
     }
 
     fn default_void() -> f32 {
@@ -277,12 +274,10 @@ impl AppState {
         &self.ethernet_interface
     }
 
+    /// Keeps at most 20 bytes, cut at a character boundary.
     pub fn set_ethernet_interface(&mut self, ethernet_interface: &str) {
-        self.ethernet_interface = if ethernet_interface.len() > 20 {
-            ethernet_interface[..20].to_string()
-        } else {
-            ethernet_interface.to_string()
-        };
+        let end = ethernet_interface.floor_char_boundary(20);
+        self.ethernet_interface = ethernet_interface[..end].to_string();
     }
 
     pub fn modules(&self) -> &Vec<(usize, usize, u8)> {
@@ -331,6 +326,34 @@ impl AppState {
 
     pub fn take_hardware_reset_request(&mut self) -> bool {
         std::mem::take(&mut self.hardware_reset_requested)
+    }
+
+    /// Restores default settings, keeping runtime status and what can only be configured
+    /// in the settings file: the web server port and a layout of more than one module.
+    pub fn restore_defaults(&mut self) {
+        let defaults = Self::default();
+        let (modules, dim) = if self.modules.len() > 1 {
+            (std::mem::take(&mut self.modules), self.dim)
+        } else {
+            (defaults.modules, defaults.dim)
+        };
+        *self = Self {
+            modules,
+            dim,
+            webserver_port: self.webserver_port,
+            status: std::mem::take(&mut self.status),
+            audio_status: std::mem::take(&mut self.audio_status),
+            hardware_reset_requested: self.hardware_reset_requested,
+            ..defaults
+        };
+    }
+}
+
+/// Stores a control value clamped to [0, 1]. Non-finite values are ignored: NaN would
+/// reach the renderer and be saved as `null`, which makes the settings file unloadable.
+fn set_control(control: &mut f32, value: f32) {
+    if value.is_finite() {
+        *control = value.clamp(0.0, 1.0);
     }
 }
 
@@ -413,6 +436,75 @@ mod tests {
                 .get("audio_status")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn controls_ignore_non_finite_values() {
+        let mut state = AppState::default();
+        let setters: [fn(&mut AppState, f32); 6] = [
+            AppState::set_brightness,
+            AppState::set_volume,
+            AppState::set_heat,
+            AppState::set_flow,
+            AppState::set_form,
+            AppState::set_void,
+        ];
+        for set in setters {
+            set(&mut state, 0.25);
+            set(&mut state, f32::NAN);
+            set(&mut state, f32::INFINITY);
+            set(&mut state, f32::NEG_INFINITY);
+        }
+        let controls = [
+            state.brightness(),
+            state.volume(),
+            state.heat(),
+            state.flow(),
+            state.form(),
+            state.void(),
+        ];
+        assert_eq!(controls, [0.25; 6]);
+        let json = serde_json::to_string(&state).unwrap();
+        let restored = AppState::from_saved(serde_json::from_str(&json).unwrap());
+        assert_eq!(restored.heat(), 0.25);
+    }
+
+    #[test]
+    fn ethernet_interface_is_truncated_at_a_character_boundary() {
+        let mut state = AppState::default();
+        state.set_ethernet_interface("enx0123456789abcdef0123");
+        assert_eq!(state.ethernet_interface(), "enx0123456789abcdef0");
+        // 'é' takes bytes 19 and 20, so it must not be split.
+        state.set_ethernet_interface("eth-interface-name-é");
+        assert_eq!(state.ethernet_interface(), "eth-interface-name-");
+    }
+
+    #[test]
+    fn restore_keeps_file_only_settings_and_runtime_status() {
+        let mut state = AppState::default();
+        state.set_heat(0.9);
+        state.set_ethernet_interface("en7");
+        state.set_module0_address(5);
+        state.set_webserver_port(8000);
+        state.set_audio_status(Status::Ok("Audio ready".into()));
+        state.restore_defaults();
+        // A single module is reset completely; its address can be set in the web app.
+        assert_eq!(state.heat(), 0.5);
+        assert_eq!(state.ethernet_interface(), "eth0");
+        assert_eq!(
+            state.modules(),
+            &vec![(0, 0, AppState::MODULE_DEFAULT_ADDRESS)]
+        );
+        assert_eq!(state.webserver_port(), 8000);
+        assert_eq!(state.audio_status(), &Status::Ok("Audio ready".into()));
+
+        let mut saved = serde_json::to_value(AppState::default()).unwrap();
+        saved["modules"] = serde_json::json!([[0, 0, 1], [1, 0, 2]]);
+        let mut state = AppState::from_saved(serde_json::from_value(saved).unwrap());
+        let dim = state.dim();
+        state.restore_defaults();
+        assert_eq!(state.modules(), &vec![(0, 0, 1), (1, 0, 2)]);
+        assert_eq!(state.dim(), dim);
     }
 
     #[test]
