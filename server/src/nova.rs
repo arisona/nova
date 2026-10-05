@@ -185,10 +185,10 @@ impl NovaHardware {
                         if do_render {
                             self.renderer.render(&mut render_state);
                         }
-                        for (_, _, addr) in modules {
+                        for &module in &modules {
                             let packet = Self::udp_packet(
                                 &interface.address(),
-                                addr,
+                                module,
                                 UDP_CMD_RGB,
                                 sequence_number.wrapping_add(1),
                                 self.renderer.image(),
@@ -252,14 +252,14 @@ impl NovaHardware {
         // Legacy note: the logic here is taken from the original java code
         let mac = &interface.address();
         for _ in 0..4 {
-            for &(_, _, address) in modules {
-                let packet = Self::udp_packet(mac, address, UDP_CMD_RESET, 0, image, false);
+            for &module in modules {
+                let packet = Self::udp_packet(mac, module, UDP_CMD_RESET, 0, image, false);
                 let _ = interface.send(packet);
             }
             std::thread::sleep(Duration::from_millis(200));
         }
-        for &(_, _, address) in modules {
-            let packet = Self::udp_packet(mac, address, UDP_CMD_AUTOID, 0, image, false);
+        for &module in modules {
+            let packet = Self::udp_packet(mac, module, UDP_CMD_AUTOID, 0, image, false);
             let _ = interface.send(packet);
         }
         std::thread::sleep(Duration::from_millis(200));
@@ -319,14 +319,16 @@ impl NovaHardware {
         packet
     }
 
+    /// A data packet for the module at grid position (x, y) with the given address.
     fn udp_packet(
         src: &[u8; 6],
-        module_address: u8,
+        module: (usize, usize, u8),
         command: u8,
         sequence_num: usize,
         image: &VoxelImage,
         flip: bool,
     ) -> [u8; UDP_PACKET_LEN] {
+        let (module_x, module_y, module_address) = module;
         let mut packet = [0u8; UDP_PACKET_LEN];
         // Ethernet header
         packet[0..5].copy_from_slice(&NOVA_MAC_PREFIX);
@@ -368,30 +370,39 @@ impl NovaHardware {
         packet[41] = 0x00; // Checksum (zero for UDP)
 
         // UDP payload
-        Self::fill_udp_payload(&mut packet, command, sequence_num, image, flip);
+        let origin = (
+            module_x * AppState::MODULE_X_RES,
+            module_y * AppState::MODULE_Y_RES,
+        );
+        Self::fill_udp_payload(&mut packet, command, sequence_num, image, origin, flip);
 
         packet
     }
 
+    /// One chain per voxel column of the module whose corner is at `origin` in the image.
+    /// Chains run through the module's columns y-first: chain = x · MODULE_Y_RES + y.
     fn fill_udp_payload(
         packet: &mut [u8; UDP_PACKET_LEN],
         command: u8,
         sequence_num: usize,
         image: &VoxelImage,
+        origin: (usize, usize),
         flip: bool,
     ) {
-        for chain in 0..25 {
-            let offset = UDP_PAYLOAD_OFFSET + chain * 44;
+        for chain in 0..CHAINS {
+            let offset = UDP_PAYLOAD_OFFSET + chain * CHAIN_DATA_LEN;
             packet[offset] = 0xc0;
             packet[offset + 1] = command;
             packet[offset + 2] = sequence_num as u8;
             packet[offset + 3] = chain as u8;
 
-            let pixels = image.slice(0, chain); // Row index 0, chain index = Y
+            let x = origin.0 + chain / AppState::MODULE_Y_RES;
+            let y = origin.1 + chain % AppState::MODULE_Y_RES;
+            let pixels = image.slice(x, y);
 
-            for i in 0..10 {
+            for i in 0..CHAIN_LEN {
                 let base = offset + 4 + i * 4;
-                let i = if flip { 9 - i } else { i };
+                let i = if flip { CHAIN_LEN - 1 - i } else { i };
                 let r = (pixels[i * 3].clamp(0.0, 1.0) * 1023.0).round() as u32;
                 let g = (pixels[i * 3 + 1].clamp(0.0, 1.0) * 1023.0).round() as u32;
                 let b = (pixels[i * 3 + 2].clamp(0.0, 1.0) * 1023.0).round() as u32;
@@ -443,7 +454,12 @@ const IP_HEADER_LEN: usize = 20;
 const UDP_HEADER_LEN: usize = 8;
 const UDP_PACKET_LEN: usize = UDP_PAYLOAD_OFFSET + UDP_CHAINED_DATA_LEN;
 const UDP_PAYLOAD_OFFSET: usize = 42;
-const UDP_CHAINED_DATA_LEN: usize = 25 * (10 * 4 + 4); // 25 chains of 10 pixels, 4 bytes per pixel + 4 extra bytes
+const UDP_CHAINED_DATA_LEN: usize = CHAINS * CHAIN_DATA_LEN;
+
+// One chain per voxel column of a module, 4 bytes per pixel plus a 4-byte chain header
+const CHAINS: usize = AppState::MODULE_X_RES * AppState::MODULE_Y_RES;
+const CHAIN_LEN: usize = AppState::MODULE_Z_RES;
+const CHAIN_DATA_LEN: usize = 4 + CHAIN_LEN * 4;
 
 // Nova specific addresses and address prefixes
 const BROADCAST_MAC: [u8; 6] = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
@@ -485,3 +501,70 @@ const UDP_CMD_AUTOID: u8 = 0x70;
 // const FSS_POWER_OK1: u8 = 0x20;
 // const FSS_POWER_OK2: u8 = 0x40;
 // const FSS_POWER_OK3: u8 = 0x80;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An image whose voxels all have distinct colors.
+    fn numbered_image(dim: (usize, usize, usize)) -> VoxelImage {
+        let mut image = VoxelImage::new(dim);
+        let count = (dim.0 * dim.1 * dim.2) as f32;
+        for x in 0..dim.0 {
+            for y in 0..dim.1 {
+                for z in 0..dim.2 {
+                    let n = ((x * dim.1 + y) * dim.2 + z) as f32 / count;
+                    image.set(x, y, z, glam::vec3(n, 1.0 - n, 0.5));
+                }
+            }
+        }
+        image
+    }
+
+    fn payload(module: (usize, usize, u8), image: &VoxelImage, flip: bool) -> Vec<u8> {
+        let packet = NovaHardware::udp_packet(&[0; 6], module, UDP_CMD_RGB, 7, image, flip);
+        packet[UDP_PAYLOAD_OFFSET..].to_vec()
+    }
+
+    #[test]
+    fn module_payload_reads_its_own_grid_cell() {
+        // Two modules side by side along x, and one behind the first along y.
+        let dim = (10, 10, AppState::MODULE_Z_RES);
+        let image = numbered_image(dim);
+        for flip in [false, true] {
+            let mut cell = VoxelImage::new((5, 5, AppState::MODULE_Z_RES));
+            for (module_x, module_y) in [(0, 0), (1, 0), (0, 1)] {
+                for x in 0..5 {
+                    for y in 0..5 {
+                        for z in 0..AppState::MODULE_Z_RES {
+                            let voxel = image.get(module_x * 5 + x, module_y * 5 + y, z);
+                            cell.set(x, y, z, voxel);
+                        }
+                    }
+                }
+                assert_eq!(
+                    payload((module_x, module_y, 1), &image, flip),
+                    payload((0, 0, 1), &cell, flip),
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn single_module_payload_is_unchanged() {
+        // The single-module layout: chain c is the c-th column of the flat image.
+        let image = numbered_image((5, 5, AppState::MODULE_Z_RES));
+        let payload = payload((0, 0, 1), &image, true);
+        for chain in 0..CHAINS {
+            let data = &payload[chain * CHAIN_DATA_LEN..][..CHAIN_DATA_LEN];
+            assert_eq!(data[..4], [0xc0, UDP_CMD_RGB, 7, chain as u8]);
+            let pixels = image.slice(0, chain);
+            for i in 0..CHAIN_LEN {
+                let pixel = &pixels[(CHAIN_LEN - 1 - i) * 3..][..3];
+                let [r, g, b] = [0, 1, 2].map(|c| (pixel[c] * 1023.0).round() as u32);
+                let packed = (r << 20) | (g << 10) | b;
+                assert_eq!(data[4 + i * 4..][..4], packed.to_be_bytes());
+            }
+        }
+    }
+}

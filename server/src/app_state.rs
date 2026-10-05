@@ -105,6 +105,9 @@ impl AppState {
                 );
                 continue;
             }
+            if modules.iter().any(|&(_, _, address)| address == module.2) {
+                log::warn!("Module address {} is used more than once", module.2);
+            }
             modules.push(*module);
             max_x = max_x.max(module.0);
             max_y = max_y.max(module.1);
@@ -284,12 +287,25 @@ impl AppState {
         &self.modules
     }
 
-    pub fn module0_address(&self) -> u8 {
-        self.modules[0].2
+    /// The module address, if there is a single module. A layout of several modules is
+    /// only configured in the settings file.
+    pub fn module0_address(&self) -> Option<u8> {
+        match self.modules.as_slice() {
+            [(_, _, address)] => Some(*address),
+            _ => None,
+        }
     }
 
-    pub fn set_module0_address(&mut self, module0_address: u8) {
-        self.modules[0].2 = module0_address;
+    /// Sets the module address if there is a single module. Returns false, changing
+    /// nothing, for a layout of several modules.
+    pub fn set_module0_address(&mut self, module0_address: u8) -> bool {
+        match self.modules.as_mut_slice() {
+            [(_, _, address)] => {
+                *address = module0_address;
+                true
+            }
+            _ => false,
+        }
     }
 
     pub fn webserver_port(&self) -> u16 {
@@ -505,6 +521,20 @@ mod tests {
         state.restore_defaults();
         assert_eq!(state.modules(), &vec![(0, 0, 1), (1, 0, 2)]);
         assert_eq!(state.dim(), dim);
+    }
+
+    #[test]
+    fn module_address_is_only_configurable_for_a_single_module() {
+        let mut state = AppState::default();
+        assert!(state.set_module0_address(5));
+        assert_eq!(state.module0_address(), Some(5));
+
+        let mut saved = serde_json::to_value(AppState::default()).unwrap();
+        saved["modules"] = serde_json::json!([[0, 0, 1], [1, 0, 2]]);
+        let mut state = AppState::from_saved(serde_json::from_value(saved).unwrap());
+        assert_eq!(state.module0_address(), None);
+        assert!(!state.set_module0_address(5));
+        assert_eq!(state.modules(), &vec![(0, 0, 1), (1, 0, 2)]);
     }
 
     #[test]

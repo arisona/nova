@@ -20,6 +20,7 @@ NOVA is a modular RGB voxel LED display driven at 25 Hz (40 ms per displayed fra
 
 - Each module has a 50 x 50 cm base and is 100 cm high.
 - A module contains 5 x 5 x 10 voxels: 250 LEDs.
+- Most installations use a single module, configured in the web app. Several modules form a grid that is configured in the settings file only (see [Configuration](doc/nova_control.md#configuration)); the hardware output supports both.
 - Voxels are matte, white, ping-pong-like plastic spheres that diffuse the light.
 - Output can be very bright in dark environments.
 

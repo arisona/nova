@@ -70,7 +70,8 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "void": state.void(),
         "flip-vertical": state.is_flip_vertical(),
         "ethernet-interface": state.ethernet_interface(),
-        "module0-address": state.module0_address(),
+        // -1 tells the web app that a layout of several modules is not configurable there.
+        "module0-address": state.module0_address().map_or(-1, i32::from),
     }))
 }
 
@@ -187,8 +188,10 @@ async fn command(
                 state.set_ethernet_interface(value);
             }
             "module0-address" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_module0_address(parsed_value);
+                if let Ok(parsed_value) = value.parse()
+                    && !state.set_module0_address(parsed_value)
+                {
+                    return HttpResponse::BadRequest();
                 }
             }
             _ => {

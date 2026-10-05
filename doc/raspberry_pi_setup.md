@@ -113,6 +113,6 @@ sudo shutdown -r now
 
 ### Changing default options
 
-By default, the control software assumes `eth0` as ethernet interface to communicate, with one module connected and its jumper set to address 1. To change these settings, connect using the web app and adjust interface or module 0 address as needed.
+By default, the control software assumes `eth0` as ethernet interface to communicate, with one module connected and its jumper set to address 1. To change these settings, connect using the web app and adjust the interface or module address as needed.
 
-If you have multiple modules, the configuration need to be manually edited. After launching the Nova server once, you will find a file `settings.conf` in your home directory. Refer to the [settings example](doc/settings_example.txt) to find instructions to configure multiple modules.
+Multiple modules are configured in the settings file only. After launching the Nova server once, edit `nova_settings.json` in the server's working directory and list every module in `modules`; see [Configuration](nova_control.md#configuration) for an example. The web app then shows the module address as not configurable.
