@@ -3,6 +3,7 @@ use std::fs;
 use serde::{Deserialize, Serialize};
 
 use crate::content::get_all_content_names;
+use crate::content::palettes::PALETTES;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum Status {
@@ -14,12 +15,18 @@ pub enum Status {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
-    enabled_content_indices: Vec<u32>,
-    selected_content_index: usize,
+    // Content and palettes are referenced by name, so saved settings survive entries
+    // being added, removed, reordered or renamed. Missing fields (older settings files)
+    // fall back to defaults when loading.
+    #[serde(default)]
+    enabled_content: Vec<String>,
+    #[serde(default)]
+    selected_content: String,
 
     brightness: f32,
     volume: f32,
-    tone: f32,
+    #[serde(default)]
+    palette: String,
     heat: f32,
     flow: f32,
     form: f32,
@@ -58,60 +65,62 @@ impl AppState {
     const SETTINGS_FILE: &str = "nova_settings.json";
 
     pub fn load() -> Self {
-        let mut settings = Self::default();
         if let Ok(json_string) = fs::read_to_string(Self::SETTINGS_FILE) {
-            if let Ok(parsed_settings) = serde_json::from_str::<AppState>(&json_string) {
-                settings.set_selected_content_index(parsed_settings.selected_content_index);
-                settings.set_enabled_content_indices(parsed_settings.enabled_content_indices);
-                settings.set_brightness(parsed_settings.brightness);
-                settings.set_volume(parsed_settings.volume);
-                settings.set_tone(parsed_settings.tone);
-                settings.set_heat(parsed_settings.heat);
-                settings.set_flow(parsed_settings.flow);
-                settings.set_form(parsed_settings.form);
-                settings.set_void(parsed_settings.void);
-                settings.set_flip_vertical(parsed_settings.flip_vertical);
-                settings.set_ethernet_interface(&parsed_settings.ethernet_interface);
-
-                {
-                    let mut max_x = 0;
-                    let mut max_y = 0;
-                    let mut modules: Vec<(usize, usize, u8)> = Vec::new();
-                    for module in parsed_settings.modules.iter() {
-                        let x = module.0;
-                        let y = module.1;
-                        if x >= AppState::MODULE_GRID_MAX || y >= AppState::MODULE_GRID_MAX {
-                            log::warn!(
-                                "Module location out of bounds (max is {}), skipping module",
-                                AppState::MODULE_GRID_MAX - 1
-                            );
-                            continue;
-                        }
-                        modules.push(*module);
-                        max_x = max_x.max(module.0);
-                        max_y = max_y.max(module.1);
-                    }
-                    if !modules.is_empty() {
-                        settings.modules = modules;
-                        settings.dim = (
-                            (max_x + 1) * AppState::MODULE_X_RES,
-                            (max_y + 1) * AppState::MODULE_Y_RES,
-                            AppState::MODULE_Z_RES,
-                        );
-                    } else {
-                        log::warn!("No valid modules found, using defaults");
-                    }
-                }
-
-                settings.set_webserver_port(parsed_settings.webserver_port);
-            } else {
-                log::error!("Failed to parse settings, using defaults");
-                settings.save();
+            if let Ok(saved) = serde_json::from_str::<AppState>(&json_string) {
+                return Self::from_saved(saved);
             }
+            log::error!("Failed to parse settings, using defaults");
         } else {
             log::error!("Failed to load settings, using defaults");
-            settings.save();
         }
+        let settings = Self::default();
+        settings.save();
+        settings
+    }
+
+    /// Settings restored from a saved file, validated through the setters. Unknown
+    /// content and palette names fall back to defaults.
+    fn from_saved(saved: AppState) -> Self {
+        let mut settings = Self::default();
+        settings.set_enabled_content(&saved.enabled_content);
+        settings.set_selected_content(&saved.selected_content);
+        settings.set_brightness(saved.brightness);
+        settings.set_volume(saved.volume);
+        settings.set_palette(&saved.palette);
+        settings.set_heat(saved.heat);
+        settings.set_flow(saved.flow);
+        settings.set_form(saved.form);
+        settings.set_void(saved.void);
+        settings.set_flip_vertical(saved.flip_vertical);
+        settings.set_ethernet_interface(&saved.ethernet_interface);
+
+        let mut max_x = 0;
+        let mut max_y = 0;
+        let mut modules: Vec<(usize, usize, u8)> = Vec::new();
+        for module in saved.modules.iter() {
+            if module.0 >= AppState::MODULE_GRID_MAX || module.1 >= AppState::MODULE_GRID_MAX {
+                log::warn!(
+                    "Module location out of bounds (max is {}), skipping module",
+                    AppState::MODULE_GRID_MAX - 1
+                );
+                continue;
+            }
+            modules.push(*module);
+            max_x = max_x.max(module.0);
+            max_y = max_y.max(module.1);
+        }
+        if !modules.is_empty() {
+            settings.modules = modules;
+            settings.dim = (
+                (max_x + 1) * AppState::MODULE_X_RES,
+                (max_y + 1) * AppState::MODULE_Y_RES,
+                AppState::MODULE_Z_RES,
+            );
+        } else {
+            log::warn!("No valid modules found, using defaults");
+        }
+
+        settings.set_webserver_port(saved.webserver_port);
         settings
     }
 
@@ -125,32 +134,59 @@ impl AppState {
         }
     }
 
-    pub fn enabled_content_indices(&self) -> &Vec<u32> {
-        &self.enabled_content_indices
+    /// Content module names, in the order of `get_all_content()`.
+    pub fn available_content(&self) -> &[String] {
+        &self.available_content
     }
 
-    pub fn set_enabled_content_indices(&mut self, indices: Vec<u32>) {
-        self.enabled_content_indices.clear();
-        for index in indices {
-            if (index as usize) < self.available_content.len()
-                && !self.enabled_content_indices.contains(&index)
-            {
-                self.enabled_content_indices.push(index);
-            }
+    pub fn knows_content(&self, name: &str) -> bool {
+        self.available_content
+            .iter()
+            .any(|available| available == name)
+    }
+
+    /// Enabled content module names, in the order of `available_content()`.
+    pub fn enabled_content(&self) -> &[String] {
+        &self.enabled_content
+    }
+
+    /// Enables the named modules. Unknown names are dropped; if none remain, every
+    /// module is enabled. If the selected module is no longer enabled, the first
+    /// enabled one is selected.
+    pub fn set_enabled_content<S: AsRef<str>>(&mut self, names: &[S]) {
+        self.enabled_content = self
+            .available_content
+            .iter()
+            .filter(|available| names.iter().any(|name| name.as_ref() == available.as_str()))
+            .cloned()
+            .collect();
+        if self.enabled_content.is_empty() {
+            self.enabled_content = self.available_content.clone();
         }
-        if let [index] = self.enabled_content_indices.as_slice() {
-            self.selected_content_index = *index as usize;
+        if !self.enabled_content.contains(&self.selected_content) {
+            self.selected_content = self.enabled_content[0].clone();
         }
     }
 
+    pub fn selected_content(&self) -> &str {
+        &self.selected_content
+    }
+
+    /// Selects an enabled content module. Returns false, changing nothing, for any other name.
+    pub fn set_selected_content(&mut self, name: &str) -> bool {
+        let enabled = self.enabled_content.iter().any(|enabled| enabled == name);
+        if enabled {
+            self.selected_content = name.to_string();
+        }
+        enabled
+    }
+
+    /// Position of the selected module in `available_content()`, for the renderer.
     pub fn selected_content_index(&self) -> usize {
-        self.selected_content_index
-    }
-
-    pub fn set_selected_content_index(&mut self, index: usize) {
-        if index < self.available_content.len() {
-            self.selected_content_index = index;
-        }
+        self.available_content
+            .iter()
+            .position(|available| *available == self.selected_content)
+            .unwrap_or(0)
     }
 
     pub fn brightness(&self) -> f32 {
@@ -172,11 +208,25 @@ impl AppState {
         }
     }
 
-    pub fn tone(&self) -> f32 {
-        self.tone
+    pub fn palette(&self) -> &str {
+        &self.palette
     }
-    pub fn set_tone(&mut self, tone: f32) {
-        self.tone = tone.clamp(0.0, 1.0);
+
+    /// Selects a palette by name. Returns false, changing nothing, for unknown names.
+    pub fn set_palette(&mut self, name: &str) -> bool {
+        let known = PALETTES.iter().any(|palette| palette.name == name);
+        if known {
+            self.palette = name.to_string();
+        }
+        known
+    }
+
+    /// Position of the selected palette in `PALETTES`.
+    pub fn palette_index(&self) -> usize {
+        PALETTES
+            .iter()
+            .position(|palette| palette.name == self.palette)
+            .unwrap_or(0)
     }
 
     pub fn heat(&self) -> f32 {
@@ -255,10 +305,6 @@ impl AppState {
         self.webserver_port = webserver_port;
     }
 
-    pub fn available_content(&self) -> &Vec<String> {
-        &self.available_content
-    }
-
     pub fn dim(&self) -> (usize, usize, usize) {
         self.dim
     }
@@ -290,15 +336,18 @@ impl AppState {
 
 impl Default for AppState {
     fn default() -> Self {
+        let available_content = get_all_content_names();
         Self {
-            enabled_content_indices: vec![0],
-            selected_content_index: 0,
+            enabled_content: available_content.clone(),
+            selected_content: available_content[0].clone(),
+            // New installations and Restore defaults start every control in the middle,
+            // except Volume, which starts muted.
             brightness: 0.5,
             volume: 0.0,
-            tone: 0.0,
-            heat: 0.0,
-            flow: 0.0,
-            form: 0.0,
+            palette: PALETTES[0].name.to_string(),
+            heat: 0.5,
+            flow: 0.5,
+            form: 0.5,
             void: AppState::default_void(),
             flip_vertical: false,
             ethernet_interface: "eth0".to_string(),
@@ -306,7 +355,7 @@ impl Default for AppState {
 
             webserver_port: 8080,
 
-            available_content: get_all_content_names(),
+            available_content,
 
             dim: (
                 AppState::MODULE_X_RES,
@@ -367,24 +416,39 @@ mod tests {
     }
 
     #[test]
-    fn invalid_content_indices_are_ignored_and_settings_round_trip() {
+    fn unknown_names_fall_back_and_settings_round_trip() {
         let mut settings = AppState::default();
-        settings.set_selected_content_index(usize::MAX);
-        assert_eq!(settings.selected_content_index(), 0);
-        settings.set_enabled_content_indices(vec![0, 0, 99]);
-        assert_eq!(settings.enabled_content_indices(), &[0]);
+        let first = settings.available_content()[0].clone();
+        assert!(!settings.set_selected_content("Renamed"));
+        assert!(!settings.set_palette("Renamed"));
+        assert_eq!(settings.selected_content(), first);
+        settings.set_enabled_content(&["Renamed"]);
+        assert_eq!(settings.enabled_content(), settings.available_content());
+        assert!(settings.set_palette(PALETTES[3].name));
         settings.set_void(0.3);
         let json = serde_json::to_string(&settings).unwrap();
-        let restored: AppState = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored.enabled_content_indices(), &[0]);
+        let restored = AppState::from_saved(serde_json::from_str(&json).unwrap());
+        assert_eq!(restored.palette(), PALETTES[3].name);
+        assert_eq!(restored.palette_index(), 3);
+        assert_eq!(restored.selected_content(), first);
         assert_eq!(restored.void(), 0.3);
     }
 
     #[test]
-    fn settings_saved_before_void_still_load() {
+    fn older_settings_files_still_load() {
+        // Saved before content and palettes were referenced by name, and before Void.
         let mut saved = serde_json::to_value(AppState::default()).unwrap();
-        saved.as_object_mut().unwrap().remove("void");
-        let restored: AppState = serde_json::from_value(saved).unwrap();
+        let fields = saved.as_object_mut().unwrap();
+        for field in ["enabled_content", "selected_content", "palette", "void"] {
+            fields.remove(field);
+        }
+        fields.insert("enabled_content_indices".into(), serde_json::json!([0, 3]));
+        fields.insert("selected_content_index".into(), serde_json::json!(3));
+        fields.insert("tone".into(), serde_json::json!(0.4));
+        let restored = AppState::from_saved(serde_json::from_value(saved).unwrap());
+        assert_eq!(restored.enabled_content(), restored.available_content());
+        assert_eq!(restored.selected_content(), restored.available_content()[0]);
+        assert_eq!(restored.palette(), PALETTES[0].name);
         assert_eq!(restored.void(), AppState::default_void());
     }
 }

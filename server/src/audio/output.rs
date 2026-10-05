@@ -12,6 +12,13 @@ use cpal::{
 
 use super::{AudioControls, Synth};
 use crate::app_state::{AppState, Status};
+use crate::content::palettes::PALETTES;
+
+/// Until the sound is reworked, the selected palette's position in the list stands in
+/// for the old Tone control.
+fn palette_tone(state: &AppState) -> f32 {
+    state.palette_index() as f32 / PALETTES.len() as f32
+}
 
 #[derive(Default)]
 struct SharedControls {
@@ -22,7 +29,7 @@ impl SharedControls {
     fn publish(&self, state: &AppState) {
         for (slot, value) in self.values.iter().zip([
             state.volume(),
-            state.tone(),
+            palette_tone(state),
             state.heat(),
             state.flow(),
             state.form(),
@@ -212,7 +219,7 @@ mod tests {
         let shared = SharedControls::default();
         let mut state = AppState::default();
         state.set_volume(0.4);
-        state.set_tone(0.2);
+        state.set_palette(PALETTES[2].name);
         state.set_heat(0.3);
         state.set_flow(0.5);
         state.set_form(0.6);
@@ -226,7 +233,7 @@ mod tests {
                 controls.flow,
                 controls.form
             ],
-            [0.4, 0.2, 0.3, 0.5, 0.6]
+            [0.4, 2.0 / PALETTES.len() as f32, 0.3, 0.5, 0.6]
         );
         state.set_volume(0.0);
         shared.publish(&state);

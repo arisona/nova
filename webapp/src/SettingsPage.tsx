@@ -35,25 +35,23 @@ export const SettingsPage = ({
     void navigate('/');
   };
 
-  const handleEnabledContentChange = (value: {
-    index: number;
-    name: string;
-  }) => {
-    const add = !state.enabledContent.some(
-      (item) => item.index === value.index
+  const isLastEnabled = (name: string) =>
+    state.enabledContent.length === 1 && state.enabledContent[0] === name;
+
+  const handleEnabledContentChange = (name: string) => {
+    // At least one module stays enabled; the server rejects an empty list.
+    if (isLastEnabled(name)) return;
+    const enabled = state.enabledContent.includes(name);
+    const enabledContent = state.availableContent.filter((item) =>
+      item === name ? !enabled : state.enabledContent.includes(item)
     );
-    const enabledContent = add
-      ? state.enabledContent.concat(value).sort((a, b) => a.index - b.index)
-      : state.enabledContent.filter((item) => item.index !== value.index);
-    const indices = enabledContent.map((value) => value.index).join(',');
-    apiSetValue('enabled-content-indices', indices);
+    apiSetValue('enabled-content', enabledContent.join(','));
     setState((prevState) => ({
       ...prevState,
       enabledContent,
-      selectedContentIndex:
-        enabledContent.length === 1
-          ? enabledContent[0].index
-          : prevState.selectedContentIndex,
+      selectedContent: enabledContent.includes(prevState.selectedContent)
+        ? prevState.selectedContent
+        : (enabledContent[0] ?? ''),
     }));
   };
 
@@ -110,7 +108,7 @@ export const SettingsPage = ({
         return apiGetState();
       })
       .then((restoredState) => {
-        setState(restoredState);
+        if (restoredState) setState(restoredState);
         setEthernetInterfaceInputState('');
         setEthernetAddressInputState('');
       })
@@ -125,14 +123,6 @@ export const SettingsPage = ({
 
   const handleReload = () => {
     void apiSet('reload');
-  };
-
-  const getEnabledContent = () => {
-    if (state.enabledContent.length) {
-      return state.enabledContent;
-    } else {
-      return [];
-    }
   };
 
   return (
@@ -168,25 +158,23 @@ export const SettingsPage = ({
         }}
       >
         <List dense>
-          {state.availableContent.map((option) => (
-            <ListItem key={option.index} disablePadding>
+          {state.availableContent.map((name) => (
+            <ListItem key={name} disablePadding>
               <ListItemButton
                 dense
                 disableRipple
+                disabled={isLastEnabled(name)}
                 onClick={() => {
-                  handleEnabledContentChange(option);
+                  handleEnabledContentChange(name);
                 }}
               >
                 <ListItemIcon>
                   <Checkbox
                     disableRipple
-                    checked={getEnabledContent().some(
-                      (item: { index: number; name: string }) =>
-                        item.index === option.index
-                    )}
+                    checked={state.enabledContent.includes(name)}
                   />
                 </ListItemIcon>
-                <ListItemText primary={option.name} />
+                <ListItemText primary={name} />
               </ListItemButton>
             </ListItem>
           ))}

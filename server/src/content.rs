@@ -19,6 +19,8 @@ pub trait Content {
     );
 }
 
+/// Content modules in display order. Settings and the API refer to them by name: keep
+/// names unique and free of commas.
 pub fn get_all_content() -> Vec<Box<dyn Content>> {
     vec![Box::new(flux::Flux::new())]
 }
@@ -45,6 +47,7 @@ pub fn advance(phase: &mut f64, state: &RenderState, delta: f32) -> f32 {
 mod tests {
     use super::*;
     use crate::app_state::AppState;
+    use crate::content::palettes::PALETTES;
     use glam::Vec3;
 
     #[test]
@@ -89,8 +92,10 @@ mod tests {
             for form in [0.0, 0.25, 0.5, 0.75, 1.0] {
                 for value in [0.0, 0.5, 1.0] {
                     let mut settings = AppState::default();
+                    settings.set_flow(0.0);
                     settings.set_form(form);
-                    settings.set_tone(value);
+                    let palette = (value * (PALETTES.len() - 1) as f32).round() as usize;
+                    settings.set_palette(PALETTES[palette].name);
                     settings.set_heat(value);
                     settings.set_void(value);
                     let previous = VoxelImage::new(dim);

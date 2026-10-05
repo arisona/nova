@@ -22,14 +22,17 @@ impl VoxelImage {
         (self.dx, self.dy, self.dz)
     }
 
+    #[allow(dead_code)] // API for content modules
     pub fn dx(&self) -> usize {
         self.dx
     }
 
+    #[allow(dead_code)] // API for content modules
     pub fn dy(&self) -> usize {
         self.dy
     }
 
+    #[allow(dead_code)] // API for content modules
     pub fn dz(&self) -> usize {
         self.dz
     }
@@ -63,6 +66,7 @@ impl VoxelImage {
         }
     }
 
+    #[allow(dead_code)] // API for content modules
     pub fn fill(&mut self, color: Vec3) {
         self.data.chunks_exact_mut(3).for_each(|chunk| {
             chunk[0] = color.x;

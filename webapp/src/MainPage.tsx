@@ -1,7 +1,6 @@
 import {
   BlurOn,
   Contrast,
-  Palette,
   Settings,
   Speed,
   WbSunny,
@@ -21,7 +20,7 @@ import {
 import * as React from 'react';
 
 import { NovaState } from './App';
-import { ToneChip } from './ToneChip';
+import { PaletteSelector } from './PaletteSelector';
 import { Slider } from './Slider';
 import { apiSetValue } from './api';
 
@@ -42,16 +41,10 @@ export const MainPage = ({
     void navigate('/settings');
   };
 
-  const handleContentChange = (
-    value: { index: number; name: string } | null
-  ) => {
-    if (!value) return;
-    const index = value.index;
-    apiSetValue('selected-content-index', index);
-    setState((prevState) => ({
-      ...prevState,
-      selectedContentIndex: index,
-    }));
+  const handleContentChange = (name: string | null) => {
+    if (!name) return;
+    apiSetValue('selected-content', name);
+    setState((prevState) => ({ ...prevState, selectedContent: name }));
   };
 
   const handleBrightnessChange = (
@@ -70,9 +63,9 @@ export const MainPage = ({
     setState((prevState) => ({ ...prevState, volume: newValue as number }));
   };
 
-  const handleToneChange = (_event: Event, newValue: number | number[]) => {
-    apiSetValue('tone', newValue as number);
-    setState((prevState) => ({ ...prevState, tone: newValue as number }));
+  const handlePaletteChange = (name: string) => {
+    apiSetValue('palette', name);
+    setState((prevState) => ({ ...prevState, palette: name }));
   };
 
   const handleHeatChange = (_event: Event, newValue: number | number[]) => {
@@ -107,13 +100,6 @@ export const MainPage = ({
     }));
   };
 
-  const getSelectedContent = () => {
-    const selectedContent = state.enabledContent.find(
-      (value) => value.index === state.selectedContentIndex
-    );
-    return selectedContent ?? null;
-  };
-
   return (
     <>
       <Stack
@@ -140,9 +126,11 @@ export const MainPage = ({
             id="select-content"
             disableCloseOnSelect
             options={state.enabledContent}
-            getOptionLabel={(option) => option.name}
-            isOptionEqualToValue={(o, v) => o.index === v.index}
-            value={getSelectedContent()}
+            value={
+              state.enabledContent.includes(state.selectedContent)
+                ? state.selectedContent
+                : null
+            }
             onChange={(_e, value) => {
               handleContentChange(value);
             }}
@@ -182,12 +170,10 @@ export const MainPage = ({
         />
       )}
       <Divider sx={{ my: 3 }} />
-      <Slider
-        icon={<Palette />}
-        label="Tone"
-        value={state.tone}
-        onChange={handleToneChange}
-        endAdornment={<ToneChip tone={state.tone} heat={state.heat} />}
+      <PaletteSelector
+        palettes={state.palettes}
+        value={state.palette}
+        onChange={handlePaletteChange}
       />
       <Slider
         icon={<Contrast />}

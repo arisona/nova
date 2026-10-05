@@ -1,19 +1,20 @@
-import { Box, Slider as MuiSlider, Stack, Typography } from '@mui/material';
+import { Slider as MuiSlider } from '@mui/material';
 import * as React from 'react';
+
+import { ControlRow } from './ControlRow';
 
 interface SliderProps {
   icon: React.ReactNode;
   label: string;
   min?: number;
   max?: number;
-  step?: number; // Add this line
+  step?: number;
   value?: number;
   onChange: (
     event: Event,
     value: number | number[],
     activeThumb: number
   ) => void;
-  endAdornment?: React.ReactNode;
 }
 
 export const Slider = ({
@@ -24,16 +25,9 @@ export const Slider = ({
   step = 0.01,
   value = 0,
   onChange,
-  endAdornment,
 }: SliderProps) => {
   return (
-    <Stack spacing={1.5} direction="row" sx={{ mb: 2, alignItems: 'center' }}>
-      <Box aria-hidden sx={{ display: 'flex', width: 24, flexShrink: 0 }}>
-        {icon}
-      </Box>
-      <Typography variant="body2" sx={{ width: 72, flexShrink: 0 }}>
-        {label}
-      </Typography>
+    <ControlRow icon={icon} label={label}>
       <MuiSlider
         aria-label={label}
         min={min}
@@ -41,9 +35,7 @@ export const Slider = ({
         step={step}
         value={value}
         onChange={onChange}
-        sx={{ flexGrow: 1, minWidth: 0 }}
       />
-      <Box sx={{ width: 28, flexShrink: 0 }}>{endAdornment}</Box>
-    </Stack>
+    </ControlRow>
   );
 };

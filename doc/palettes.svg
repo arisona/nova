@@ -1,0 +1,435 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1132" height="2356" viewBox="0 0 1132 2356" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+<rect width="100%" height="100%" fill="#F3F2EE"/>
+<text x="48" y="56" font-size="30" font-weight="700" fill="#1C1B19">Nova palettes</text>
+<text x="48" y="84" font-size="15" fill="#6D6A62">12 palettes, ordered by the hue of their most saturated color · Pantone FHI (TCX) colors · generated from server/src/content/palettes.rs</text>
+<text x="48" y="138" font-size="13" font-weight="600" fill="#9A968C">01</text>
+<text x="48" y="164" font-size="21" font-weight="700" fill="#1C1B19">Uluwatu Wipeout</text>
+<g transform="translate(278,104)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F1BF70"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Buff Yellow</text>
+<text x="10" y="129" font-size="12" fill="#55524B">14-0847 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F1BF70</text>
+</g>
+<g transform="translate(442,104)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#DF7253"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Flamingo</text>
+<text x="10" y="129" font-size="12" fill="#55524B">16-1450 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#DF7253</text>
+</g>
+<g transform="translate(606,104)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#5D89B3"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Lichen Blue</text>
+<text x="10" y="129" font-size="12" fill="#55524B">17-4032 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#5D89B3</text>
+</g>
+<g transform="translate(770,104)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#363B7C"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Clematis Blue</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-3951 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#363B7C</text>
+</g>
+<g transform="translate(934,104)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#263056"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Blue Depths</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-3940 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#263056</text>
+</g>
+<text x="48" y="324" font-size="13" font-weight="600" fill="#9A968C">02</text>
+<text x="48" y="350" font-size="21" font-weight="700" fill="#1C1B19">Texas Sun</text>
+<g transform="translate(278,290)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#157EA0"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Bluejay</text>
+<text x="10" y="129" font-size="12" fill="#55524B">17-4427 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#157EA0</text>
+</g>
+<g transform="translate(442,290)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#E2A829"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Golden Rod</text>
+<text x="10" y="129" font-size="12" fill="#55524B">14-0951 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#E2A829</text>
+</g>
+<g transform="translate(606,290)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#DF7500"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Orange Pepper</text>
+<text x="10" y="129" font-size="12" fill="#55524B">16-1164 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#DF7500</text>
+</g>
+<g transform="translate(770,290)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#BC322C"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Valiant Poppy</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-1549 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#BC322C</text>
+</g>
+<g transform="translate(934,290)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#843E83"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Dahlia</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-3324 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#843E83</text>
+</g>
+<text x="48" y="510" font-size="13" font-weight="600" fill="#9A968C">03</text>
+<text x="48" y="536" font-size="21" font-weight="700" fill="#1C1B19">Infinite Radiance</text>
+<g transform="translate(278,476)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F2AB46"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Artisan's Gold</text>
+<text x="10" y="129" font-size="12" fill="#55524B">15-1049 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F2AB46</text>
+</g>
+<g transform="translate(442,476)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#B5B0AB"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Cumulus Cloud</text>
+<text x="10" y="129" font-size="12" fill="#55524B">14-0207 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#B5B0AB</text>
+</g>
+<g transform="translate(606,476)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#2E272A"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Black Bean</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-3909 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#2E272A</text>
+</g>
+<text x="48" y="696" font-size="13" font-weight="600" fill="#9A968C">04</text>
+<text x="48" y="722" font-size="21" font-weight="700" fill="#1C1B19">Island Vibes</text>
+<g transform="translate(278,662)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#D69C2F"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Mango Mojito</text>
+<text x="10" y="129" font-size="12" fill="#55524B">15-0960 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#D69C2F</text>
+</g>
+<g transform="translate(442,662)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#D6AF66"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Ochre</text>
+<text x="10" y="129" font-size="12" fill="#55524B">14-1036 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#D6AF66</text>
+</g>
+<g transform="translate(606,662)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#346CB0"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Palace Blue</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-4043 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#346CB0</text>
+</g>
+<g transform="translate(770,662)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#203C7F"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Surf The Web</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-3952 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#203C7F</text>
+</g>
+<g transform="translate(934,662)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#263056"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Blue Depths</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-3940 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#263056</text>
+</g>
+<text x="48" y="882" font-size="13" font-weight="600" fill="#9A968C">05</text>
+<text x="48" y="908" font-size="21" font-weight="700" fill="#1C1B19">Electric Escape</text>
+<g transform="translate(278,848)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#0061A3"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Directoire Blue</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-4244 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#0061A3</text>
+</g>
+<g transform="translate(442,848)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F3C12C"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Freesia</text>
+<text x="10" y="129" font-size="12" fill="#55524B">14-0852 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F3C12C</text>
+</g>
+<g transform="translate(606,848)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#D979A2"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Wild Orchid</text>
+<text x="10" y="129" font-size="12" fill="#55524B">16-2120 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#D979A2</text>
+</g>
+<g transform="translate(770,848)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#272F38"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Carbon</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-4012 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#272F38</text>
+</g>
+<g transform="translate(934,848)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#009B75"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Simply Green</text>
+<text x="10" y="129" font-size="12" fill="#55524B">17-5936 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#009B75</text>
+</g>
+<text x="48" y="1068" font-size="13" font-weight="600" fill="#9A968C">06</text>
+<text x="48" y="1094" font-size="21" font-weight="700" fill="#1C1B19">Brilliant Abyss</text>
+<g transform="translate(278,1034)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F6D155"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Primrose Yellow</text>
+<text x="10" y="129" font-size="12" fill="#55524B">13-0755 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F6D155</text>
+</g>
+<g transform="translate(442,1034)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#2F3441"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Outer Space</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-4009 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#2F3441</text>
+</g>
+<g transform="translate(606,1034)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#A3CCD6"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Aqua-esque</text>
+<text x="10" y="129" font-size="12" fill="#55524B">13-5411 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#A3CCD6</text>
+</g>
+<g transform="translate(770,1034)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#7A6332"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Plantation</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-0832 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#7A6332</text>
+</g>
+<g transform="translate(934,1034)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#9C4C8D"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Cattleya Orchid</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-3223 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#9C4C8D</text>
+</g>
+<text x="48" y="1254" font-size="13" font-weight="600" fill="#9A968C">07</text>
+<text x="48" y="1280" font-size="21" font-weight="700" fill="#1C1B19">Nueva York</text>
+<g transform="translate(278,1220)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#FEE715"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Blazing Yellow</text>
+<text x="10" y="129" font-size="12" fill="#55524B">12-0643 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#FEE715</text>
+</g>
+<g transform="translate(442,1220)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#FF9687"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Desert Flower</text>
+<text x="10" y="129" font-size="12" fill="#55524B">15-1435 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#FF9687</text>
+</g>
+<g transform="translate(606,1220)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#4ABBD5"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Bachelor Button</text>
+<text x="10" y="129" font-size="12" fill="#55524B">14-4522 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#4ABBD5</text>
+</g>
+<g transform="translate(770,1220)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#7391C8"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Cornflower Blue</text>
+<text x="10" y="129" font-size="12" fill="#55524B">16-4031 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#7391C8</text>
+</g>
+<g transform="translate(934,1220)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#C5AECF"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Orchid Bloom</text>
+<text x="10" y="129" font-size="12" fill="#55524B">14-3612 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#C5AECF</text>
+</g>
+<text x="48" y="1440" font-size="13" font-weight="600" fill="#9A968C">08</text>
+<text x="48" y="1466" font-size="21" font-weight="700" fill="#1C1B19">Horizon Beam</text>
+<g transform="translate(278,1406)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#A0AC4F"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Dark Citron</text>
+<text x="10" y="129" font-size="12" fill="#55524B">16-0435 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#A0AC4F</text>
+</g>
+<g transform="translate(442,1406)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#233658"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Estate Blue</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-4027 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#233658</text>
+</g>
+<g transform="translate(606,1406)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F8A3A4"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Murex Shell</text>
+<text x="10" y="129" font-size="12" fill="#55524B">15-1712 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F8A3A4</text>
+</g>
+<g transform="translate(770,1406)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#BAB8D3"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Purple Heather</text>
+<text x="10" y="129" font-size="12" fill="#55524B">14-3911 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#BAB8D3</text>
+</g>
+<g transform="translate(934,1406)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#3A4132"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Kombu Green</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-0417 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#3A4132</text>
+</g>
+<text x="48" y="1626" font-size="13" font-weight="600" fill="#9A968C">09</text>
+<text x="48" y="1652" font-size="21" font-weight="700" fill="#1C1B19">Playful Voxel Glow</text>
+<g transform="translate(278,1592)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#B0D3D1"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Icy Morn</text>
+<text x="10" y="129" font-size="12" fill="#55524B">13-5306 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#B0D3D1</text>
+</g>
+<g transform="translate(442,1592)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#CE5B78"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Fruit Dove</text>
+<text x="10" y="129" font-size="12" fill="#55524B">17-1926 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#CE5B78</text>
+</g>
+<g transform="translate(606,1592)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#008C4E"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Green Bee</text>
+<text x="10" y="129" font-size="12" fill="#55524B">17-6154 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#008C4E</text>
+</g>
+<g transform="translate(770,1592)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#386192"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Star Sapphire</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-4041 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#386192</text>
+</g>
+<g transform="translate(934,1592)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#E881A6"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Aurora Pink</text>
+<text x="10" y="129" font-size="12" fill="#55524B">15-2217 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#E881A6</text>
+</g>
+<text x="48" y="1812" font-size="13" font-weight="600" fill="#9A968C">10</text>
+<text x="48" y="1838" font-size="21" font-weight="700" fill="#1C1B19">Voxel Vision</text>
+<g transform="translate(278,1778)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#00B1D2"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Blue Atoll</text>
+<text x="10" y="129" font-size="12" fill="#55524B">16-4535 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#00B1D2</text>
+</g>
+<g transform="translate(442,1778)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#272F38"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Carbon</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-4012 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#272F38</text>
+</g>
+<g transform="translate(606,1778)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#AFCB80"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Sap Green</text>
+<text x="10" y="129" font-size="12" fill="#55524B">13-0331 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#AFCB80</text>
+</g>
+<g transform="translate(770,1778)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F7969E"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Flamingo Pink</text>
+<text x="10" y="129" font-size="12" fill="#55524B">15-1821 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F7969E</text>
+</g>
+<g transform="translate(934,1778)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F5B895"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Peach Quartz</text>
+<text x="10" y="129" font-size="12" fill="#55524B">13-1125 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F5B895</text>
+</g>
+<text x="48" y="1998" font-size="13" font-weight="600" fill="#9A968C">11</text>
+<text x="48" y="2024" font-size="21" font-weight="700" fill="#1C1B19">Spectrum Twist</text>
+<g transform="translate(278,1964)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F4E87A"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Lemon Verbena</text>
+<text x="10" y="129" font-size="12" fill="#55524B">12-0742 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F4E87A</text>
+</g>
+<g transform="translate(442,1964)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#41354D"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Purple Velvet</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-3725 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#41354D</text>
+</g>
+<g transform="translate(606,1964)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F5B895"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Peach Quartz</text>
+<text x="10" y="129" font-size="12" fill="#55524B">13-1125 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F5B895</text>
+</g>
+<g transform="translate(770,1964)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#5CA6CE"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Ethereal Blue</text>
+<text x="10" y="129" font-size="12" fill="#55524B">15-4323 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#5CA6CE</text>
+</g>
+<g transform="translate(934,1964)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#D4367A"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Fuchsia Purple</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-2436 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#D4367A</text>
+</g>
+<text x="48" y="2184" font-size="13" font-weight="600" fill="#9A968C">12</text>
+<text x="48" y="2210" font-size="21" font-weight="700" fill="#1C1B19">Dazzling Dimensions</text>
+<g transform="translate(278,2150)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#EDDD59"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Aurora</text>
+<text x="10" y="129" font-size="12" fill="#55524B">12-0642 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#EDDD59</text>
+</g>
+<g transform="translate(442,2150)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#005871"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Lyons Blue</text>
+<text x="10" y="129" font-size="12" fill="#55524B">19-4340 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#005871</text>
+</g>
+<g transform="translate(606,2150)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#EED4D9"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Primrose Pink</text>
+<text x="10" y="129" font-size="12" fill="#55524B">12-2904 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#EED4D9</text>
+</g>
+<g transform="translate(770,2150)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#854C65"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Damson</text>
+<text x="10" y="129" font-size="12" fill="#55524B">18-1716 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#854C65</text>
+</g>
+<g transform="translate(934,2150)">
+<rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#DC343B"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Poppy Red</text>
+<text x="10" y="129" font-size="12" fill="#55524B">17-1664 TCX</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#DC343B</text>
+</g>
+</svg>

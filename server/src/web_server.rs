@@ -6,6 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::app_state::{AppState, Status};
+use crate::content::palettes::PALETTES;
 
 type PendingSave = Mutex<Option<actix_web::rt::task::JoinHandle<()>>>;
 
@@ -54,12 +55,13 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
     // do not expose all fields to client
     HttpResponse::Ok().json(serde_json::json!({
         "available-content": state.available_content(),
-        "enabled-content-indices": state.enabled_content_indices(),
-        "selected-content-index": state.selected_content_index(),
+        "enabled-content": state.enabled_content(),
+        "selected-content": state.selected_content(),
         "audio-enabled": crate::ENABLE_AUDIO,
         "brightness": state.brightness(),
         "volume": state.volume(),
-        "tone": state.tone(),
+        "palettes": palettes_json(),
+        "palette": state.palette(),
         "heat": state.heat(),
         "flow": state.flow(),
         "form": state.form(),
@@ -68,6 +70,29 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "ethernet-interface": state.ethernet_interface(),
         "module0-address": state.module0_address(),
     }))
+}
+
+/// All palettes in display order, with CSS-ready colors.
+fn palettes_json() -> serde_json::Value {
+    PALETTES
+        .iter()
+        .map(|palette| {
+            serde_json::json!({
+                "name": palette.name,
+                "colors": palette
+                    .colors
+                    .iter()
+                    .map(|color| {
+                        serde_json::json!({
+                            "name": color.name,
+                            "code": color.code,
+                            "hex": color.hex(),
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+            })
+        })
+        .collect()
 }
 
 #[get("/api/get-status")]
@@ -102,14 +127,23 @@ async fn command(
     if let Some(value) = query.get("value") {
         log::debug!("command: {command} value: {value}");
         match command.as_str() {
-            "enabled-content-indices" => {
-                let enabled_indices: Vec<u32> =
-                    value.split(',').filter_map(|s| s.parse().ok()).collect();
-                state.set_enabled_content_indices(enabled_indices);
+            // Unknown names are rejected so the web app reloads its state, e.g. after
+            // content or a palette was renamed while the page was open.
+            "enabled-content" => {
+                let names: Vec<&str> = value.split(',').filter(|name| !name.is_empty()).collect();
+                if names.is_empty() || !names.iter().all(|name| state.knows_content(name)) {
+                    return HttpResponse::BadRequest();
+                }
+                state.set_enabled_content(&names);
             }
-            "selected-content-index" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_selected_content_index(parsed_value);
+            "selected-content" => {
+                if !state.set_selected_content(value) {
+                    return HttpResponse::BadRequest();
+                }
+            }
+            "palette" => {
+                if !state.set_palette(value) {
+                    return HttpResponse::BadRequest();
                 }
             }
             "brightness" => {
@@ -120,11 +154,6 @@ async fn command(
             "volume" => {
                 if let Ok(parsed_value) = value.parse() {
                     state.set_volume(parsed_value);
-                }
-            }
-            "tone" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_tone(parsed_value);
                 }
             }
             "heat" => {
@@ -215,6 +244,37 @@ mod tests {
         assert!(state.lock().unwrap().take_hardware_reset_request());
         assert!(!state.lock().unwrap().take_hardware_reset_request());
         assert!(pending_save.lock().unwrap().is_none());
+    }
+
+    #[actix_web::test]
+    async fn unknown_names_are_rejected_without_changes() {
+        let state = Arc::new(Mutex::new(AppState::default()));
+        let app = actix_web::test::init_service(
+            App::new()
+                .app_data(Data::new(Arc::clone(&state)))
+                .app_data(Data::new(PendingSave::default()))
+                .service(command),
+        )
+        .await;
+        let status = |uri: String| {
+            let request = actix_web::test::TestRequest::get().uri(&uri).to_request();
+            actix_web::test::call_service(&app, request)
+        };
+        for uri in [
+            "/api/palette?value=Renamed",
+            "/api/selected-content?value=Renamed",
+            "/api/enabled-content?value=Renamed",
+            "/api/enabled-content?value=",
+        ] {
+            assert_eq!(status(uri.to_string()).await.status(), 400, "{uri}");
+        }
+        assert_eq!(state.lock().unwrap().palette(), PALETTES[0].name);
+        let uri = format!(
+            "/api/palette?value={}",
+            PALETTES[1].name.replace(' ', "%20")
+        );
+        assert!(status(uri).await.status().is_success());
+        assert_eq!(state.lock().unwrap().palette(), PALETTES[1].name);
     }
 
     #[actix_web::test]

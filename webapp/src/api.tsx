@@ -1,13 +1,13 @@
-import { NovaState, NovaStatus, defaultNovaState } from './App';
+import { NovaState, NovaStatus, Palette, defaultNovaState } from './App';
 
 type ApiCommand = 'restore' | 'reset' | 'reload';
 
 interface ApiSettingValues {
-  'enabled-content-indices': string;
-  'selected-content-index': number;
+  'enabled-content': string; // names, comma-separated
+  'selected-content': string;
   brightness: number;
   volume: number;
-  tone: number;
+  palette: string;
   heat: number;
   flow: number;
   form: number;
@@ -21,25 +21,46 @@ export const apiSet = (id: ApiCommand) => {
   return fetch(`/api/${id}`);
 };
 
+type Listener = () => void;
+const rejectionListeners = new Set<Listener>();
+
+/** Calls `listener` whenever the server rejects a change, e.g. a name that no longer
+ * exists. Returns a function that removes the listener. */
+export const onApiRejected = (listener: Listener) => {
+  rejectionListeners.add(listener);
+  return () => {
+    rejectionListeners.delete(listener);
+  };
+};
+
 export const apiSetValue = <Setting extends keyof ApiSettingValues>(
   id: Setting,
   value: ApiSettingValues[Setting]
 ) => {
   void fetch(
     `/api/${encodeURIComponent(id)}?value=${encodeURIComponent(String(value))}`
-  ).catch((err: unknown) => {
-    console.error('apiSetValue failed:', err);
-  });
+  )
+    .then((response) => {
+      if (!response.ok) {
+        rejectionListeners.forEach((listener) => {
+          listener();
+        });
+      }
+    })
+    .catch((err: unknown) => {
+      console.error('apiSetValue failed:', err);
+    });
 };
 
 interface ApiStateResponse {
   'available-content': string[];
-  'enabled-content-indices': string[]; // indices as strings
-  'selected-content-index': number;
+  'enabled-content': string[];
+  'selected-content': string;
   'audio-enabled': boolean;
   brightness: number;
   volume: number;
-  tone: number;
+  palettes: unknown;
+  palette: string;
   heat: number;
   flow: number;
   form: number;
@@ -60,7 +81,37 @@ function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === 'string');
 }
 
-export const apiGetState = async (): Promise<NovaState> => {
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
+}
+
+/** Palettes from the server; malformed entries are skipped. */
+function parsePalettes(value: unknown): Palette[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry: unknown) => {
+    if (
+      !isRecord(entry) ||
+      typeof entry.name !== 'string' ||
+      !Array.isArray(entry.colors)
+    )
+      return [];
+    const colors = entry.colors.flatMap((color: unknown) =>
+      isRecord(color) && typeof color.hex === 'string'
+        ? [
+            {
+              name: typeof color.name === 'string' ? color.name : '',
+              code: typeof color.code === 'string' ? color.code : '',
+              hex: color.hex,
+            },
+          ]
+        : []
+    );
+    return colors.length ? [{ name: entry.name, colors }] : [];
+  });
+}
+
+/** The current state, or null if the server could not be reached. */
+export const apiGetState = async (): Promise<NovaState | null> => {
   try {
     const response = await fetch('/api/get-state');
     if (!response.ok) throw new Error(String(response.status));
@@ -75,27 +126,37 @@ export const apiGetState = async (): Promise<NovaState> => {
     }
     const availableContent = payload['available-content'];
 
-    const enabledIndicesRaw = payload['enabled-content-indices'] ?? [];
-    const enabledIndices = Array.isArray(enabledIndicesRaw)
-      ? enabledIndicesRaw
-          .map((idx) => Number(idx))
-          .filter((n) => Number.isFinite(n))
-      : [];
+    // Safeguards: only keep names the server currently offers, and fall back to the
+    // first entry if the selection is unknown.
+    const enabledContent = (
+      isStringArray(payload['enabled-content'])
+        ? payload['enabled-content']
+        : []
+    ).filter((name) => availableContent.includes(name));
+    const requestedContent = payload['selected-content'];
+    const selectedContent =
+      requestedContent !== undefined &&
+      enabledContent.includes(requestedContent)
+        ? requestedContent
+        : (enabledContent[0] ?? '');
+
+    const palettes = parsePalettes(payload.palettes);
+    const requestedPalette = payload.palette;
+    const palette =
+      requestedPalette !== undefined &&
+      palettes.some((entry) => entry.name === requestedPalette)
+        ? requestedPalette
+        : (palettes[0]?.name ?? '');
 
     const state: NovaState = {
-      availableContent: availableContent.map((name, index) => ({
-        name,
-        index,
-      })),
-      enabledContent: enabledIndices.map((index) => ({
-        name: availableContent[index] ?? '',
-        index,
-      })),
-      selectedContentIndex: payload['selected-content-index'] ?? -1,
+      availableContent,
+      enabledContent,
+      selectedContent,
       audioEnabled: payload['audio-enabled'] ?? defaultNovaState.audioEnabled,
       brightness: payload.brightness ?? defaultNovaState.brightness,
       volume: payload.volume ?? defaultNovaState.volume,
-      tone: payload.tone ?? defaultNovaState.tone,
+      palettes,
+      palette,
       heat: payload.heat ?? defaultNovaState.heat,
       flow: payload.flow ?? defaultNovaState.flow,
       form: payload.form ?? defaultNovaState.form,
@@ -110,7 +171,7 @@ export const apiGetState = async (): Promise<NovaState> => {
     return state;
   } catch (error) {
     console.error('Request failed: ', error);
-    return defaultNovaState;
+    return null;
   }
 };
 

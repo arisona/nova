@@ -182,9 +182,9 @@ impl Flux {
         }
     }
 
-    /// For testing, Tone selects a palette in equal slices.
-    fn select_palette(&mut self, tone: f32) {
-        let index = ((tone * PALETTES.len() as f32) as usize).min(PALETTES.len() - 1);
+    /// Converts the selected palette to Oklab whenever the selection changes.
+    fn select_palette(&mut self, index: usize) {
+        let index = index.min(PALETTES.len() - 1);
         if self.palette_index != Some(index) {
             self.palette_index = Some(index);
             let palette = &PALETTES[index];
@@ -260,7 +260,7 @@ impl Content for Flux {
         let form = state.form();
         let heat = state.heat();
         let void = state.void();
-        self.select_palette(state.tone());
+        self.select_palette(state.palette());
 
         let weights = form_weights(form);
         let spread: f32 = weights
@@ -314,7 +314,7 @@ mod tests {
         for row_block in 0..PALETTES.len() {
             for (col_block, form) in forms.iter().enumerate() {
                 let mut settings = crate::app_state::AppState::default();
-                settings.set_tone((row_block as f32 + 0.5) / PALETTES.len() as f32);
+                settings.set_palette(PALETTES[row_block].name);
                 settings.set_heat(0.5);
                 settings.set_form(*form);
                 settings.set_flow(1.0);

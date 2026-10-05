@@ -4,7 +4,7 @@ use crate::voxel_image::VoxelImage;
 
 pub struct RenderState {
     brightness: f32,
-    tone: f32,
+    palette: usize,
     heat: f32,
     flow: f32,
     form: f32,
@@ -19,7 +19,7 @@ impl RenderState {
     pub fn from(state: &AppState) -> Self {
         Self {
             brightness: state.brightness(),
-            tone: state.tone(),
+            palette: state.palette_index(),
             heat: state.heat(),
             flow: state.flow(),
             form: state.form(),
@@ -31,8 +31,9 @@ impl RenderState {
         }
     }
 
-    pub fn tone(&self) -> f32 {
-        self.tone
+    /// Position of the selected palette in `PALETTES`.
+    pub fn palette(&self) -> usize {
+        self.palette
     }
     pub fn heat(&self) -> f32 {
         self.heat

@@ -3,17 +3,29 @@ import React from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { MainPage } from './MainPage';
 import { SettingsPage } from './SettingsPage';
-import { apiGetState, apiGetStatus } from './api';
+import { apiGetState, apiGetStatus, onApiRejected } from './api';
 import { Status } from './Status';
 
+export interface PaletteColor {
+  name: string;
+  code: string;
+  hex: string;
+}
+
+export interface Palette {
+  name: string;
+  colors: PaletteColor[];
+}
+
 export interface NovaState {
-  availableContent: { index: number; name: string }[];
-  enabledContent: { index: number; name: string }[];
-  selectedContentIndex: number;
+  availableContent: string[];
+  enabledContent: string[];
+  selectedContent: string;
   audioEnabled: boolean;
   brightness: number;
   volume: number;
-  tone: number;
+  palettes: Palette[];
+  palette: string;
   heat: number;
   flow: number;
   form: number;
@@ -26,14 +38,15 @@ export interface NovaState {
 export const defaultNovaState: NovaState = {
   availableContent: [],
   enabledContent: [],
-  selectedContentIndex: -1,
+  selectedContent: '',
   audioEnabled: false,
   brightness: 0.5,
   volume: 0.0,
-  tone: 0.0,
-  heat: 0.0,
-  flow: 0.0,
-  form: 0.0,
+  palettes: [],
+  palette: '',
+  heat: 0.5,
+  flow: 0.5,
+  form: 0.5,
   void: 0.5,
   flip: false,
   ethernetInterface: 'eth0',
@@ -61,9 +74,24 @@ export const App = () => {
   const [status, setStatus] = React.useState(defaultNovaStatus);
 
   React.useEffect(() => {
-    void apiGetState().then((newState) => {
-      setState(newState);
-    });
+    const loadState = () => {
+      void apiGetState().then((newState) => {
+        if (newState) setState(newState);
+      });
+    };
+    // Besides the initial load, reload when the page becomes visible again (e.g.
+    // switching back on a phone) and whenever the server rejects a change, so renamed
+    // or removed content and palettes never linger in the UI.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') loadState();
+    };
+    loadState();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    const unsubscribe = onApiRejected(loadState);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      unsubscribe();
+    };
   }, []);
 
   React.useEffect(() => {

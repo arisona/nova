@@ -100,8 +100,8 @@ By default, the server reads its settings from `nova_settings.json` in the worki
 
 The built web client uses React and Material UI. It provides controls for:
 
-- Selecting and ordering content modules
-- Adjusting Brightness, Tone, Heat, Flow, and Form
+- Selecting and enabling content modules
+- Choosing a palette and adjusting Brightness, Heat, Flow, Form, and Void
 - Adjusting independent audio Volume
 - Toggling vertical flip
 - Monitoring module status
@@ -116,13 +116,13 @@ Every content module uses the same expressive controls:
 
 | Control | Meaning                                                                                                                       |
 | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Tone    | Selects one of the curated Pantone palettes, in equal slices of the slider. Temporary until a palette picker replaces it.     |
+| Palette | One of the curated Pantone palettes, by name; ‹ › step through them and wrap around at both ends.                             |
 | Heat    | Gray at 0, the palette as published at 0.5, up to twice its saturation at 1, preserving hue; independent of occupancy and speed. |
 | Flow    | Animation rate. Zero freezes the current image; raising it resumes from the same phase.                                       |
 | Form    | Structure, from horizontal layers through columns, blobs and patches to per-voxel grain. Also sets how many colors show at once. |
 | Void    | Fraction of the volume left dark. Lit voxels keep the same brightness at any value.                                           |
 
-Palettes live in `server/src/content/palettes.rs`; neighbouring palette colors are mixed in Oklab. The CSS chip next to the Tone slider still shows a single hue from the earlier tone model and does not preview the selected palette. Neither Heat nor Form normalizes total emitted light, so changes in color and occupied space can still affect perceived brightness.
+Palettes live in `server/src/content/palettes.rs`, listed by hue; neighbouring palette colors are mixed in Oklab. `doc/palettes.svg` shows them all. Neither Heat nor Form normalizes total emitted light, so changes in color and occupied space can still affect perceived brightness.
 
 ### Content
 
@@ -171,19 +171,21 @@ All settings are stored in `nova_settings.json`. Example:
   ],
   "brightness": 0.5,
   "volume": 0.0,
-  "tone": 0.0,
+  "palette": "Island Vibes",
   "heat": 0.5,
   "flow": 0.25,
   "form": 0.0,
+  "void": 0.5,
   "flip_vertical": false,
-  "enabled_content_indices": [0, 1, 2, 3],
-  "selected_content_index": 0
+  "enabled_content": ["Flux"],
+  "selected_content": "Flux"
 }
 ```
 
 - `modules`: list of `[x, y, address]` tuples.
 - Other fields mirror UI controls.
-- GET `/api/get-state` exposes `brightness`, `volume`, `tone`, `heat`, `flow`, and `form`. SET via GET `/api/{control}?value=<0..1>` persists a value.
+- Content and palettes are stored by name. Unknown names (for example after a rename) fall back when loading: content to all modules enabled and the first one selected, the palette to the first palette. Older settings files with `tone` or content indices still load.
+- GET `/api/get-state` exposes `brightness`, `volume`, `palette`, `heat`, `flow`, `form`, and `void`. SET via GET `/api/{control}?value=<0..1>` persists a value; see the [README](../README.md#control-api) for name-based selection.
 
 ---
 
