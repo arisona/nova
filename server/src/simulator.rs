@@ -117,7 +117,7 @@ impl Stage {
             },
         );
 
-        Stage {
+        Self {
             app_state: state,
             renderer,
             ctx,
@@ -136,7 +136,7 @@ impl EventHandler for Stage {
 
         let (mut render_state, flip) = {
             let app_state = self.app_state.lock().unwrap();
-            (RenderState::from(&app_state), app_state.is_flip_vertical())
+            (RenderState::from(&*app_state), app_state.is_flip_vertical())
         };
         self.renderer.render(&mut render_state);
 

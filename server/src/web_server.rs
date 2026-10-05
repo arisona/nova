@@ -102,8 +102,8 @@ fn palettes_json() -> serde_json::Value {
 async fn get_status(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
     let state = data.lock().unwrap();
     let (ok, message): (bool, &str) = match state.status() {
-        Status::Ok(msg) => (true, msg.as_str()),
-        Status::Err(msg) => (false, msg.as_str()),
+        Status::Ok(message) => (true, message),
+        Status::Err(message) => (false, message),
         Status::Unknown => (false, ""),
     };
     let (audio_ok, audio_message): (bool, &str) = match state.audio_status() {

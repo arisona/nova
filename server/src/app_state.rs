@@ -115,10 +115,10 @@ impl AppState {
         let mut max_y = 0;
         let mut modules: Vec<(usize, usize, u8)> = Vec::new();
         for module in saved.modules.iter() {
-            if module.0 >= AppState::MODULE_GRID_MAX || module.1 >= AppState::MODULE_GRID_MAX {
+            if module.0 >= Self::MODULE_GRID_MAX || module.1 >= Self::MODULE_GRID_MAX {
                 log::warn!(
                     "Module location out of bounds (max is {}), skipping module",
-                    AppState::MODULE_GRID_MAX - 1
+                    Self::MODULE_GRID_MAX - 1
                 );
                 continue;
             }
@@ -132,9 +132,9 @@ impl AppState {
         if !modules.is_empty() {
             settings.modules = modules;
             settings.dim = (
-                (max_x + 1) * AppState::MODULE_X_RES,
-                (max_y + 1) * AppState::MODULE_Y_RES,
-                AppState::MODULE_Z_RES,
+                (max_x + 1) * Self::MODULE_X_RES,
+                (max_y + 1) * Self::MODULE_Y_RES,
+                Self::MODULE_Z_RES,
             );
         } else {
             log::warn!("No valid modules found, using defaults");
@@ -300,7 +300,7 @@ impl AppState {
         self.ethernet_interface = ethernet_interface[..end].to_string();
     }
 
-    pub fn modules(&self) -> &Vec<(usize, usize, u8)> {
+    pub fn modules(&self) -> &[(usize, usize, u8)] {
         &self.modules
     }
 
@@ -407,17 +407,13 @@ impl Default for AppState {
             void: 0.5,
             flip_vertical: false,
             ethernet_interface: "eth0".to_string(),
-            modules: vec![(0, 0, AppState::MODULE_DEFAULT_ADDRESS)],
+            modules: vec![(0, 0, Self::MODULE_DEFAULT_ADDRESS)],
 
             webserver_port: 8080,
 
             available_content,
 
-            dim: (
-                AppState::MODULE_X_RES,
-                AppState::MODULE_Y_RES,
-                AppState::MODULE_Z_RES,
-            ),
+            dim: (Self::MODULE_X_RES, Self::MODULE_Y_RES, Self::MODULE_Z_RES),
 
             status: Status::Unknown,
             audio_status: Status::Unknown,

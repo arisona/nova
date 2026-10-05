@@ -37,7 +37,7 @@ struct NovaHardware {
 
 impl NovaHardware {
     fn new(app_state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
-        NovaHardware {
+        Self {
             app_state,
             renderer,
             ready_modules: HashMap::new(),
@@ -57,7 +57,7 @@ impl NovaHardware {
                     let app_state = self.app_state.lock().unwrap();
                     (
                         app_state.ethernet_interface().to_string(),
-                        app_state.modules().clone(),
+                        app_state.modules().to_vec(),
                     )
                 };
 
@@ -106,8 +106,8 @@ impl NovaHardware {
                     let mut app_state = self.app_state.lock().unwrap();
                     (
                         app_state.ethernet_interface().to_string(),
-                        app_state.modules().clone(),
-                        RenderState::from(&app_state),
+                        app_state.modules().to_vec(),
+                        RenderState::from(&*app_state),
                         app_state.is_flip_vertical(),
                         app_state.take_hardware_reset_request(),
                     )
@@ -118,7 +118,7 @@ impl NovaHardware {
                     break;
                 }
 
-                if &interface_name != interface.name() {
+                if interface_name != interface.name() {
                     log::info!("Interface changed to {interface_name}.");
                     // Return back to interface opening loop
                     break;
@@ -143,7 +143,7 @@ impl NovaHardware {
                     let num_ready_modules = self
                         .ready_modules
                         .values()
-                        .filter(|t| now.duration_since(**t) < Duration::from_millis(5000))
+                        .filter(|t| now.duration_since(**t) < MODULE_READY_TIMEOUT)
                         .count();
                     log::debug!("Status update: {num_ready_modules} of {num_modules} ready.");
                     self.app_state.lock().unwrap().set_status(
@@ -220,7 +220,7 @@ impl NovaHardware {
             return;
         }
 
-        if packet[20] != NOVA_IP[0] {
+        if packet[20..23] != NOVA_IP_PREFIX {
             log::warn!(
                 "Unexpected IP address: {}.{}.{}.{}",
                 packet[20],
@@ -437,6 +437,8 @@ impl NovaHardware {
 const SYNC_PERIOD: Duration = Duration::from_millis(20);
 const SYNC_BUSY_WAIT_MARGIN: Duration = Duration::from_millis(5);
 const STATUS_PERIOD: Duration = Duration::from_millis(5000);
+// A module counts as ready if it answered the latest status request
+const MODULE_READY_TIMEOUT: Duration = STATUS_PERIOD;
 const INTERFACE_RETRY_PERIOD: Duration = Duration::from_millis(500);
 
 // Ethernet / IP / UDP related constants
@@ -468,7 +470,6 @@ const NOVA_MAC_PREFIX: [u8; 5] = [0x00, 0x20, 0xe3, 0x10, 0x00];
 const LOCAL_IP: [u8; 4] = [127, 0, 0, 1];
 const LOCAL_UDP_PORT: u16 = 1234;
 
-const NOVA_IP: [u8; 4] = [192, 168, 1, 0];
 const NOVA_IP_PREFIX: [u8; 3] = [192, 168, 1];
 const NOVA_UDP_PORT: u16 = 3210;
 

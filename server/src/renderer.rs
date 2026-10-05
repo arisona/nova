@@ -23,8 +23,8 @@ pub struct RenderState {
     selected_content_index: usize,
 }
 
-impl RenderState {
-    pub fn from(state: &AppState) -> Self {
+impl From<&AppState> for RenderState {
+    fn from(state: &AppState) -> Self {
         Self {
             brightness: state.brightness(),
             palette: state.palette_index(),
@@ -39,7 +39,9 @@ impl RenderState {
             selected_content_index: state.selected_content_index(),
         }
     }
+}
 
+impl RenderState {
     /// Position of the selected palette in `PALETTES`.
     pub fn palette(&self) -> usize {
         self.palette
@@ -141,7 +143,7 @@ impl Renderer {
         self.output.copy_scaled_from(&self.next, state.brightness);
     }
 
-    pub fn image(&mut self) -> &VoxelImage {
+    pub fn image(&self) -> &VoxelImage {
         &self.output
     }
 }

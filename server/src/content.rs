@@ -26,11 +26,12 @@ pub fn get_all_content() -> Vec<Box<dyn Content>> {
 }
 
 pub fn get_all_content_names() -> Vec<String> {
-    assert_ne!(get_all_content().len(), 0);
-    get_all_content()
+    let names: Vec<String> = get_all_content()
         .iter()
         .map(|c| c.name().to_string())
-        .collect()
+        .collect();
+    assert!(!names.is_empty());
+    names
 }
 
 pub fn advance(phase: &mut f64, state: &RenderState, delta: f32) -> f32 {
