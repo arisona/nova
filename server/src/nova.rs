@@ -67,7 +67,7 @@ impl NovaHardware {
 
                         interface = iface;
 
-                        // Sucessfully opened interface
+                        // Successfully opened interface
                         self.app_state
                             .lock()
                             .unwrap()
@@ -298,7 +298,7 @@ impl NovaHardware {
         sequence_num: usize,
         shift_pixels: bool,
     ) -> [u8; NOVA_PACKET_LEN] {
-        // doc not: the original code used to send status (running / stopped). does not seem necessary
+        // Legacy note: the original code used to send status (running / stopped). Does not seem necessary
         let status = 0;
 
         let mut packet = [0u8; NOVA_PACKET_LEN];
@@ -339,7 +339,7 @@ impl NovaHardware {
 
         // IP header
         packet[14] = IP_VERSION | 0x05;
-        packet[15] = 0x00; // ECN / DSCP -- orignal value was 0xf0, which doesn't really make sense
+        packet[15] = 0x00; // ECN / DSCP -- original value was 0xf0, which doesn't really make sense
         let ip_packet_len = IP_HEADER_LEN + UDP_HEADER_LEN + UDP_CHAINED_DATA_LEN;
         packet[16] = (ip_packet_len >> 8) as u8;
         packet[17] = ip_packet_len as u8;

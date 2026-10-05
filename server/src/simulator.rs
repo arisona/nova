@@ -35,8 +35,6 @@ struct Stage {
 
     instances: Vec<(f32, f32, f32, f32, f32, f32, f32)>,
     rot: f32,
-
-    last_frame_time: std::time::Instant,
 }
 
 impl Stage {
@@ -92,9 +90,7 @@ impl Stage {
                         vertex: shader::VERTEX,
                         fragment: shader::FRAGMENT,
                     },
-                    Backend::Metal => ShaderSource::Msl {
-                        program: shader::METAL,
-                    },
+                    Backend::Metal => unreachable!("conf() keeps the default OpenGL backend"),
                 },
                 shader::meta(),
             )
@@ -129,16 +125,12 @@ impl Stage {
             bindings,
             instances: Vec::with_capacity(DX * DY * DZ),
             rot: 0.0,
-            last_frame_time: std::time::Instant::now(),
         }
     }
 }
 
 impl EventHandler for Stage {
     fn update(&mut self) {
-        let now = std::time::Instant::now();
-        self.last_frame_time = now;
-
         let rot = Mat3::from_rotation_y(self.rot);
         self.rot += 0.001;
 
@@ -265,9 +257,6 @@ mod shader {
         out_color = color;
     }
     "#;
-
-    // metal currently not supported
-    pub const METAL: &str = "";
 
     pub fn meta() -> ShaderMeta {
         ShaderMeta {

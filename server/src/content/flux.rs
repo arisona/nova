@@ -330,10 +330,10 @@ mod tests {
         let height = PALETTES.len() * (dim.2 * cell + gap) + gap;
         let mut bitmap = vec![12u8; width * height * 3];
         let previous = VoxelImage::new(dim);
-        for row_block in 0..PALETTES.len() {
+        for (row_block, palette) in PALETTES.iter().enumerate() {
             for (col_block, form) in forms.iter().enumerate() {
                 let mut settings = crate::app_state::AppState::default();
-                settings.set_palette(PALETTES[row_block].name);
+                settings.set_palette(palette.name);
                 settings.set_heat(0.5);
                 settings.set_form(*form);
                 settings.set_flow(1.0);

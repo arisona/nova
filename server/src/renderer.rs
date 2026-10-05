@@ -132,13 +132,6 @@ impl Renderer {
 
         state.set_reset(false);
         self.output.copy_scaled_from(&self.next, state.brightness);
-
-        // TODO: move this to a separate content module for debugging
-        // Testing: wait for a random time between 5 and 20 ms
-        // let mut rng = rand::rng();
-        // let random_delay = rng.random_range(5..=100);
-        // log::debug!("Random delay: {random_delay}ms");
-        // std::thread::sleep(Duration::from_millis(random_delay));
     }
 
     pub fn image(&mut self) -> &VoxelImage {

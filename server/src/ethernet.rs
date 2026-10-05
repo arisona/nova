@@ -6,7 +6,6 @@ pub struct Interface {
     capture: pcap::Capture<pcap::Active>,
 }
 
-#[allow(dead_code)]
 impl Interface {
     pub fn new(name: &str, filter: Option<&str>) -> Result<Self, Box<dyn Error>> {
         let address = mac_address::mac_address_by_name(name)?
@@ -54,10 +53,6 @@ impl Interface {
     pub fn address(&self) -> [u8; 6] {
         self.address
     }
-
-    pub fn address_as_string(&self) -> String {
-        mac_address_as_string(self.address)
-    }
 }
 
 fn mac_address_as_string(address: [u8; 6]) -> String {
@@ -65,12 +60,4 @@ fn mac_address_as_string(address: [u8; 6]) -> String {
         "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
         address[0], address[1], address[2], address[3], address[4], address[5]
     )
-}
-
-fn _print_packet(text: &str, packet: &[u8], num_bytes: usize) {
-    print!("{}({}): ", text, packet.len());
-    for byte in &packet[..packet.len().min(num_bytes)] {
-        print!("{byte:02x} ");
-    }
-    println!();
 }
