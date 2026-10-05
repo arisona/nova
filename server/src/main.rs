@@ -7,6 +7,7 @@ mod ethernet;
 mod nova;
 mod renderer;
 mod simulator;
+mod tides;
 mod voxel_image;
 mod web_server;
 

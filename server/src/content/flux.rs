@@ -24,9 +24,16 @@
 //! helpers: S(a) = smoothstep(0, 1, clamp(a, 0, 1))
 //!          noise = 4D simplex (σ ≈ 0.2); each use has its own offset, so fields are independent
 //!
+//! tides (see `crate::tides`): the renderer has already moved heat, flow, form and void
+//! around the sliders. Inside Flux, on the same tide clock T:
+//!          a     = 2^(0.485·tide(T, 43 s))        stretch along z, up to ±40%
+//!          spread × (1 + 0.3·tide(T, 31 s))       colors at once, ±30%
+//!          drift = 0.5·tide(T, 59 s)              dominant colors swing by ± half a color
+//!
 //! vertical motion:
-//!          z′ = z − v·t − D·noise(t / P)          steady rise plus a slow sway (tide) that
-//!                                                 now and then reverses the direction
+//!          z′ = z/a − v·t − D·noise(t / P)        steady rise plus a slow sway that now
+//!                                                 and then reverses the direction; the
+//!                                                 stretch a applies to z only, never to t
 //! fields (fixed frequencies k = (kx, ky, kz), so moving form never zooms the pattern):
 //!          Fᵢ = noise(kx·x, ky·y, kz·z′, τ·t)
 //!                     k                     form    colors
@@ -49,7 +56,7 @@
 //!
 //! color:   n_c = the same blend with its own offset, frequencies × 0.6, slower evolution
 //!          spread = (1 − w)·colorsᵢ + w·colorsᵢ₊₁  palette colors per unit of n_c
-//!          q = ρ·t + spread·n_c                    ρ slowly rotates through the palette
+//!          q = ρ·t + drift + spread·n_c            ρ slowly rotates through the palette
 //!          C(q) = Oklab mix of C[⌊q⌋] and C[⌊q⌋ + 1] by S(q − ⌊q⌋)   (indices wrap)
 //! heat:    saturation 0 at heat 0, palette as published at 0.5, up to 2× at 1
 //!
@@ -58,7 +65,7 @@
 //!
 //! Invariant: nothing may change the coefficient of t (v, τ, ρ are constants). Since t
 //! grows without bound, changing it would make the pattern jump. Variation over time
-//! goes through bounded terms instead, like the sway.
+//! goes through bounded terms instead, like the sway and the tides.
 
 use glam::Vec3;
 use noise::{NoiseFn, Simplex};
@@ -68,6 +75,7 @@ use palette::{IntoColor, Mix, Oklab, Srgb};
 use crate::content::palettes::PALETTES;
 use crate::content::{Content, advance};
 use crate::renderer::RenderState;
+use crate::tides::Tide;
 use crate::voxel_image::VoxelImage;
 
 /// A noise field on the form axis.
@@ -117,6 +125,11 @@ const LUMA: Vec3 = Vec3::new(0.2126, 0.7152, 0.0722);
 
 // Void.
 const VOID_FADE: f32 = 0.25; // share of lit voxels fading in from dark
+
+// Tides inside Flux, on the renderer's tide clock (see `crate::tides`).
+const STRETCH: Tide = Tide::new(43.0, 0.485, [0.6, 2.8]); // along z: 2^offset, up to ±40%
+const SPREAD: Tide = Tide::new(31.0, 0.3, [3.7, 1.2]); // colors at once: ×(1 + offset)
+const DRIFT: Tide = Tide::new(59.0, 0.5, [5.0, 0.4]); // dominant colors: ± half a color
 
 fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
     let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
@@ -273,11 +286,17 @@ impl Content for Flux {
         let palette_len = self.palette.len() as f64;
         let rotation = (COLOR_ROTATION * t).rem_euclid(palette_len) as f32;
 
+        let tide_time = state.tide_seconds();
+        let stretch = 2f64.powf(STRETCH.offset(tide_time) as f64);
+        let spread = spread * (1.0 + SPREAD.offset(tide_time));
+        let rotation = rotation + DRIFT.offset(tide_time);
+
         let dim = next.dim();
         for x in 0..dim.0 {
             for y in 0..dim.1 {
                 for z in 0..dim.2 {
-                    let position = [x as f64, y as f64, z as f64 - lift];
+                    // Stretch only the voxel's own height, never the unbounded lift.
+                    let position = [x as f64, y as f64, z as f64 / stretch - lift];
                     let n = self.field(position, EVOLUTION * t, &weights, 1.0, 0.0);
                     let intensity = smoothstep(void, void + fade, rank(n));
                     if intensity <= 0.0 {

@@ -1,5 +1,6 @@
 use crate::app_state::AppState;
 use crate::content::get_all_content;
+use crate::tides::{self, TideClock};
 use crate::voxel_image::VoxelImage;
 
 pub struct RenderState {
@@ -9,6 +10,7 @@ pub struct RenderState {
     flow: f32,
     form: f32,
     void: f32,
+    tide_seconds: f64,
 
     reset: bool,
 
@@ -24,6 +26,7 @@ impl RenderState {
             flow: state.flow(),
             form: state.form(),
             void: state.void(),
+            tide_seconds: 0.0,
 
             reset: false,
 
@@ -47,6 +50,10 @@ impl RenderState {
     pub fn void(&self) -> f32 {
         self.void
     }
+    /// The tide clock, for tides inside content modules (see `crate::tides`).
+    pub fn tide_seconds(&self) -> f64 {
+        self.tide_seconds
+    }
 
     pub fn should_reset(&self) -> bool {
         self.reset
@@ -67,6 +74,7 @@ pub struct Renderer {
 
     elapsed_time: std::time::Instant,
     delta_time: std::time::Instant,
+    tides: TideClock,
 }
 
 impl Renderer {
@@ -81,6 +89,7 @@ impl Renderer {
 
             elapsed_time: std::time::Instant::now(),
             delta_time: std::time::Instant::now(),
+            tides: TideClock::default(),
         }
     }
 
@@ -99,6 +108,15 @@ impl Renderer {
             self.elapsed_time = std::time::Instant::now();
             elapsed = 0.0;
         }
+
+        // Tides move the effective controls around the user's settings, for every module.
+        self.tides.advance(delta, state.flow);
+        let seconds = self.tides.seconds();
+        state.heat = tides::HEAT.apply(state.heat, seconds);
+        state.flow = tides::FLOW.apply(state.flow, seconds);
+        state.form = tides::FORM.apply(state.form, seconds);
+        state.void = tides::VOID.apply(state.void, seconds);
+        state.tide_seconds = seconds;
 
         std::mem::swap(&mut self.prev, &mut self.next);
 

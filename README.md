@@ -44,7 +44,7 @@ Use one universal control set for all content modules. Keep this order consisten
 ### Design principles
 
 - Use the same controls for every module, with creative interpretations that preserve their shared meaning.
-- `RenderState` only carries values; it must not remap their semantics.
+- `RenderState` only carries values; it must not remap their semantics. The one exception is tides (below): the renderer moves the effective Heat, Flow, Form and Void slightly around the sliders before content renders. Sliders always show the user's setting.
 - Keep the control surface simple. Add presets later if needed.
 - The web app shows icons without text labels, so users discover the controls by exploring. `SHOW_LABELS` in `webapp/src/ControlRow.tsx` turns labels on; screen readers always get them.
 - Hide the content chooser when fewer than two modules are enabled. A sole enabled module is automatically selected.
@@ -75,6 +75,15 @@ The audio callback must not lock application state, allocate, log or access file
 - All motion follows the Flow-integrated phase. Nothing may change the coefficient of that phase, or the pattern jumps; variation over time goes through bounded terms.
 
 Preserve readable structures at 5 x 5 x 10, and sample spatial patterns in voxel units so additional modules show more of the same field rather than a stretched one.
+
+## Tides
+
+Tides are slow, subtle variation brought in by the system rather than the user, defined in `server/src/tides.rs`. Each tide is a smooth, bounded swell of two sines with golden-ratio periods, so it never loops exactly and needs no state; sound can later compute identical values.
+
+- Global tides, applied by the renderer to every content module: Heat (37 s, ±0.08), Flow (23 s, ±0.10), Form (53 s, ±0.06) and Void (29 s, ±0.08). The swing tapers to nothing at 0 and 1, so both extremes stay exact; in particular Flow 0 stays 0.
+- Content modules can run their own tides on the same clock (`RenderState::tide_seconds`). Flux stretches its structures vertically, varies how many colors show at once, and swings which colors dominate.
+- `FREEZE_WITH_FLOW` (on): the tide clock only advances while Flow is above 0, so Flow 0 keeps the display completely still. `TIDE_DEPTH` scales every tide; 0 switches them off.
+- Tides must never change the coefficient of a time term, or patterns jump; they only move bounded values.
 
 ## Color and performance
 
