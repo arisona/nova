@@ -23,9 +23,6 @@ pub const FREEZE_WITH_FLOW: bool = true;
 /// Scales every tide; 0 switches them all off.
 pub const TIDE_DEPTH: f32 = 1.0;
 
-/// Longest frame step the tide clock takes, so a stalled frame never jumps a tide.
-const MAX_STEP_SECONDS: f32 = 0.25;
-
 pub struct Tide {
     period: f64, // seconds
     depth: f32,
@@ -73,10 +70,11 @@ pub struct TideClock {
 }
 
 impl TideClock {
-    /// Advances by a frame's real time; with `FREEZE_WITH_FLOW`, only while Flow is above 0.
+    /// Advances by a frame's time (capped by the renderer); with `FREEZE_WITH_FLOW`, only
+    /// while Flow is above 0.
     pub fn advance(&mut self, delta: f32, flow: f32) {
         if !FREEZE_WITH_FLOW || flow > 0.0 {
-            self.seconds += delta.clamp(0.0, MAX_STEP_SECONDS) as f64;
+            self.seconds += delta as f64;
         }
     }
 
@@ -101,7 +99,7 @@ mod tests {
         let mut clock = TideClock::default();
         clock.advance(0.2, 0.0);
         assert_eq!(clock.seconds(), if FREEZE_WITH_FLOW { 0.0 } else { 0.2 });
-        clock.advance(10.0, 0.5);
-        assert!(clock.seconds() <= 0.2 + MAX_STEP_SECONDS as f64);
+        clock.advance(0.1, 0.5);
+        assert!((clock.seconds() - if FREEZE_WITH_FLOW { 0.1 } else { 0.3 }).abs() < 1e-6);
     }
 }

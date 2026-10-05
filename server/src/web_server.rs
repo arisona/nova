@@ -150,47 +150,55 @@ async fn command(
                 }
             }
             "brightness" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_brightness(parsed_value);
-                }
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                state.set_brightness(parsed_value);
             }
             "volume" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_volume(parsed_value);
-                }
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                state.set_volume(parsed_value);
             }
             "heat" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_heat(parsed_value);
-                }
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                state.set_heat(parsed_value);
             }
             "flow" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_flow(parsed_value);
-                }
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                state.set_flow(parsed_value);
             }
             "form" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_form(parsed_value);
-                }
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                state.set_form(parsed_value);
             }
             "void" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_void(parsed_value);
-                }
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                state.set_void(parsed_value);
             }
             "flip-vertical" => {
-                if let Ok(parsed_value) = value.parse() {
-                    state.set_flip_vertical(parsed_value);
-                }
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                state.set_flip_vertical(parsed_value);
             }
             "ethernet-interface" => {
                 state.set_ethernet_interface(value);
             }
             "module0-address" => {
-                if let Ok(parsed_value) = value.parse()
-                    && !state.set_module0_address(parsed_value)
-                {
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                if !state.set_module0_address(parsed_value) {
                     return HttpResponse::BadRequest();
                 }
             }
@@ -251,7 +259,7 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn unknown_names_are_rejected_without_changes() {
+    async fn unknown_names_and_invalid_values_are_rejected_without_changes() {
         let state = Arc::new(Mutex::new(AppState::default()));
         let app = actix_web::test::init_service(
             App::new()
@@ -269,6 +277,9 @@ mod tests {
             "/api/selected-content?value=Renamed",
             "/api/enabled-content?value=Renamed",
             "/api/enabled-content?value=",
+            "/api/heat?value=warm",
+            "/api/flip-vertical?value=1",
+            "/api/module0-address?value=256",
         ] {
             assert_eq!(status(uri.to_string()).await.status(), 400, "{uri}");
         }

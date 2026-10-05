@@ -1,4 +1,6 @@
 use std::fs;
+use std::io::ErrorKind;
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
@@ -13,25 +15,21 @@ pub enum Status {
     Err(String),
 }
 
+// Content and palettes are referenced by name, so saved settings survive entries being
+// added, removed, reordered or renamed. Missing fields (older or hand-written settings
+// files) fall back to defaults when loading.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AppState {
-    // Content and palettes are referenced by name, so saved settings survive entries
-    // being added, removed, reordered or renamed. Missing fields (older settings files)
-    // fall back to defaults when loading.
-    #[serde(default)]
     enabled_content: Vec<String>,
-    #[serde(default)]
     selected_content: String,
 
     brightness: f32,
     volume: f32,
-    #[serde(default)]
     palette: String,
     heat: f32,
     flow: f32,
     form: f32,
-    // Older settings files have no void; keep them loadable.
-    #[serde(default = "AppState::default_void")]
     void: f32,
     flip_vertical: bool,
 
@@ -39,13 +37,13 @@ pub struct AppState {
     modules: Vec<(usize, usize, u8)>,
     webserver_port: u16,
 
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(skip)]
     available_content: Vec<String>,
 
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(skip)]
     dim: (usize, usize, usize),
 
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(skip)]
     status: Status,
     #[serde(skip)]
     audio_status: Status,
@@ -65,16 +63,35 @@ impl AppState {
     const SETTINGS_FILE: &str = "nova_settings.json";
 
     pub fn load() -> Self {
-        if let Ok(json_string) = fs::read_to_string(Self::SETTINGS_FILE) {
-            if let Ok(saved) = serde_json::from_str::<AppState>(&json_string) {
-                return Self::from_saved(saved);
+        Self::load_from(Path::new(Self::SETTINGS_FILE))
+    }
+
+    /// Loads settings, or starts from defaults and saves them. A file that cannot be
+    /// parsed, such as a hand-edited module layout with a typo, is moved aside rather
+    /// than overwritten.
+    fn load_from(path: &Path) -> Self {
+        match fs::read_to_string(path) {
+            Ok(json_string) => match serde_json::from_str::<AppState>(&json_string) {
+                Ok(saved) => return Self::from_saved(saved),
+                Err(e) => {
+                    let invalid = path.with_extension("json.invalid");
+                    let moved = fs::rename(path, &invalid);
+                    log::error!(
+                        "Failed to parse settings ({e}); {}, using defaults",
+                        match moved {
+                            Ok(()) => format!("moved them to {}", invalid.display()),
+                            Err(e) => format!("cannot move them aside ({e})"),
+                        }
+                    );
+                }
+            },
+            Err(e) if e.kind() == ErrorKind::NotFound => {
+                log::info!("No settings at {}, using defaults", path.display());
             }
-            log::error!("Failed to parse settings, using defaults");
-        } else {
-            log::error!("Failed to load settings, using defaults");
+            Err(e) => log::error!("Failed to load settings ({e}), using defaults"),
         }
         let settings = Self::default();
-        settings.save();
+        settings.save_to(path);
         settings
     }
 
@@ -128,8 +145,12 @@ impl AppState {
     }
 
     pub fn save(&self) {
+        self.save_to(Path::new(Self::SETTINGS_FILE));
+    }
+
+    fn save_to(&self, path: &Path) {
         if let Ok(json_string) = serde_json::to_string_pretty(self) {
-            if let Err(e) = fs::write(Self::SETTINGS_FILE, json_string) {
+            if let Err(e) = fs::write(path, json_string) {
                 log::error!("Failed to save settings: {e}");
             }
         } else {
@@ -261,10 +282,6 @@ impl AppState {
         set_control(&mut self.void, void);
     }
 
-    fn default_void() -> f32 {
-        0.5
-    }
-
     pub fn is_flip_vertical(&self) -> bool {
         self.flip_vertical
     }
@@ -387,7 +404,7 @@ impl Default for AppState {
             heat: 0.5,
             flow: 0.5,
             form: 0.5,
-            void: AppState::default_void(),
+            void: 0.5,
             flip_vertical: false,
             ethernet_interface: "eth0".to_string(),
             modules: vec![(0, 0, AppState::MODULE_DEFAULT_ADDRESS)],
@@ -571,6 +588,36 @@ mod tests {
         assert_eq!(restored.enabled_content(), restored.available_content());
         assert_eq!(restored.selected_content(), restored.available_content()[0]);
         assert_eq!(restored.palette(), PALETTES[0].name);
-        assert_eq!(restored.void(), AppState::default_void());
+        assert_eq!(restored.void(), AppState::default().void());
+    }
+
+    #[test]
+    fn missing_fields_fall_back_to_defaults() {
+        let saved = serde_json::from_str(r#"{ "heat": 0.3, "modules": [[0, 0, 2]] }"#).unwrap();
+        let restored = AppState::from_saved(saved);
+        assert_eq!(restored.heat(), 0.3);
+        assert_eq!(restored.module0_address(), Some(2));
+        assert_eq!(restored.brightness(), AppState::default().brightness());
+        assert_eq!(
+            restored.webserver_port(),
+            AppState::default().webserver_port()
+        );
+    }
+
+    #[test]
+    fn invalid_settings_file_is_moved_aside() {
+        let dir = std::env::temp_dir().join(format!("nova-settings-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("nova_settings.json");
+        let invalid = dir.join("nova_settings.json.invalid");
+        let broken = r#"{ "modules": [[0, 0, 1], [1, 0, 2],] }"#;
+        fs::write(&path, broken).unwrap();
+
+        let state = AppState::load_from(&path);
+        assert_eq!(state.modules(), AppState::default().modules());
+        assert_eq!(fs::read_to_string(&invalid).unwrap(), broken);
+        // Defaults are saved in its place and load again.
+        assert!(serde_json::from_str::<AppState>(&fs::read_to_string(&path).unwrap()).is_ok());
+        fs::remove_dir_all(&dir).unwrap();
     }
 }

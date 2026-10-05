@@ -5,6 +5,10 @@ use crate::content::{Content, get_all_content};
 use crate::tides::{self, TideClock};
 use crate::voxel_image::VoxelImage;
 
+/// Longest frame step the renderer passes on, so a stalled frame never makes content or
+/// tides jump.
+const MAX_FRAME_DELTA_SECONDS: f32 = 0.25;
+
 pub struct RenderState {
     brightness: f32,
     palette: usize,
@@ -96,9 +100,12 @@ impl Renderer {
     }
 
     pub fn render(&mut self, state: &mut RenderState) {
-        //log::debug!("renderer: rendering frame {delta}");
         let mut elapsed = self.elapsed_time.elapsed().as_secs_f32();
-        let delta = self.delta_time.elapsed().as_secs_f32();
+        let delta = self
+            .delta_time
+            .elapsed()
+            .as_secs_f32()
+            .min(MAX_FRAME_DELTA_SECONDS);
         self.delta_time = Instant::now();
 
         let selected_index = state.selected_content_index.min(self.content.len() - 1);

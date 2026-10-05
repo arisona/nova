@@ -4,10 +4,11 @@ use crate::voxel_image::VoxelImage;
 mod flux;
 
 const FLOW_SPEED_MULTIPLIER: f32 = 10.0;
-const MAX_FRAME_DELTA_SECONDS: f32 = 0.25;
 
 pub trait Content {
     fn name(&self) -> &str;
+    /// `elapsed` is the time since this module was selected; `delta` is the frame time,
+    /// capped by the renderer so a stalled frame never jumps.
     fn render(
         &mut self,
         state: &RenderState,
@@ -36,8 +37,7 @@ pub fn advance(phase: &mut f64, state: &RenderState, delta: f32) -> f32 {
     if state.should_reset() {
         *phase = 0.0;
     } else {
-        *phase += (FLOW_SPEED_MULTIPLIER * state.flow() * delta.clamp(0.0, MAX_FRAME_DELTA_SECONDS))
-            as f64;
+        *phase += (FLOW_SPEED_MULTIPLIER * state.flow() * delta) as f64;
     }
     *phase as f32
 }

@@ -184,6 +184,7 @@ All settings are stored in `nova_settings.json`. Example:
 
 - `modules`: list of `[x, y, address]` tuples: the module's position in the grid (x and y from 0) and its jumper address. A single module can be configured in the web app (interface and address). A layout of several modules is configured here only; the web app then shows the address as not configurable and the API rejects changes to it. Each module shows its own 5 × 5 × 10 part of the image, and addresses must be unique.
 - Other fields mirror UI controls.
+- Missing fields fall back to defaults. A file that cannot be parsed is moved to `nova_settings.json.invalid`, and the server starts with defaults.
 - Content and palettes are stored by name. Unknown names (for example after a rename) fall back when loading: content to all modules enabled and the first one selected, the palette to the first palette. Older settings files with `tone` or content indices still load.
 - GET `/api/get-state` exposes `brightness`, `volume`, `palette`, `heat`, `flow`, `form`, and `void`. SET via GET `/api/{control}?value=<0..1>` persists a value; see the [README](../README.md#control-api) for name-based selection.
 
