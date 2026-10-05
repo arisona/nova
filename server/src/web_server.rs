@@ -23,7 +23,8 @@ fn debounce_save(pending: &PendingSave, save: impl FnOnce() + 'static) {
     }));
 }
 
-pub fn run_server(state: Arc<Mutex<AppState>>) {
+/// Starts the web server on its own thread and returns.
+pub fn start(state: Arc<Mutex<AppState>>) {
     // we are running the web server in a separate thread, so we can still use the main thread for the simulator
     thread::spawn(move || {
         let sys = actix_web::rt::System::new();
@@ -68,7 +69,7 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "flow": state.flow(),
         "form": state.form(),
         "void": state.void(),
-        "flip-vertical": state.is_flip_vertical(),
+        "flip-vertical": state.flip_vertical(),
         "ethernet-interface": state.ethernet_interface(),
         // -1 tells the web app that a layout of several modules is not configurable there.
         "module0-address": state.module0_address().map_or(-1, i32::from),

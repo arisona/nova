@@ -224,7 +224,7 @@ To add a new effect:
 
 1. Create a struct in `server/src/content/`.
 2. Implement `Content` for it.
-3. Register it in `get_all_content()`.
+3. Register it in `all_content()`.
 
 For examples, refer to existing content in `server/src/content/`.
 

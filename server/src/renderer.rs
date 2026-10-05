@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::app_state::AppState;
-use crate::content::{Content, get_all_content};
+use crate::content::{Content, all_content};
 use crate::tides::{self, TideClock};
 use crate::voxel_image::VoxelImage;
 
@@ -88,7 +88,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(dim: (usize, usize, usize)) -> Self {
         Self {
-            content: get_all_content(),
+            content: all_content(),
             selected_content_index: usize::MAX,
 
             prev: VoxelImage::new(dim),

@@ -21,15 +21,12 @@ pub trait Content {
 
 /// Content modules in display order. Settings and the API refer to them by name: keep
 /// names unique and free of commas.
-pub fn get_all_content() -> Vec<Box<dyn Content>> {
+pub fn all_content() -> Vec<Box<dyn Content>> {
     vec![Box::new(flux::Flux::new())]
 }
 
-pub fn get_all_content_names() -> Vec<String> {
-    let names: Vec<String> = get_all_content()
-        .iter()
-        .map(|c| c.name().to_string())
-        .collect();
+pub fn all_content_names() -> Vec<String> {
+    let names: Vec<String> = all_content().iter().map(|c| c.name().to_string()).collect();
     assert!(!names.is_empty());
     names
 }
@@ -99,7 +96,7 @@ mod tests {
                     settings.set_heat(value);
                     settings.set_void(value);
                     let previous = VoxelImage::new(dim);
-                    for mut content in get_all_content() {
+                    for mut content in all_content() {
                         let name = content.name().to_string();
                         let mut image = VoxelImage::new(dim);
                         let mut still = RenderState::from(&settings);

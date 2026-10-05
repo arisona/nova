@@ -8,17 +8,18 @@ use crate::ethernet::Interface;
 use crate::renderer::{RenderState, Renderer};
 use crate::voxel_image::VoxelImage;
 
-pub fn run_nova_hardware(app_state: Arc<Mutex<AppState>>, renderer: Renderer) {
+/// Drives the Nova hardware on the calling thread. Never returns.
+pub fn run(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova hardware driver already running.");
 
     log::info!("Starting Nova hardware driver.");
 
-    app_state
+    state
         .lock()
         .unwrap()
         .set_status(Status::Ok("Nova hardware starting up.".to_string()));
 
-    NovaHardware::new(app_state, renderer).run();
+    NovaHardware::new(state, renderer).run();
 }
 
 // Legacy note: the 50Hz loop runs in two cycles: one to send pixels and another to shift pixels on the hardware.
@@ -29,16 +30,16 @@ enum SyncMode {
 }
 
 struct NovaHardware {
-    app_state: Arc<Mutex<AppState>>,
+    state: Arc<Mutex<AppState>>,
     renderer: Renderer,
 
     ready_modules: HashMap<u8, Instant>,
 }
 
 impl NovaHardware {
-    fn new(app_state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
+    fn new(state: Arc<Mutex<AppState>>, renderer: Renderer) -> Self {
         Self {
-            app_state,
+            state,
             renderer,
             ready_modules: HashMap::new(),
         }
@@ -54,10 +55,10 @@ impl NovaHardware {
             // Retry loop for opening the interface
             loop {
                 let (interface_name, modules) = {
-                    let app_state = self.app_state.lock().unwrap();
+                    let state = self.state.lock().unwrap();
                     (
-                        app_state.ethernet_interface().to_string(),
-                        app_state.modules().to_vec(),
+                        state.ethernet_interface().to_string(),
+                        state.modules().to_vec(),
                     )
                 };
 
@@ -68,25 +69,19 @@ impl NovaHardware {
                         interface = iface;
 
                         // Successfully opened interface
-                        self.app_state
-                            .lock()
-                            .unwrap()
-                            .set_status(Status::Ok(format!(
-                                "Resetting all modules at interface {interface_name}."
-                            )));
+                        self.state.lock().unwrap().set_status(Status::Ok(format!(
+                            "Resetting all modules at interface {interface_name}."
+                        )));
 
-                        let image = VoxelImage::new(self.app_state.lock().unwrap().dim());
+                        let image = VoxelImage::new(self.state.lock().unwrap().dim());
                         self.reset_modules(&mut interface, &modules, &image);
                         log::info!("Module reset complete.");
                         break;
                     }
                     Err(err) => {
-                        self.app_state
-                            .lock()
-                            .unwrap()
-                            .set_status(Status::Err(format!(
-                                "Cannot open interface {interface_name}.",
-                            )));
+                        self.state.lock().unwrap().set_status(Status::Err(format!(
+                            "Cannot open interface {interface_name}.",
+                        )));
                         log::warn!("Failed to open interface {interface_name}: {err}. Retrying...");
                         std::thread::sleep(INTERFACE_RETRY_PERIOD);
                     }
@@ -101,15 +96,15 @@ impl NovaHardware {
             let mut sync_time = Instant::now();
             let mut status_time = Instant::now();
             loop {
-                // Make sure app_state is unlocked quickly otherwise webserver thread will starve
+                // Make sure state is unlocked quickly otherwise webserver thread will starve
                 let (interface_name, modules, mut render_state, flip, reset_requested) = {
-                    let mut app_state = self.app_state.lock().unwrap();
+                    let mut state = self.state.lock().unwrap();
                     (
-                        app_state.ethernet_interface().to_string(),
-                        app_state.modules().to_vec(),
-                        RenderState::from(&*app_state),
-                        app_state.is_flip_vertical(),
-                        app_state.take_hardware_reset_request(),
+                        state.ethernet_interface().to_string(),
+                        state.modules().to_vec(),
+                        RenderState::from(&*state),
+                        state.flip_vertical(),
+                        state.take_hardware_reset_request(),
                     )
                 };
 
@@ -146,8 +141,10 @@ impl NovaHardware {
                         .filter(|t| now.duration_since(**t) < MODULE_READY_TIMEOUT)
                         .count();
                     log::debug!("Status update: {num_ready_modules} of {num_modules} ready.");
-                    self.app_state.lock().unwrap().set_status(
-                        if num_modules == num_ready_modules {
+                    self.state
+                        .lock()
+                        .unwrap()
+                        .set_status(if num_modules == num_ready_modules {
                             Status::Ok(format!(
                                 "{num_ready_modules} of {num_modules} modules ready."
                             ))
@@ -155,8 +152,7 @@ impl NovaHardware {
                             Status::Err(format!(
                                 "{num_ready_modules} of {num_modules} modules ready."
                             ))
-                        },
-                    );
+                        });
                 }
 
                 // Handle received status packets

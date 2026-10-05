@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::content::get_all_content_names;
+use crate::content::all_content_names;
 use crate::palettes::PALETTES;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -158,7 +158,7 @@ impl AppState {
         }
     }
 
-    /// Content module names, in the order of `get_all_content()`.
+    /// Content module names, in the order of `all_content()`.
     pub fn available_content(&self) -> &[String] {
         &self.available_content
     }
@@ -282,7 +282,7 @@ impl AppState {
         set_control(&mut self.void, void);
     }
 
-    pub fn is_flip_vertical(&self) -> bool {
+    pub fn flip_vertical(&self) -> bool {
         self.flip_vertical
     }
 
@@ -392,7 +392,7 @@ fn set_control(control: &mut f32, value: f32) {
 
 impl Default for AppState {
     fn default() -> Self {
-        let available_content = get_all_content_names();
+        let available_content = all_content_names();
         Self {
             enabled_content: available_content.clone(),
             selected_content: available_content[0].clone(),

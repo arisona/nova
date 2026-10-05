@@ -53,12 +53,12 @@ fn main() {
         None
     };
 
-    web_server::run_server(Arc::clone(&state));
+    web_server::start(Arc::clone(&state));
 
     let renderer = renderer::Renderer::new(state.lock().unwrap().dim());
     if ENABLE_SIMULATOR {
-        simulator::run_simulator(Arc::clone(&state), renderer);
+        simulator::run(Arc::clone(&state), renderer);
     } else {
-        nova::run_nova_hardware(Arc::clone(&state), renderer);
+        nova::run(Arc::clone(&state), renderer);
     }
 }

@@ -11,7 +11,8 @@ use crate::renderer::{RenderState, Renderer};
 const VOXEL_SPACING: f32 = 4.0;
 const VOXEL_HALF_SIZE: f32 = 1.0;
 
-pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
+/// Runs the simulator window on the calling (main) thread. Never returns.
+pub fn run(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova simulator already running.");
 
     log::info!("Starting Nova simulator.");
@@ -25,7 +26,7 @@ pub fn run_simulator(state: Arc<Mutex<AppState>>, renderer: Renderer) {
 }
 
 struct Stage {
-    app_state: Arc<Mutex<AppState>>,
+    state: Arc<Mutex<AppState>>,
     renderer: Renderer,
 
     ctx: Box<dyn RenderingBackend>,
@@ -118,7 +119,7 @@ impl Stage {
         );
 
         Self {
-            app_state: state,
+            state,
             renderer,
             ctx,
             pipeline,
@@ -135,8 +136,8 @@ impl EventHandler for Stage {
         self.rot += 0.001;
 
         let (mut render_state, flip) = {
-            let app_state = self.app_state.lock().unwrap();
-            (RenderState::from(&*app_state), app_state.is_flip_vertical())
+            let state = self.state.lock().unwrap();
+            (RenderState::from(&*state), state.flip_vertical())
         };
         self.renderer.render(&mut render_state);
 
