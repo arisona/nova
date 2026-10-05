@@ -1,12 +1,14 @@
-use actix_web::web::Data;
-use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
-use include_dir::{Dir, include_dir};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+use actix_web::web::Data;
+use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
+use include_dir::{Dir, include_dir};
+
 use crate::app_state::{AppState, Status};
-use crate::content::palettes::PALETTES;
+use crate::palettes::PALETTES;
 
 type PendingSave = Mutex<Option<actix_web::rt::task::JoinHandle<()>>>;
 
@@ -21,7 +23,7 @@ fn debounce_save(pending: &PendingSave, save: impl FnOnce() + 'static) {
     }));
 }
 
-pub fn run_server(state: Arc<Mutex<super::app_state::AppState>>) {
+pub fn run_server(state: Arc<Mutex<AppState>>) {
     // we are running the web server in a separate thread, so we can still use the main thread for the simulator
     thread::spawn(move || {
         let sys = actix_web::rt::System::new();
@@ -121,7 +123,7 @@ async fn command(
     data: web::Data<Arc<Mutex<AppState>>>,
     pending_save: web::Data<PendingSave>,
     command: web::Path<String>,
-    query: web::Query<std::collections::HashMap<String, String>>,
+    query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
     let mut state = data.lock().unwrap();
     if let Some(value) = query.get("value") {

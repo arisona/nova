@@ -4,15 +4,14 @@ mod app_state;
 mod audio;
 mod content;
 mod ethernet;
+mod macros;
 mod nova;
+mod palettes;
 mod renderer;
 mod simulator;
 mod tides;
 mod voxel_image;
 mod web_server;
-
-#[macro_use]
-mod macros;
 
 const ENABLE_SIMULATOR: bool = true;
 const ENABLE_AUDIO: bool = true;
@@ -39,7 +38,7 @@ fn main() {
     log::debug!("Using settings:\n{:#?}", *state.lock().unwrap());
 
     let _audio = if ENABLE_AUDIO {
-        audio::output::AudioService::start(Arc::clone(&state))
+        audio::AudioService::start(Arc::clone(&state))
             .map_err(|error| {
                 log::error!("Cannot start audio service: {error}");
                 state

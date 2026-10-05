@@ -1,8 +1,7 @@
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 
-pub mod flux;
-pub mod palettes;
+mod flux;
 
 const FLOW_SPEED_MULTIPLIER: f32 = 10.0;
 const MAX_FRAME_DELTA_SECONDS: f32 = 0.25;
@@ -47,7 +46,7 @@ pub fn advance(phase: &mut f64, state: &RenderState, delta: f32) -> f32 {
 mod tests {
     use super::*;
     use crate::app_state::AppState;
-    use crate::content::palettes::PALETTES;
+    use crate::palettes::PALETTES;
     use glam::Vec3;
 
     #[test]

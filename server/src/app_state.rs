@@ -3,7 +3,7 @@ use std::fs;
 use serde::{Deserialize, Serialize};
 
 use crate::content::get_all_content_names;
-use crate::content::palettes::PALETTES;
+use crate::palettes::PALETTES;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum Status {

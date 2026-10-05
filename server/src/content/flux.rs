@@ -72,8 +72,8 @@ use noise::{NoiseFn, Simplex};
 use palette::convert::IntoColorUnclamped;
 use palette::{IntoColor, Mix, Oklab, Srgb};
 
-use crate::content::palettes::PALETTES;
 use crate::content::{Content, advance};
+use crate::palettes::PALETTES;
 use crate::renderer::RenderState;
 use crate::tides::Tide;
 use crate::voxel_image::VoxelImage;

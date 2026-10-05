@@ -1,13 +1,11 @@
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use glam::{Mat3, vec3, vec4};
 use miniquad::conf::Icon;
 use miniquad::*;
 
-use crate::check_run_once;
-
 use crate::app_state::{AppState, Status};
+use crate::check_run_once;
 use crate::renderer::{RenderState, Renderer};
 
 const VOXEL_SPACING: f32 = 4.0;

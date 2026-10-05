@@ -122,7 +122,7 @@ Every content module uses the same expressive controls:
 | Form    | Structure, from horizontal layers through columns, blobs and patches to per-voxel grain. Also sets how many colors show at once. |
 | Void    | Fraction of the volume left dark. Lit voxels keep the same brightness at any value.                                           |
 
-Palettes live in `server/src/content/palettes.rs`, listed by hue; neighbouring palette colors are mixed in Oklab. `doc/palettes.svg` shows them all. Neither Heat nor Form normalizes total emitted light, so changes in color and occupied space can still affect perceived brightness.
+Palettes live in `server/src/palettes.rs`, listed by hue; neighbouring palette colors are mixed in Oklab. `doc/palettes.svg` shows them all. Neither Heat nor Form normalizes total emitted light, so changes in color and occupied space can still affect perceived brightness.
 
 ### Content
 

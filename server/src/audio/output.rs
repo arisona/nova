@@ -12,7 +12,7 @@ use cpal::{
 
 use super::{AudioControls, Synth};
 use crate::app_state::{AppState, Status};
-use crate::content::palettes::PALETTES;
+use crate::palettes::PALETTES;
 
 /// Until the sound is reworked, the selected palette's position in the list stands in
 /// for the old Tone control.

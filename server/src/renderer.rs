@@ -1,5 +1,7 @@
+use std::time::Instant;
+
 use crate::app_state::AppState;
-use crate::content::get_all_content;
+use crate::content::{Content, get_all_content};
 use crate::tides::{self, TideClock};
 use crate::voxel_image::VoxelImage;
 
@@ -65,15 +67,15 @@ impl RenderState {
 }
 
 pub struct Renderer {
-    content: Vec<Box<dyn crate::content::Content>>,
+    content: Vec<Box<dyn Content>>,
     selected_content_index: usize,
 
     prev: VoxelImage,
     next: VoxelImage,
     output: VoxelImage,
 
-    elapsed_time: std::time::Instant,
-    delta_time: std::time::Instant,
+    elapsed_time: Instant,
+    delta_time: Instant,
     tides: TideClock,
 }
 
@@ -87,8 +89,8 @@ impl Renderer {
             next: VoxelImage::new(dim),
             output: VoxelImage::new(dim),
 
-            elapsed_time: std::time::Instant::now(),
-            delta_time: std::time::Instant::now(),
+            elapsed_time: Instant::now(),
+            delta_time: Instant::now(),
             tides: TideClock::default(),
         }
     }
@@ -97,7 +99,7 @@ impl Renderer {
         //log::debug!("renderer: rendering frame {delta}");
         let mut elapsed = self.elapsed_time.elapsed().as_secs_f32();
         let delta = self.delta_time.elapsed().as_secs_f32();
-        self.delta_time = std::time::Instant::now();
+        self.delta_time = Instant::now();
 
         let selected_index = state.selected_content_index.min(self.content.len() - 1);
         if selected_index != self.selected_content_index {
@@ -105,7 +107,7 @@ impl Renderer {
             state.set_reset(true);
             self.prev.clear();
             self.next.clear();
-            self.elapsed_time = std::time::Instant::now();
+            self.elapsed_time = Instant::now();
             elapsed = 0.0;
         }
 

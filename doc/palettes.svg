@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1132" height="2356" viewBox="0 0 1132 2356" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
 <rect width="100%" height="100%" fill="#F3F2EE"/>
 <text x="48" y="56" font-size="30" font-weight="700" fill="#1C1B19">Nova palettes</text>
-<text x="48" y="84" font-size="15" fill="#6D6A62">12 palettes, ordered by the hue of their most saturated color · Pantone FHI (TCX) colors · generated from server/src/content/palettes.rs</text>
+<text x="48" y="84" font-size="15" fill="#6D6A62">12 palettes, ordered by the hue of their most saturated color · Pantone FHI (TCX) colors · generated from server/src/palettes.rs</text>
 <text x="48" y="138" font-size="13" font-weight="600" fill="#9A968C">01</text>
 <text x="48" y="164" font-size="21" font-weight="700" fill="#1C1B19">Uluwatu Wipeout</text>
 <g transform="translate(278,104)">

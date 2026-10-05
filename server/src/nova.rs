@@ -1,11 +1,9 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::check_run_once;
-
 use crate::app_state::{AppState, Status};
+use crate::check_run_once;
 use crate::ethernet::Interface;
 use crate::renderer::{RenderState, Renderer};
 use crate::voxel_image::VoxelImage;

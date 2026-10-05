@@ -257,7 +257,7 @@ mod tests {
             r##"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
 <rect width="100%" height="100%" fill="#F3F2EE"/>
 <text x="{MARGIN}" y="{y1}" font-size="30" font-weight="700" fill="#1C1B19">Nova palettes</text>
-<text x="{MARGIN}" y="{y2}" font-size="15" fill="#6D6A62">{count} palettes, ordered by the hue of their most saturated color · Pantone FHI (TCX) colors · generated from server/src/content/palettes.rs</text>
+<text x="{MARGIN}" y="{y2}" font-size="15" fill="#6D6A62">{count} palettes, ordered by the hue of their most saturated color · Pantone FHI (TCX) colors · generated from server/src/palettes.rs</text>
 "##,
             y1 = MARGIN + 8,
             y2 = MARGIN + 36,
