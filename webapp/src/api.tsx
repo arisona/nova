@@ -13,12 +13,11 @@ interface ApiSettingValues {
   form: number;
   void: number;
   'flip-vertical': boolean;
-  'ethernet-interface': string;
   'module0-address': number;
 }
 
 export const apiSet = (id: ApiCommand) => {
-  return fetch(`/api/${id}`);
+  return fetch(`/api/${id}`, { method: 'POST' });
 };
 
 type Listener = () => void;
@@ -38,7 +37,8 @@ export const apiSetValue = <Setting extends keyof ApiSettingValues>(
   value: ApiSettingValues[Setting]
 ) => {
   void fetch(
-    `/api/${encodeURIComponent(id)}?value=${encodeURIComponent(String(value))}`
+    `/api/${encodeURIComponent(id)}?value=${encodeURIComponent(String(value))}`,
+    { method: 'POST' }
   )
     .then((response) => {
       if (!response.ok) {
@@ -65,7 +65,6 @@ interface ApiStateResponse {
   form: number;
   void: number;
   'flip-vertical': boolean;
-  'ethernet-interface': string;
   'module0-address': string;
 }
 
@@ -160,8 +159,6 @@ export const apiGetState = async (): Promise<NovaState | null> => {
       form: payload.form ?? defaultNovaState.form,
       void: payload.void ?? defaultNovaState.void,
       flip: payload['flip-vertical'] ?? defaultNovaState.flip,
-      ethernetInterface:
-        payload['ethernet-interface'] ?? defaultNovaState.ethernetInterface,
       module0Address:
         payload['module0-address'] ?? defaultNovaState.module0Address,
     };

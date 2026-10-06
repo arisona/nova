@@ -76,7 +76,7 @@ npm run dev
 ```
 
 - `modules` lists `[x, y, address]` per module: its grid position and its jumper address (see [addressing](nova_protocol.md#module-addressing)). Addresses must be unique. A single module can be set up in the web app; a layout of several modules only here, and the web app then shows the address as not configurable.
-- `webserver_port`, `simulator`, and `audio` can only be changed here; restart the server afterwards. `simulator` shows the desktop simulator instead of driving the hardware; both use the same renderer. `audio` starts the audio service; while it is off or failing, the web app hides Volume.
+- `ethernet_interface`, `webserver_port`, `simulator`, and `audio` can only be changed here; restart the server afterwards. `simulator` shows the desktop simulator instead of driving the hardware; both use the same renderer. `audio` starts the audio service; while it is off or failing, the web app hides Volume.
 - Missing fields fall back to defaults. A file that cannot be parsed is moved to `nova_settings.json.invalid`, and the server starts with defaults.
 - Content and palettes are stored by name. Unknown names fall back: content to all modules enabled and the first selected, the palette to the first palette.
 

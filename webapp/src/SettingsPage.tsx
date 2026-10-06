@@ -4,7 +4,6 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  FormGroup,
   IconButton,
   InputLabel,
   List,
@@ -61,44 +60,26 @@ export const SettingsPage = ({
     setState((prevState) => ({ ...prevState, flip: flip }));
   };
 
-  const [ethernetInterfaceInputState, setEthernetInterfaceInputState] =
+  const [moduleAddressInputState, setModuleAddressInputState] =
     React.useState<string>('');
 
-  const handleEthernetInterfaceChange = (
+  const handleModuleAddressChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const eif = event.target.value;
-    if (eif === '') {
-      setEthernetInterfaceInputState(
-        'Enter a valid interface name (e.g. eth0)'
-      );
-    } else {
-      setEthernetInterfaceInputState('');
-      apiSetValue('ethernet-interface', eif);
-    }
-    setState((prevState) => ({ ...prevState, ethernetInterface: eif }));
-  };
-
-  const [ethernetAddressInputState, setEthernetAddressInputState] =
-    React.useState<string>('');
-
-  const handleEthernetAddressChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const eaddr = event.target.value;
+    const address = event.target.value;
     if (+state.module0Address === -1) {
-      setEthernetAddressInputState('Not configurable');
+      setModuleAddressInputState('Not configurable');
       return;
     }
 
-    if (eaddr === '' || isNaN(+eaddr) || +eaddr < 1 || +eaddr > 255) {
-      setEthernetAddressInputState('Enter a valid module address (e.g. 1)');
+    if (address === '' || isNaN(+address) || +address < 1 || +address > 255) {
+      setModuleAddressInputState('Enter a valid module address (e.g. 1)');
     } else {
-      setEthernetAddressInputState('');
-      apiSetValue('module0-address', +eaddr);
+      setModuleAddressInputState('');
+      apiSetValue('module0-address', +address);
     }
-    if (+eaddr !== -1)
-      setState((prevState) => ({ ...prevState, module0Address: eaddr }));
+    if (+address !== -1)
+      setState((prevState) => ({ ...prevState, module0Address: address }));
   };
 
   const handleRestore = () => {
@@ -109,8 +90,7 @@ export const SettingsPage = ({
       })
       .then((restoredState) => {
         if (restoredState) setState(restoredState);
-        setEthernetInterfaceInputState('');
-        setEthernetAddressInputState('');
+        setModuleAddressInputState('');
       })
       .catch((error: unknown) => {
         console.error('Restore defaults failed:', error);
@@ -181,37 +161,29 @@ export const SettingsPage = ({
         </List>{' '}
       </Box>
 
-      <FormGroup sx={{ pt: 1, mb: 8 }}>
-        <FormControlLabel
-          control={<Switch checked={state.flip} onChange={handleFlipChange} />}
-          label="Flip content vertically"
-        />
-      </FormGroup>
-
-      <InputLabel id="network-settings-label" sx={{ mb: 2 }}>
-        Ethernet settings (reload server to apply changes)
-      </InputLabel>
-      <Stack spacing={2} direction="row" sx={{ mb: 8 }}>
+      <Stack
+        spacing={2}
+        direction="row"
+        sx={{ pt: 1, mb: 8, alignItems: 'flex-start' }}
+      >
         <TextField
-          fullWidth
-          label="Ethernet interface"
-          value={state.ethernetInterface}
-          onChange={handleEthernetInterfaceChange}
-          error={ethernetInterfaceInputState !== ''}
-          helperText={ethernetInterfaceInputState}
-        />
-        <TextField
-          fullWidth
-          label="Module address"
+          sx={{ flex: 1 }}
+          label="Module 0 address"
           value={
             +state.module0Address === -1
               ? 'Not configurable'
               : state.module0Address
           }
-          onChange={handleEthernetAddressChange}
+          onChange={handleModuleAddressChange}
           disabled={+state.module0Address === -1}
-          error={ethernetAddressInputState !== ''}
-          helperText={ethernetAddressInputState}
+          error={moduleAddressInputState !== ''}
+          helperText={moduleAddressInputState}
+        />
+        <FormControlLabel
+          // The height of the text field's input, so the switch centres on it.
+          sx={{ flex: 1, height: 56 }}
+          control={<Switch checked={state.flip} onChange={handleFlipChange} />}
+          label="Flip content vertically"
         />
       </Stack>
 

@@ -382,8 +382,8 @@ impl AppState {
     }
 
     /// Restores default settings, keeping runtime status and what can only be configured
-    /// in the settings file: the web server port, the simulator and audio switches, and
-    /// a layout of more than one module.
+    /// in the settings file: the Ethernet interface, the web server port, the simulator
+    /// and audio switches, and a layout of more than one module.
     pub fn restore_defaults(&mut self) {
         let defaults = Self::default();
         let (modules, dim) = if self.modules.len() > 1 {
@@ -394,6 +394,7 @@ impl AppState {
         *self = Self {
             modules,
             dim,
+            ethernet_interface: std::mem::take(&mut self.ethernet_interface),
             webserver_port: self.webserver_port,
             simulator: self.simulator,
             audio: self.audio,
@@ -546,7 +547,7 @@ mod tests {
         state.restore_defaults();
         // A single module is reset completely; its address can be set in the web app.
         assert_eq!(state.heat(), 0.5);
-        assert_eq!(state.ethernet_interface(), "eth0");
+        assert_eq!(state.ethernet_interface(), "en7");
         assert_eq!(
             state.modules(),
             &vec![(0, 0, AppState::MODULE_DEFAULT_ADDRESS)]

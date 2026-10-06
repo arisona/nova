@@ -30,7 +30,6 @@ export interface NovaState {
   form: number;
   void: number;
   flip: boolean;
-  ethernetInterface: string;
   module0Address: string;
 }
 
@@ -47,7 +46,6 @@ export const defaultNovaState: NovaState = {
   form: 0.5,
   void: 0.5,
   flip: false,
-  ethernetInterface: 'eth0',
   module0Address: '1',
 };
 

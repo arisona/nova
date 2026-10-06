@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use actix_web::web::Data;
-use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
+use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, post, web};
 use include_dir::{Dir, include_dir};
 
 use crate::app_state::{AppState, Status};
@@ -72,7 +73,6 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "form": state.form(),
         "void": state.void(),
         "flip-vertical": state.flip_vertical(),
-        "ethernet-interface": state.ethernet_interface(),
         // -1 tells the web app that a layout of several modules is not configurable there.
         "module0-address": state.module0_address().map_or(-1, i32::from),
     }))
@@ -122,13 +122,62 @@ async fn get_status(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
     }))
 }
 
-#[get("/api/{command}")]
+/// Whether a change may come from this request. Browsers send `Sec-Fetch-Site` (or, in
+/// older versions, `Origin`), so a page on another site cannot change settings through a
+/// visitor's browser (cross-site request forgery). The host must be local, so such a page
+/// cannot pose as this server under its own domain either (DNS rebinding). Clients other
+/// than browsers, such as curl, send none of these headers and are allowed.
+fn is_trusted(request: &HttpRequest) -> bool {
+    let header = |name: &str| {
+        request
+            .headers()
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+    };
+    let host = header("host");
+    if host.is_some_and(|host| !is_local_host(host)) {
+        return false;
+    }
+    match (header("sec-fetch-site"), header("origin")) {
+        (Some(site), _) => site == "same-origin",
+        (None, Some(origin)) => origin
+            .split_once("://")
+            .is_some_and(|(_, origin_host)| Some(origin_host) == host),
+        (None, None) => true,
+    }
+}
+
+/// Whether a `Host` header, with or without port, names a machine on the local network:
+/// an IP address, a name without dots such as `localhost`, or a name under a domain
+/// reserved for local networks. Anyone can point a public name at a local address.
+fn is_local_host(host: &str) -> bool {
+    if let Some(bracketed) = host.strip_prefix('[') {
+        return bracketed
+            .split_once(']')
+            .is_some_and(|(address, _)| address.parse::<Ipv6Addr>().is_ok());
+    }
+    let name = host.split_once(':').map_or(host, |(name, _)| name);
+    let name = name.trim_end_matches('.').to_ascii_lowercase();
+    !name.is_empty()
+        && (name.parse::<Ipv4Addr>().is_ok()
+            || !name.contains('.')
+            || [".local", ".lan", ".home.arpa", ".internal", ".localhost"]
+                .iter()
+                .any(|suffix| name.ends_with(suffix)))
+}
+
+#[post("/api/{command}")]
 async fn command(
+    request: HttpRequest,
     data: web::Data<Arc<Mutex<AppState>>>,
     pending_save: web::Data<PendingSave>,
     command: web::Path<String>,
     query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
+    if !is_trusted(&request) {
+        log::warn!("Rejected untrusted request to /api/{command}");
+        return HttpResponse::Forbidden();
+    }
     let mut state = data.lock().unwrap();
     if let Some(value) = query.get("value") {
         log::debug!("command: {command} value: {value}");
@@ -194,9 +243,6 @@ async fn command(
                 };
                 state.set_flip_vertical(parsed_value);
             }
-            "ethernet-interface" => {
-                state.set_ethernet_interface(value);
-            }
             "module0-address" => {
                 let Ok(parsed_value) = value.parse() else {
                     return HttpResponse::BadRequest();
@@ -251,7 +297,7 @@ mod tests {
                 .service(command),
         )
         .await;
-        let request = actix_web::test::TestRequest::get()
+        let request = actix_web::test::TestRequest::post()
             .uri("/api/reset")
             .to_request();
         let response = actix_web::test::call_service(&app, request).await;
@@ -272,7 +318,7 @@ mod tests {
         )
         .await;
         let status = |uri: String| {
-            let request = actix_web::test::TestRequest::get().uri(&uri).to_request();
+            let request = actix_web::test::TestRequest::post().uri(&uri).to_request();
             actix_web::test::call_service(&app, request)
         };
         for uri in [
@@ -293,6 +339,123 @@ mod tests {
         );
         assert!(status(uri).await.status().is_success());
         assert_eq!(state.lock().unwrap().palette(), PALETTES[1].name);
+    }
+
+    #[actix_web::test]
+    async fn changes_from_other_sites_and_hosts_are_rejected() {
+        let state = Arc::new(Mutex::new(AppState::default()));
+        let app = actix_web::test::init_service(
+            App::new()
+                .app_data(Data::new(Arc::clone(&state)))
+                .app_data(Data::new(PendingSave::default()))
+                .service(command),
+        )
+        .await;
+        let status = |headers: &[(&'static str, &'static str)]| {
+            let mut request = actix_web::test::TestRequest::post().uri("/api/heat?value=0.9");
+            for &header in headers {
+                request = request.insert_header(header);
+            }
+            actix_web::test::call_service(&app, request.to_request())
+        };
+        for headers in [
+            &[
+                ("host", "nova.local:8080"),
+                ("sec-fetch-site", "cross-site"),
+            ][..],
+            &[("host", "nova.local:8080"), ("sec-fetch-site", "same-site")],
+            &[
+                ("host", "nova.local:8080"),
+                ("origin", "http://example.com"),
+            ],
+            &[
+                ("host", "rebind.example.com:8080"),
+                ("sec-fetch-site", "same-origin"),
+            ],
+        ] {
+            assert_eq!(status(headers).await.status(), 403, "{headers:?}");
+        }
+        assert_eq!(state.lock().unwrap().heat(), 0.5);
+        for headers in [
+            &[
+                ("host", "nova.local:8080"),
+                ("sec-fetch-site", "same-origin"),
+            ][..],
+            &[
+                ("host", "192.168.1.20:8080"),
+                ("origin", "http://192.168.1.20:8080"),
+            ],
+            &[("host", "localhost:8080")],
+            &[],
+        ] {
+            assert!(status(headers).await.status().is_success(), "{headers:?}");
+        }
+        assert_eq!(state.lock().unwrap().heat(), 0.9);
+    }
+
+    #[test]
+    fn local_hosts() {
+        for host in [
+            "localhost",
+            "localhost:8080",
+            "nova",
+            "nova.local",
+            "Nova.Local.:80",
+            "nova.lan",
+            "nova.home.arpa",
+            "192.168.1.20:8080",
+            "[::1]:8080",
+            "[fe80::1]",
+        ] {
+            assert!(is_local_host(host), "{host}");
+        }
+        for host in [
+            "",
+            ":8080",
+            "example.com",
+            "nova.local.example.com:8080",
+            "192.168.1.20.nip.io",
+            "[nova.local]",
+        ] {
+            assert!(!is_local_host(host), "{host}");
+        }
+    }
+
+    #[actix_web::test]
+    async fn ethernet_interface_cannot_be_set() {
+        let state = Arc::new(Mutex::new(AppState::default()));
+        let app = actix_web::test::init_service(
+            App::new()
+                .app_data(Data::new(Arc::clone(&state)))
+                .app_data(Data::new(PendingSave::default()))
+                .service(command),
+        )
+        .await;
+        let request = actix_web::test::TestRequest::post()
+            .uri("/api/ethernet-interface?value=wlan0")
+            .to_request();
+        let response = actix_web::test::call_service(&app, request).await;
+        assert_eq!(response.status(), 404);
+        assert_eq!(state.lock().unwrap().ethernet_interface(), "eth0");
+    }
+
+    #[actix_web::test]
+    async fn web_app_routes_serve_the_web_app() {
+        let app = actix_web::test::init_service(App::new().service(files)).await;
+        let index = WWW_DIR.get_file("index.html").unwrap().contents();
+        for (uri, status) in [
+            ("/", 200),
+            ("/settings", 200),
+            ("/api/heat?value=0.5", 404),
+            ("/assets/missing.js", 404),
+        ] {
+            let request = actix_web::test::TestRequest::get().uri(uri).to_request();
+            let response = actix_web::test::call_service(&app, request).await;
+            assert_eq!(response.status(), status, "{uri}");
+            if status == 200 {
+                assert_eq!(actix_web::test::read_body(response).await, index, "{uri}");
+            }
+        }
     }
 
     #[actix_web::test]
@@ -367,8 +530,12 @@ mod tests {
 
 #[get("/{path:.*}")]
 async fn files(path: web::Path<String>) -> impl Responder {
-    let path = path.as_str();
-    let path = if path.is_empty() { "index.html" } else { path };
+    let path = match path.as_str() {
+        "" => "index.html",
+        // Web app routes such as `settings` are pages of index.html, so reloading them works.
+        route if !route.starts_with("api/") && !route.contains('.') => "index.html",
+        file => file,
+    };
     log::debug!("files: {path}");
 
     match WWW_DIR.get_file(path) {
