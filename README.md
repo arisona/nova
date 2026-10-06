@@ -2,31 +2,31 @@
 
 Rust-based procedural content generation for the Nova voxel display, with a desktop simulator and a React control interface.
 
-One content module, **Flux**, explores the low-resolution volume with a single noise primitive. Independent **Brightness** and **Volume** control visual and audio output; **Palette**, **Heat**, **Flow**, and **Form** shape both, and **Void** shapes the visuals. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios. Audio starts muted on new installations.
+One content module, **Flux**, explores the low-resolution volume with a single noise primitive. Independent **Brightness** and **Volume** control visual and audio output; **Palette**, **Heat**, **Flow**, and **Form** shape both, and **Void** shapes the visuals. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios.
 
 This README is the canonical project guidance for both human contributors and coding agents. Follow the control semantics and design constraints below when changing the project.
 
 ## Getting started
 
-- [Raspberry Pi setup](doc/raspberry_pi_setup.md)
-- [Development setup, operation, and troubleshooting](doc/nova_control.md)
-- [Hardware protocol reference](doc/nova_protocol.md)
+Run `cargo run --release` in `server`. The first run creates `nova_settings.json` there; set `"simulator": true` (and `"audio": true` for sound), run again, and open `http://localhost:8080`.
 
-`ENABLE_SIMULATOR` and `ENABLE_AUDIO` in `server/src/main.rs` both default to `true`. Set `ENABLE_SIMULATOR` to `false` for hardware display output. Set `ENABLE_AUDIO` to `false` to skip audio service startup and hide Volume in the web app; saved Volume is retained. These are build-time switches, not persisted settings, and disabling audio does not remove its build dependencies.
+- [Development](doc/development.md): building, hardware output, settings, adding content, troubleshooting
+- [Raspberry Pi setup](doc/raspberry_pi_setup.md): installing and running on the display
+- [Hardware protocol](doc/nova_protocol.md): packets, timing, and module addressing
 
 ## The display
 
-NOVA is a modular RGB voxel LED display driven at 25 Hz (40 ms per displayed frame). The current architecture leaves approximately 20 ms per frame for rendering.
+Nova is a modular RGB voxel LED display driven at 25 Hz (40 ms per displayed frame). The current architecture leaves approximately 20 ms per frame for rendering.
 
 - Each module has a 50 x 50 cm base and is 100 cm high.
 - A module contains 5 x 5 x 10 voxels: 250 LEDs.
-- Most installations use a single module, configured in the web app. Several modules form a grid that is configured in the settings file only (see [Configuration](doc/nova_control.md#configuration)); the hardware output supports both.
+- Most installations use a single module, configured in the web app. Several modules form a grid that is configured in the settings file only (see [Settings file](doc/development.md#settings-file)); the hardware output supports both.
 - Voxels are matte, white, ping-pong-like plastic spheres that diffuse the light.
 - Output can be very bright in dark environments.
 
 One module displaying random content:
 
-![Single NOVA module displaying random colors](doc/nova_5x5x10.jpg)
+![Single Nova module displaying random colors](doc/nova_5x5x10.jpg)
 
 ## Artistic controls
 
@@ -62,9 +62,9 @@ The first sound palette is shared across all visual families, not triggered by i
 - **Flow** changes note-event pace with a nonzero minimum. At zero, notes still appear and filters evolve slowly. Existing envelopes are timed in seconds and are never retimed by Flow changes.
 - **Form** adds overlap, motif activity and occasional rapid arpeggios within a single voice. At most three voices and one arpeggiated voice sound at once; busy voices finish rather than being cut off. Arpeggio steps are 25-60 ms, independent of Flow, under one continuous envelope.
 
-The audio callback must not lock application state, allocate, log or access files. Controls are published by the audio service and smoothed inside the synth. Output uses the OS default device and its sample rate, with mono downmix when needed. Missing/disconnected devices are reported separately from display status and retried without stopping visuals. A recovered stream fades in from silence. First startup and restored defaults use Volume zero; saved nonzero Volume resumes on subsequent launches. Begin listening with low speaker/system volume.
+The audio callback must not lock application state, allocate, log or access files. Controls are published by the audio service and smoothed inside the synth. Output uses the OS default device and its sample rate, with mono downmix when needed. Audio is off unless `audio` is set in the settings file. Missing/disconnected devices are reported separately from display status and retried without stopping visuals. A recovered stream fades in from silence. First startup and restored defaults use Volume zero; saved nonzero Volume resumes on subsequent launches. Begin listening with low speaker/system volume.
 
-`server/src/audio.rs` is the module entry point; sound constants and device-independent tests live in `server/src/audio/synth.rs`, and native output lives in `server/src/audio/output.rs`. CPAL 0.18.2 and FunDSP 0.23.0 provide output and DSP respectively; the resolved audio dependencies require Rust 1.89 or newer, and CoreAudio output requires macOS 14.2 or newer. FunDSP's optional file-decoding and FFT features remain disabled. Numerical tests do not establish sound quality: tune at installation listening levels and profile with visuals active on the actual Raspberry Pi.
+`server/src/audio.rs` is the module entry point; sound constants and device-independent tests live in `server/src/audio/synth.rs`, and native output lives in `server/src/audio/output.rs`. Keep FunDSP's optional file-decoding and FFT features disabled. Numerical tests do not establish sound quality: tune at installation listening levels and profile with visuals active on the actual Raspberry Pi.
 
 ## Content
 
@@ -97,7 +97,7 @@ Tides are slow, subtle variation brought in by the system rather than the user, 
 ## Control API
 
 - Read state: `GET /api/get-state` returns `brightness`, `volume`, `palette`, `heat`, `flow`, `form`, and `void`, plus other settings. Content and palettes are referenced by name: `available-content` lists all content modules, `enabled-content` the enabled ones, `selected-content` the selected one, and `palettes` lists every palette with its colors (`name`, `code`, CSS `hex`) in display order.
-- The read-only `audio-enabled` state field reflects `ENABLE_AUDIO`, independently of audio-device health. The web app hides Volume and audio errors when it is false.
+- `volume` is reported as -1 while audio is disabled or its output has failed, and the web app then hides Volume. The saved value is kept.
 - Update a control: `GET /api/{brightness|volume|heat|flow|form|void}?value=<0..1>` updates its value immediately. Select by name with `GET /api/palette?value=<name>`, `GET /api/selected-content?value=<name>`, and `GET /api/enabled-content?value=<name>,<name>`. Unknown names, an empty enabled list, and values that do not parse are rejected with 400 and change nothing; the web app then reloads its state. It also reloads when the page becomes visible again. The web server debounces saving settings by 500 ms; pending changes are not flushed on shutdown.
 - `GET /api/reset` queues a one-shot hardware reset. The hardware loop consumes it and reopens the interface to run the existing module reset sequence; the request is not persisted and has no effect in simulator mode.
 - `GET /api/restore` restores default settings. It keeps the web server port, the display and audio status and, with more than one module, the module layout: these can only be configured in the settings file.
@@ -113,6 +113,6 @@ npm --prefix webapp run build
 cargo build --manifest-path server/Cargo.toml
 ```
 
-Build the web app before the server so the embedded UI matches the API. See the [control server documentation](doc/nova_control.md) for simulator use, content extensions, and visual diagnostics. Automated tests and simulator previews do not replace evaluation on the physical display or Raspberry Pi profiling.
+Build the web app before the server so the embedded UI matches the API. Audio previews and visual diagnostics are described in [Development](doc/development.md). Automated tests and simulator previews do not replace evaluation on the physical display or Raspberry Pi profiling.
 
 The web toolchain supports Node.js 20 (20.19+), Node.js 22 (22.13+), or Node.js 24 and newer. TypeScript stays on 6.0.x because `typescript-eslint` 8.70 supports TypeScript below 6.1; upgrade it to TypeScript 7 only when the lint tooling supports that version. Run `npx --no-install eslint src` from `webapp` to check frontend lint rules.

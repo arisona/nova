@@ -1,118 +1,113 @@
-# Nova Raspberry Pi setup
+# Raspberry Pi setup
 
-This document provides step-by-step instructions to set up a Raspberry Pi
-in headless mode with the Nova software and integrate it into a home WLAN
-environment.
+How to set up a headless Raspberry Pi that builds Nova from source and drives the display. Basic Linux console experience is assumed. This guide uses `nova` as the host name and `pi` as the user; adjust the commands if you choose others.
 
-Basic Linux console experience is assumed. To edit files use either vi or
-nano. For details to configure a Raspberry Pi, refer to headless setup from
-scratch for integration into home network:
+## Flash Raspberry Pi OS
 
-<https://www.raspberrypi.org/documentation/configuration/>
+1. Install [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+2. Choose your device (for example, Raspberry Pi 4) and **Raspberry Pi OS Lite (64-bit)**.
+3. Before writing, set the host name, user and password, WLAN, and time zone, and enable SSH. Get this right: otherwise you cannot connect to the headless Pi.
+4. Write the image, put the SD card into the Pi, and power it up.
 
-## Step-by-step instructions
+## Connect and update
 
-### Flash Raspberry Pi OS to SD Card
+Once the Pi has booted, connect from your machine:
 
-- Get Raspberry Pi Imager from <https://www.raspberrypi.com/software/>
-- Choose your device (e.g., Raspberry Pi 4)
-- Select OS: **Raspberry Pi OS Lite (64-bit)** (use latest, currently Debian Bookworm)
-- Set up initial configuration before writing: host name, user/password, WLAN, timezone, enable SSH access. **Important:** make sure to get this configuration right, otherwise you will not be able to connect to your Raspberry Pi after you boot it for the first time. For the rest of this document, `nova` is assumed as host name -- feel free to use another name of your choice.
-- Flash image to SD Card
-- Put SD Card into Raspberry Pi
-
-### Plugin your Raspberry Pi and wait until boot is complete
-
-- From your machine, ssh to nova.local (or what ever hostname / username you have set):
-
-```
+```sh
 ssh pi@nova.local
 ```
 
-- In case hostname cannot be resolved, find the Raspberry Pi's IP address on your router and connect with ssh using the IP address.
+If the host name does not resolve, look up the Pi's IP address on your router. `sudo raspi-config` changes further settings later, such as the WLAN.
 
-- Run the Raspberry Pi configuration utility. Optional: this step allows you to change additional configuration parameters as required by your home setup. You can also use this in case you later move your Raspberry Pi to a different WLAN or if the WLAN password changes.
+Update the system and install the build dependencies:
 
-```
-sudo raspi-config
-```
-
-### Update and install software
-
-- Update the Raspberry Pi:
-
-```
+```sh
 sudo apt update
 sudo apt full-upgrade
 sudo reboot
+# after reconnecting:
+sudo apt install git libpcap-dev libasound2-dev pkg-config alsa-utils
 ```
 
-- Install required software:
+Install Rust (as `pi`, not root):
 
-```
-sudo apt-get install git libpcap-dev libasound2-dev pkg-config alsa-utils
-```
-
-### Install Rust toolchain
-
-As regular user ('pi') run the following command:
-
-```
+```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-If this fails for some reason, check out the documentation at <https://rust-lang.org>
+## Get the source
 
-### Native audio output
-
-Nova's Rust server uses ALSA on Raspberry Pi OS. Connect speakers through the chosen USB DAC, supported audio HAT, HDMI audio or the Pi's available analog output. List devices with `aplay -l` and ALSA PCM names with `aplay -L`. Configure the desired OS/ALSA default output before starting Nova; a USB DAC with a stable card name is preferable to relying on card numbering.
-
-On a Lite installation ALSA can output directly without PulseAudio or PipeWire. If a sound server is installed, select an appropriate ALSA bridge/default configuration instead of competing for its hardware device. The user running Nova must have audio-device permissions, including when launched as a service. Check group membership and service configuration if interactive playback works but the service cannot open the device.
-
-New settings start with Volume zero. Raise it gradually using the web control after reducing the speaker/system volume. Sound is produced by the Pi, not the browser. Audio device failures do not stop the lights; Nova reports them separately and retries. For current Rust build/run instructions and listening previews, see [Native Audio](nova_control.md#native-audio). Evaluate a release build with the physical display active before deployment.
-
-_The legacy Java deployment instructions below are still TBD; use the current Rust build/run instructions linked above._
-
-### Nova software setup and configuration
-
-- Get the Nova control software release build and the launch script:
-
-```
-cd /home/pi
-wget https://github.com/arisona/nova/releases/download/release_2_1_0/novacontrol-2.1.0-RELEASE.jar
-wget https://github.com/arisona/nova/releases/download/release_2_1_0/novaraspi.sh
+```sh
+git clone https://github.com/arisona/nova.git ~/nova
 ```
 
-- Alternatively, if you want to build from source, here is how to get and compile the Nova code:
+The web app is already built into the repository, so the Pi needs no Node.js.
 
+## Native audio output
+
+The server plays audio through ALSA; no PulseAudio or PipeWire is needed. Connect speakers through a USB DAC, an audio HAT, HDMI, or the analog output. `aplay -l` lists devices and `aplay -L` lists ALSA PCM names. Set the default output before starting Nova. A USB DAC with a stable card name is more reliable than card numbers.
+
+If a sound server is installed, configure the ALSA default to go through it rather than competing for the device. The user running Nova needs audio permissions (`pi` is in the `audio` group by default).
+
+Audio is off by default. To turn it on, set `"audio": true` in `~/nova_settings.json` (created on the first run) and restart Nova. Volume starts at zero; lower the speaker volume before raising it in the web app.
+
+## Run Nova
+
+Sending raw Ethernet frames needs the `CAP_NET_RAW` and `CAP_NET_ADMIN` capabilities. Choose one of the two options below. Both run from the home directory and therefore share `~/nova_settings.json`. Do not run both at once.
+
+Once Nova is running, open `http://nova.local:8080`.
+
+### Option A: run in place
+
+Use this for experimenting and debugging. Build, grant the capabilities, and run in the foreground (stop with Ctrl+C):
+
+```sh
+cd ~/nova/server
+cargo build --release
+sudo setcap cap_net_raw,cap_net_admin+ep target/release/nova-server
+cd ~ && ~/nova/server/target/release/nova-server
 ```
-cd /home/pi
-git clone https://github.com/arisona/nova.git
-cd nova
-export JAVA_HOME=/home/pi/jdk-23.0.1/
-mvn install
+
+Each rebuild replaces the binary and drops its capabilities, so repeat `setcap` after building.
+
+To serve on port 80 instead of 8080, also grant `cap_net_bind_service` and set `"webserver_port": 80` in `~/nova_settings.json`:
+
+```sh
+sudo setcap cap_net_raw,cap_net_admin,cap_net_bind_service+ep ~/nova/server/target/release/nova-server
 ```
 
-### Configure startup script and reboot
+### Option B: run as a service
 
-- Your `novaraspi.sh` script (either in `/home/pi` if you downloaded the release or `/home/pi/nova/scripts` if you cloned the repository) will require some adjustments depending on your JDK version.
-- Edit `/etc/rc.local` (e.g. `sudo nano /etc/rc.local`), add (before `exit 0`):
+Use this for installations. Nova starts at boot and restarts if it exits. Install the binary to `~/.cargo/bin` and create a systemd service that grants the capabilities:
 
+```sh
+cargo install --path ~/nova/server
+sudo tee /etc/systemd/system/nova.service > /dev/null <<'EOF'
+[Unit]
+Description=Nova control server
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi
+ExecStart=/home/pi/.cargo/bin/nova-server
+Environment=RUST_LOG=info
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable --now nova
 ```
-sh /home/pi/novaraspi.sh > /dev/null 2>&1 &
-```
 
-- Plug in Nova via ethernet and reboot
+To use port 80, add `CAP_NET_BIND_SERVICE` to `AmbientCapabilities` and set `webserver_port` as in option A.
 
-```
-sudo shutdown -r now
-```
+- Logs: `journalctl -u nova -f`
+- Update: `cd ~/nova && git pull && cargo install --path server && sudo systemctl restart nova`
+- Stop, for example before using option A: `sudo systemctl stop nova`; `sudo systemctl disable nova` also removes it from startup
 
-- After about a minute, the Nova should go on
-- Connect to web interface via your web browser: http://nova.local
+## Configure the display
 
-### Changing default options
-
-By default, the control software assumes `eth0` as ethernet interface to communicate, with one module connected and its jumper set to address 1. To change these settings, connect using the web app and adjust the interface or module address as needed.
-
-Multiple modules are configured in the settings file only. After launching the Nova server once, edit `nova_settings.json` in the server's working directory and list every module in `modules`; see [Configuration](nova_control.md#configuration) for an example. The web app then shows the module address as not configurable.
+By default Nova uses `eth0` and one module with jumper address 1. Change the interface or module address in the web app's settings. A layout of several modules is configured in `~/nova_settings.json`; see [Settings file](development.md#settings-file).
