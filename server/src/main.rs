@@ -13,8 +13,6 @@ mod tides;
 mod voxel_image;
 mod web_server;
 
-const ENABLE_SIMULATOR: bool = true;
-const ENABLE_AUDIO: bool = true;
 fn main() {
     let env = env_logger::Env::default().default_filter_or("debug,actix_server=warn");
     env_logger::Builder::from_env(env).init();
@@ -25,19 +23,23 @@ fn main() {
     })
     .expect("Error setting signal handler");
 
+    let state = Arc::new(Mutex::new(app_state::AppState::load()));
+    log::debug!("Using settings:\n{:#?}", *state.lock().unwrap());
+    let (run_simulator, start_audio) = {
+        let state = state.lock().unwrap();
+        (state.simulator(), state.audio())
+    };
+
     log::info!(
         "Starting Nova server in {} mode",
-        if ENABLE_SIMULATOR {
+        if run_simulator {
             "simulator"
         } else {
             "hardware"
         }
     );
 
-    let state = Arc::new(Mutex::new(app_state::AppState::load()));
-    log::debug!("Using settings:\n{:#?}", *state.lock().unwrap());
-
-    let _audio = if ENABLE_AUDIO {
+    let _audio = if start_audio {
         audio::AudioService::start(Arc::clone(&state))
             .map_err(|error| {
                 log::error!("Cannot start audio service: {error}");
@@ -56,7 +58,7 @@ fn main() {
     web_server::start(Arc::clone(&state));
 
     let renderer = renderer::Renderer::new(state.lock().unwrap().dim());
-    if ENABLE_SIMULATOR {
+    if run_simulator {
         simulator::run(Arc::clone(&state), renderer);
     } else {
         nova::run(Arc::clone(&state), renderer);

@@ -56,9 +56,8 @@ interface ApiStateResponse {
   'available-content': string[];
   'enabled-content': string[];
   'selected-content': string;
-  'audio-enabled': boolean;
   brightness: number;
-  volume: number;
+  volume: number; // -1 while audio is disabled or failing
   palettes: unknown;
   palette: string;
   heat: number;
@@ -152,7 +151,6 @@ export const apiGetState = async (): Promise<NovaState | null> => {
       availableContent,
       enabledContent,
       selectedContent,
-      audioEnabled: payload['audio-enabled'] ?? defaultNovaState.audioEnabled,
       brightness: payload.brightness ?? defaultNovaState.brightness,
       volume: payload.volume ?? defaultNovaState.volume,
       palettes,

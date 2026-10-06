@@ -161,7 +161,7 @@ export const MainPage = ({
         value={state.brightness}
         onChange={handleBrightnessChange}
       />
-      {state.audioEnabled && (
+      {state.volume >= 0 && (
         <Slider
           icon={state.volume === 0 ? <VolumeOff /> : <VolumeUp />}
           label="Volume"

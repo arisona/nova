@@ -43,6 +43,8 @@ pub fn start(state: Arc<Mutex<AppState>>) {
                 .service(command)
                 .service(files)
         })
+        // Otherwise SIGTERM (e.g. systemctl stop) only stops the web server, not Nova.
+        .disable_signals()
         .bind(&address)
         .unwrap_or_else(|error| panic!("Failed to bind address {address}: {error}"))
         .run();
@@ -60,9 +62,9 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "available-content": state.available_content(),
         "enabled-content": state.enabled_content(),
         "selected-content": state.selected_content(),
-        "audio-enabled": crate::ENABLE_AUDIO,
         "brightness": state.brightness(),
-        "volume": state.volume(),
+        // -1 tells the web app that audio is disabled or failing, so Volume is hidden.
+        "volume": if state.audio_available() { state.volume() } else { -1.0 },
         "palettes": palettes_json(),
         "palette": state.palette(),
         "heat": state.heat(),
@@ -311,15 +313,46 @@ mod tests {
 
     #[actix_web::test]
     async fn audio_api_reports_volume_and_independent_status() {
-        let mut state = AppState::default();
+        let mut state: AppState =
+            serde_json::from_value(serde_json::json!({ "audio": true })).unwrap();
         state.set_volume(0.42);
         state.set_status(Status::Ok("Display ready".into()));
-        state.set_audio_status(Status::Err("Audio unavailable".into()));
+        let state = Arc::new(Mutex::new(state));
         let app = actix_web::test::init_service(
             App::new()
-                .app_data(Data::new(Arc::new(Mutex::new(state))))
+                .app_data(Data::new(Arc::clone(&state)))
                 .service(get_state)
                 .service(get_status),
+        )
+        .await;
+        let get = |uri: &str| {
+            let request = actix_web::test::TestRequest::get().uri(uri).to_request();
+            actix_web::test::call_and_read_body_json::<_, _, serde_json::Value>(&app, request)
+        };
+        assert_eq!(
+            get("/api/get-state").await["volume"],
+            serde_json::json!(0.42_f32)
+        );
+
+        // A failing output hides Volume but keeps the saved value.
+        state
+            .lock()
+            .unwrap()
+            .set_audio_status(Status::Err("Audio unavailable".into()));
+        assert_eq!(get("/api/get-state").await["volume"], -1.0);
+        assert_eq!(state.lock().unwrap().volume(), 0.42);
+        let response = get("/api/get-status").await;
+        assert_eq!(response["status-ok"], true);
+        assert_eq!(response["audio-ok"], false);
+        assert_eq!(response["audio-message"], "Audio unavailable");
+    }
+
+    #[actix_web::test]
+    async fn volume_is_reported_as_minus_one_when_audio_is_disabled() {
+        let app = actix_web::test::init_service(
+            App::new()
+                .app_data(Data::new(Arc::new(Mutex::new(AppState::default()))))
+                .service(get_state),
         )
         .await;
         let request = actix_web::test::TestRequest::get()
@@ -327,16 +360,8 @@ mod tests {
             .to_request();
         let response: serde_json::Value =
             actix_web::test::call_and_read_body_json(&app, request).await;
-        assert_eq!(response["volume"], serde_json::json!(0.42_f32));
-        assert_eq!(response["audio-enabled"], crate::ENABLE_AUDIO);
-        let request = actix_web::test::TestRequest::get()
-            .uri("/api/get-status")
-            .to_request();
-        let response: serde_json::Value =
-            actix_web::test::call_and_read_body_json(&app, request).await;
-        assert_eq!(response["status-ok"], true);
-        assert_eq!(response["audio-ok"], false);
-        assert_eq!(response["audio-message"], "Audio unavailable");
+        assert_eq!(response["volume"], -1.0);
+        assert!(response.get("audio-enabled").is_none());
     }
 }
 

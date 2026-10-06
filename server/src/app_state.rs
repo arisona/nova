@@ -36,6 +36,8 @@ pub struct AppState {
     ethernet_interface: String,
     modules: Vec<(usize, usize, u8)>,
     webserver_port: u16,
+    simulator: bool,
+    audio: bool,
 
     #[serde(skip)]
     available_content: Vec<String>,
@@ -141,6 +143,8 @@ impl AppState {
         }
 
         settings.set_webserver_port(saved.webserver_port);
+        settings.simulator = saved.simulator;
+        settings.audio = saved.audio;
         settings
     }
 
@@ -333,6 +337,22 @@ impl AppState {
         self.webserver_port = webserver_port;
     }
 
+    /// Whether to show the desktop simulator instead of driving the hardware.
+    pub fn simulator(&self) -> bool {
+        self.simulator
+    }
+
+    /// Whether to start the audio service.
+    pub fn audio(&self) -> bool {
+        self.audio
+    }
+
+    /// Whether audio is enabled and its output has not failed. Volume is only
+    /// adjustable in the web app while this holds.
+    pub fn audio_available(&self) -> bool {
+        self.audio && !matches!(self.audio_status, Status::Err(_))
+    }
+
     pub fn dim(&self) -> (usize, usize, usize) {
         self.dim
     }
@@ -362,7 +382,8 @@ impl AppState {
     }
 
     /// Restores default settings, keeping runtime status and what can only be configured
-    /// in the settings file: the web server port and a layout of more than one module.
+    /// in the settings file: the web server port, the simulator and audio switches, and
+    /// a layout of more than one module.
     pub fn restore_defaults(&mut self) {
         let defaults = Self::default();
         let (modules, dim) = if self.modules.len() > 1 {
@@ -374,6 +395,8 @@ impl AppState {
             modules,
             dim,
             webserver_port: self.webserver_port,
+            simulator: self.simulator,
+            audio: self.audio,
             status: std::mem::take(&mut self.status),
             audio_status: std::mem::take(&mut self.audio_status),
             hardware_reset_requested: self.hardware_reset_requested,
@@ -410,6 +433,8 @@ impl Default for AppState {
             modules: vec![(0, 0, Self::MODULE_DEFAULT_ADDRESS)],
 
             webserver_port: 8080,
+            simulator: false,
+            audio: false,
 
             available_content,
 
@@ -515,6 +540,8 @@ mod tests {
         state.set_ethernet_interface("en7");
         state.set_module0_address(5);
         state.set_webserver_port(8000);
+        state.simulator = true;
+        state.audio = true;
         state.set_audio_status(Status::Ok("Audio ready".into()));
         state.restore_defaults();
         // A single module is reset completely; its address can be set in the web app.
@@ -525,6 +552,8 @@ mod tests {
             &vec![(0, 0, AppState::MODULE_DEFAULT_ADDRESS)]
         );
         assert_eq!(state.webserver_port(), 8000);
+        assert!(state.simulator());
+        assert!(state.audio());
         assert_eq!(state.audio_status(), &Status::Ok("Audio ready".into()));
 
         let mut saved = serde_json::to_value(AppState::default()).unwrap();
@@ -598,6 +627,20 @@ mod tests {
             restored.webserver_port(),
             AppState::default().webserver_port()
         );
+        assert!(!restored.simulator());
+        assert!(!restored.audio());
+    }
+
+    #[test]
+    fn audio_is_available_only_when_enabled_and_not_failing() {
+        let mut state = AppState::default();
+        assert!(!state.audio_available());
+        state.audio = true;
+        assert!(state.audio_available());
+        state.set_audio_status(Status::Ok("Audio ready".into()));
+        assert!(state.audio_available());
+        state.set_audio_status(Status::Err("Audio unavailable".into()));
+        assert!(!state.audio_available());
     }
 
     #[test]

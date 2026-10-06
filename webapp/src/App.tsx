@@ -21,9 +21,8 @@ export interface NovaState {
   availableContent: string[];
   enabledContent: string[];
   selectedContent: string;
-  audioEnabled: boolean;
   brightness: number;
-  volume: number;
+  volume: number; // -1 while audio is disabled or failing
   palettes: Palette[];
   palette: string;
   heat: number;
@@ -39,9 +38,8 @@ export const defaultNovaState: NovaState = {
   availableContent: [],
   enabledContent: [],
   selectedContent: '',
-  audioEnabled: false,
   brightness: 0.5,
-  volume: 0.0,
+  volume: -1,
   palettes: [],
   palette: '',
   heat: 0.5,
@@ -73,26 +71,30 @@ export const App = () => {
   const [state, setState] = React.useState(defaultNovaState);
   const [status, setStatus] = React.useState(defaultNovaStatus);
 
+  const loadState = React.useCallback(() => {
+    void apiGetState().then((newState) => {
+      if (newState) setState(newState);
+    });
+  }, []);
+
   React.useEffect(() => {
-    const loadState = () => {
-      void apiGetState().then((newState) => {
-        if (newState) setState(newState);
-      });
-    };
-    // Besides the initial load, reload when the page becomes visible again (e.g.
-    // switching back on a phone) and whenever the server rejects a change, so renamed
-    // or removed content and palettes never linger in the UI.
+    // Reload when the page becomes visible again (e.g. switching back on a phone) and
+    // whenever the server rejects a change, so renamed or removed content and palettes
+    // never linger in the UI.
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') loadState();
     };
-    loadState();
     document.addEventListener('visibilitychange', handleVisibilityChange);
     const unsubscribe = onApiRejected(loadState);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       unsubscribe();
     };
-  }, []);
+  }, [loadState]);
+
+  // Loads the initial state, and reloads it whenever audio becomes ready or fails, so
+  // Volume appears or disappears with it.
+  React.useEffect(loadState, [loadState, status.audioOk, status.audioMessage]);
 
   React.useEffect(() => {
     const intervalId = setInterval(handleRefresh, pollInterval);
@@ -125,7 +127,7 @@ export const App = () => {
       </Box>
 
       <Status ok={status.statusOk} message={status.statusMessage} />
-      {state.audioEnabled && !status.audioOk && status.audioMessage && (
+      {!status.audioOk && status.audioMessage && (
         <Status ok={false} message={status.audioMessage} />
       )}
     </Container>
