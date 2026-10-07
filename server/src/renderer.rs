@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use crate::app_state::AppState;
+use crate::calibration::Pattern;
 use crate::content::{Content, all_content};
 use crate::tides::{self, TideClock};
 use crate::voxel_image::VoxelImage;
@@ -21,6 +22,7 @@ pub struct RenderState {
     reset: bool,
 
     selected_content_index: usize,
+    calibration_pattern: Pattern,
 }
 
 impl From<&AppState> for RenderState {
@@ -37,6 +39,7 @@ impl From<&AppState> for RenderState {
             reset: false,
 
             selected_content_index: state.selected_content_index(),
+            calibration_pattern: state.calibration_pattern(),
         }
     }
 }
@@ -109,6 +112,15 @@ impl Renderer {
             .as_secs_f32()
             .min(MAX_FRAME_DELTA_SECONDS);
         self.delta_time = Instant::now();
+
+        // A calibration test pattern replaces content; content and tides pause meanwhile.
+        if state.calibration_pattern != Pattern::Off {
+            state
+                .calibration_pattern
+                .render(state.palette, &mut self.next);
+            self.output.copy_scaled_from(&self.next, state.brightness);
+            return;
+        }
 
         let selected_index = state.selected_content_index.min(self.content.len() - 1);
         if selected_index != self.selected_content_index {

@@ -187,6 +187,17 @@ export const SettingsPage = ({
         />
       </Stack>
 
+      <Button
+        fullWidth
+        variant="outlined"
+        onClick={() => {
+          void navigate('/calibration');
+        }}
+        sx={{ mb: 2 }}
+      >
+        Calibrate display
+      </Button>
+
       <Stack spacing={2} direction="row" sx={{ mb: 4 }}>
         <Button fullWidth variant="outlined" onClick={handleRestore}>
           Restore defaults

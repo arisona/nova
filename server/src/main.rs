@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 mod app_state;
 mod audio;
+mod calibration;
 mod content;
 mod ethernet;
 mod macros;

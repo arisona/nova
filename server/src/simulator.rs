@@ -5,6 +5,7 @@ use miniquad::conf::Icon;
 use miniquad::*;
 
 use crate::app_state::{AppState, Status};
+use crate::calibration::{Calibration, Pattern};
 use crate::check_run_once;
 use crate::renderer::{RenderState, Renderer};
 
@@ -130,14 +131,27 @@ impl Stage {
     }
 }
 
+fn calibrated(calibration: &Calibration, rgb: glam::Vec3) -> glam::Vec3 {
+    vec3(
+        calibration.apply(0, rgb.x),
+        calibration.apply(1, rgb.y),
+        calibration.apply(2, rgb.z),
+    )
+}
+
 impl EventHandler for Stage {
     fn update(&mut self) {
         let rot = Mat3::from_rotation_y(self.rot);
         self.rot += 0.001;
 
-        let (mut render_state, flip) = {
+        let (mut render_state, flip, preview) = {
             let state = self.state.lock().unwrap();
-            (RenderState::from(&*state), state.flip_vertical())
+            // Normally the simulator is uncorrected: the monitor applies its own gamma.
+            // While the calibration page shows a pattern, it previews the calibration, so
+            // its effect can be checked without the hardware.
+            let preview =
+                (state.calibration_pattern() != Pattern::Off).then(|| state.calibration());
+            (RenderState::from(&*state), state.flip_vertical(), preview)
         };
         self.renderer.render(&mut render_state);
 
@@ -156,6 +170,10 @@ impl EventHandler for Stage {
                     let p = vec3(p.x, if flip { p.z } else { -p.z }, -p.y);
                     let p = VOXEL_SPACING * rot * p;
                     let rgb = self.renderer.image().get(x, y, z);
+                    let rgb = match preview {
+                        Some(calibration) => calibrated(&calibration, rgb),
+                        None => rgb,
+                    };
                     let c = vec4(rgb.x, rgb.y, rgb.z, 1.0);
                     self.instances.push((p.x, p.y, p.z, c.x, c.y, c.z, c.w));
                 }

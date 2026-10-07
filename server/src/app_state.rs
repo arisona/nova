@@ -4,6 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::calibration::{Calibration, Pattern, PatternSelection};
 use crate::content::all_content_names;
 use crate::palettes::PALETTES;
 
@@ -32,6 +33,7 @@ pub struct AppState {
     form: f32,
     void: f32,
     flip_vertical: bool,
+    calibration: Calibration,
 
     ethernet_interface: String,
     modules: Vec<(usize, usize, u8)>,
@@ -51,6 +53,8 @@ pub struct AppState {
     audio_status: Status,
     #[serde(skip)]
     hardware_reset_requested: bool,
+    #[serde(skip)]
+    calibration_pattern: PatternSelection,
 }
 
 impl AppState {
@@ -111,6 +115,7 @@ impl AppState {
         settings.set_form(saved.form);
         settings.set_void(saved.void);
         settings.set_flip_vertical(saved.flip_vertical);
+        settings.calibration = saved.calibration.validated();
         settings.set_ethernet_interface(&saved.ethernet_interface);
 
         let mut max_x = 0;
@@ -294,6 +299,36 @@ impl AppState {
         self.flip_vertical = flip_vertical;
     }
 
+    pub fn calibration(&self) -> Calibration {
+        self.calibration
+    }
+
+    /// Sets a channel's gamma (0 red, 1 green, 2 blue). Returns false, changing nothing,
+    /// for invalid values.
+    pub fn set_gamma(&mut self, channel: usize, gamma: f32) -> bool {
+        self.calibration.set_gamma(channel, gamma)
+    }
+
+    /// Sets a channel's gain (0 red, 1 green, 2 blue). Returns false, changing nothing,
+    /// for invalid values.
+    pub fn set_gain(&mut self, channel: usize, gain: f32) -> bool {
+        self.calibration.set_gain(channel, gain)
+    }
+
+    pub fn reset_calibration(&mut self) {
+        self.calibration = Calibration::default();
+    }
+
+    /// The test pattern to show instead of content; `Off` unless the calibration page
+    /// selected one recently.
+    pub fn calibration_pattern(&self) -> Pattern {
+        self.calibration_pattern.pattern()
+    }
+
+    pub fn set_calibration_pattern(&mut self, pattern: Pattern) {
+        self.calibration_pattern.select(pattern);
+    }
+
     pub fn ethernet_interface(&self) -> &str {
         &self.ethernet_interface
     }
@@ -381,9 +416,9 @@ impl AppState {
         std::mem::take(&mut self.hardware_reset_requested)
     }
 
-    /// Restores default settings, keeping runtime status and what can only be configured
-    /// in the settings file: the Ethernet interface, the web server port, the simulator
-    /// and audio switches, and a layout of more than one module.
+    /// Restores default settings, keeping runtime status, the display calibration, and
+    /// what can only be configured in the settings file: the Ethernet interface, the web
+    /// server port, the simulator and audio switches, and a layout of more than one module.
     pub fn restore_defaults(&mut self) {
         let defaults = Self::default();
         let (modules, dim) = if self.modules.len() > 1 {
@@ -394,6 +429,7 @@ impl AppState {
         *self = Self {
             modules,
             dim,
+            calibration: self.calibration,
             ethernet_interface: std::mem::take(&mut self.ethernet_interface),
             webserver_port: self.webserver_port,
             simulator: self.simulator,
@@ -430,6 +466,7 @@ impl Default for AppState {
             form: 0.5,
             void: 0.5,
             flip_vertical: false,
+            calibration: Calibration::default(),
             ethernet_interface: "eth0".to_string(),
             modules: vec![(0, 0, Self::MODULE_DEFAULT_ADDRESS)],
 
@@ -444,6 +481,7 @@ impl Default for AppState {
             status: Status::Unknown,
             audio_status: Status::Unknown,
             hardware_reset_requested: false,
+            calibration_pattern: PatternSelection::default(),
         }
     }
 }

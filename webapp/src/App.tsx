@@ -1,6 +1,7 @@
 import { Box, Container } from '@mui/material';
 import React from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { CalibrationPage } from './CalibrationPage';
 import { MainPage } from './MainPage';
 import { SettingsPage } from './SettingsPage';
 import { apiGetState, apiGetStatus, onApiRejected } from './api';
@@ -17,6 +18,14 @@ export interface Palette {
   colors: PaletteColor[];
 }
 
+/** Per channel: red, green, blue. */
+export type Rgb = [number, number, number];
+
+export interface Calibration {
+  gamma: Rgb;
+  gain: Rgb;
+}
+
 export interface NovaState {
   availableContent: string[];
   enabledContent: string[];
@@ -30,6 +39,7 @@ export interface NovaState {
   form: number;
   void: number;
   flip: boolean;
+  calibration: Calibration;
   module0Address: string;
 }
 
@@ -46,6 +56,7 @@ export const defaultNovaState: NovaState = {
   form: 0.5,
   void: 0.5,
   flip: false,
+  calibration: { gamma: [1, 1, 1], gain: [1, 1, 1] },
   module0Address: '1',
 };
 
@@ -119,6 +130,10 @@ export const App = () => {
             <Route
               path="/settings"
               element={<SettingsPage state={state} setState={setState} />}
+            />
+            <Route
+              path="/calibration"
+              element={<CalibrationPage state={state} setState={setState} />}
             />
           </Routes>
         </Router>

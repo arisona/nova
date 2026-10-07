@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::app_state::{AppState, Status};
+use crate::calibration::Calibration;
 use crate::check_run_once;
 use crate::ethernet::Interface;
 use crate::renderer::{RenderState, Renderer};
@@ -97,13 +98,14 @@ impl NovaHardware {
             let mut status_time = Instant::now();
             loop {
                 // Make sure state is unlocked quickly otherwise webserver thread will starve
-                let (interface_name, modules, mut render_state, flip, reset_requested) = {
+                let (interface_name, modules, mut render_state, flip, calibration, reset_requested) = {
                     let mut state = self.state.lock().unwrap();
                     (
                         state.ethernet_interface().to_string(),
                         state.modules().to_vec(),
                         RenderState::from(&*state),
                         state.flip_vertical(),
+                        state.calibration(),
                         state.take_hardware_reset_request(),
                     )
                 };
@@ -189,6 +191,7 @@ impl NovaHardware {
                                 sequence_number.wrapping_add(1),
                                 self.renderer.image(),
                                 flip,
+                                &calibration,
                             );
                             let _ = interface.send(packet);
                         }
@@ -249,13 +252,29 @@ impl NovaHardware {
         let mac = &interface.address();
         for _ in 0..4 {
             for &module in modules {
-                let packet = Self::udp_packet(mac, module, UDP_CMD_RESET, 0, image, false);
+                let packet = Self::udp_packet(
+                    mac,
+                    module,
+                    UDP_CMD_RESET,
+                    0,
+                    image,
+                    false,
+                    &Calibration::default(),
+                );
                 let _ = interface.send(packet);
             }
             std::thread::sleep(Duration::from_millis(200));
         }
         for &module in modules {
-            let packet = Self::udp_packet(mac, module, UDP_CMD_AUTOID, 0, image, false);
+            let packet = Self::udp_packet(
+                mac,
+                module,
+                UDP_CMD_AUTOID,
+                0,
+                image,
+                false,
+                &Calibration::default(),
+            );
             let _ = interface.send(packet);
         }
         std::thread::sleep(Duration::from_millis(200));
@@ -323,6 +342,7 @@ impl NovaHardware {
         sequence_num: usize,
         image: &VoxelImage,
         flip: bool,
+        calibration: &Calibration,
     ) -> [u8; UDP_PACKET_LEN] {
         let (module_x, module_y, module_address) = module;
         let mut packet = [0u8; UDP_PACKET_LEN];
@@ -370,7 +390,15 @@ impl NovaHardware {
             module_x * AppState::MODULE_X_RES,
             module_y * AppState::MODULE_Y_RES,
         );
-        Self::fill_udp_payload(&mut packet, command, sequence_num, image, origin, flip);
+        Self::fill_udp_payload(
+            &mut packet,
+            command,
+            sequence_num,
+            image,
+            origin,
+            flip,
+            calibration,
+        );
 
         packet
     }
@@ -384,6 +412,7 @@ impl NovaHardware {
         image: &VoxelImage,
         origin: (usize, usize),
         flip: bool,
+        calibration: &Calibration,
     ) {
         for chain in 0..CHAINS {
             let offset = UDP_PAYLOAD_OFFSET + chain * CHAIN_DATA_LEN;
@@ -399,9 +428,9 @@ impl NovaHardware {
             for i in 0..CHAIN_LEN {
                 let base = offset + 4 + i * 4;
                 let i = if flip { CHAIN_LEN - 1 - i } else { i };
-                let r = (pixels[i * 3].clamp(0.0, 1.0) * 1023.0).round() as u32;
-                let g = (pixels[i * 3 + 1].clamp(0.0, 1.0) * 1023.0).round() as u32;
-                let b = (pixels[i * 3 + 2].clamp(0.0, 1.0) * 1023.0).round() as u32;
+                let r = (calibration.apply(0, pixels[i * 3]) * 1023.0).round() as u32;
+                let g = (calibration.apply(1, pixels[i * 3 + 1]) * 1023.0).round() as u32;
+                let b = (calibration.apply(2, pixels[i * 3 + 2]) * 1023.0).round() as u32;
 
                 let packed = (r << 20) | (g << 10) | b;
                 packet[base] = (packed >> 24) as u8;
@@ -519,7 +548,15 @@ mod tests {
     }
 
     fn payload(module: (usize, usize, u8), image: &VoxelImage, flip: bool) -> Vec<u8> {
-        let packet = NovaHardware::udp_packet(&[0; 6], module, UDP_CMD_RGB, 7, image, flip);
+        let packet = NovaHardware::udp_packet(
+            &[0; 6],
+            module,
+            UDP_CMD_RGB,
+            7,
+            image,
+            flip,
+            &Calibration::default(),
+        );
         packet[UDP_PAYLOAD_OFFSET..].to_vec()
     }
 

@@ -9,6 +9,7 @@ use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, post
 use include_dir::{Dir, include_dir};
 
 use crate::app_state::{AppState, Status};
+use crate::calibration::Pattern;
 use crate::palettes::PALETTES;
 
 type PendingSave = Mutex<Option<actix_web::rt::task::JoinHandle<()>>>;
@@ -73,6 +74,11 @@ async fn get_state(data: web::Data<Arc<Mutex<AppState>>>) -> impl Responder {
         "form": state.form(),
         "void": state.void(),
         "flip-vertical": state.flip_vertical(),
+        "calibration": {
+            "gamma": state.calibration().gamma(),
+            "gain": state.calibration().gain(),
+        },
+        "calibration-pattern": state.calibration_pattern().name(),
         // -1 tells the web app that a layout of several modules is not configurable there.
         "module0-address": state.module0_address().map_or(-1, i32::from),
     }))
@@ -243,6 +249,35 @@ async fn command(
                 };
                 state.set_flip_vertical(parsed_value);
             }
+            "gamma-red" | "gamma-green" | "gamma-blue" | "gain-red" | "gain-green"
+            | "gain-blue" => {
+                let Ok(parsed_value) = value.parse() else {
+                    return HttpResponse::BadRequest();
+                };
+                let channel = if command.ends_with("red") {
+                    0
+                } else if command.ends_with("green") {
+                    1
+                } else {
+                    2
+                };
+                let accepted = if command.starts_with("gamma") {
+                    state.set_gamma(channel, parsed_value)
+                } else {
+                    state.set_gain(channel, parsed_value)
+                };
+                if !accepted {
+                    return HttpResponse::BadRequest();
+                }
+            }
+            // Test patterns are not saved, so selecting one does not save the settings.
+            "calibration-pattern" => {
+                let Some(pattern) = Pattern::from_name(value) else {
+                    return HttpResponse::BadRequest();
+                };
+                state.set_calibration_pattern(pattern);
+                return HttpResponse::Ok();
+            }
             "module0-address" => {
                 let Ok(parsed_value) = value.parse() else {
                     return HttpResponse::BadRequest();
@@ -260,6 +295,9 @@ async fn command(
         match command.as_str() {
             "restore" => {
                 state.restore_defaults();
+            }
+            "reset-calibration" => {
+                state.reset_calibration();
             }
             "reset" => {
                 state.request_hardware_reset();
@@ -329,6 +367,8 @@ mod tests {
             "/api/heat?value=warm",
             "/api/flip-vertical?value=1",
             "/api/module0-address?value=256",
+            "/api/gamma-red?value=NaN",
+            "/api/calibration-pattern?value=plaid",
         ] {
             assert_eq!(status(uri.to_string()).await.status(), 400, "{uri}");
         }

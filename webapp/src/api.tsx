@@ -1,6 +1,13 @@
-import { NovaState, NovaStatus, Palette, defaultNovaState } from './App';
+import {
+  Calibration,
+  NovaState,
+  NovaStatus,
+  Palette,
+  Rgb,
+  defaultNovaState,
+} from './App';
 
-type ApiCommand = 'restore' | 'reset' | 'reload';
+type ApiCommand = 'restore' | 'reset' | 'reload' | 'reset-calibration';
 
 interface ApiSettingValues {
   'enabled-content': string; // names, comma-separated
@@ -13,8 +20,18 @@ interface ApiSettingValues {
   form: number;
   void: number;
   'flip-vertical': boolean;
+  'gamma-red': number;
+  'gamma-green': number;
+  'gamma-blue': number;
+  'gain-red': number;
+  'gain-green': number;
+  'gain-blue': number;
+  'calibration-pattern': CalibrationPattern;
   'module0-address': number;
 }
+
+export type CalibrationPattern =
+  'off' | 'gray' | 'red' | 'green' | 'blue' | 'palette';
 
 export const apiSet = (id: ApiCommand) => {
   return fetch(`/api/${id}`, { method: 'POST' });
@@ -65,6 +82,7 @@ interface ApiStateResponse {
   form: number;
   void: number;
   'flip-vertical': boolean;
+  calibration: unknown;
   'module0-address': string;
 }
 
@@ -81,6 +99,21 @@ function isStringArray(v: unknown): v is string[] {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
+}
+
+function isRgb(v: unknown): v is Rgb {
+  return (
+    Array.isArray(v) &&
+    v.length === 3 &&
+    v.every((x) => typeof x === 'number' && Number.isFinite(x))
+  );
+}
+
+/** The display calibration from the server; defaults if malformed. */
+function parseCalibration(value: unknown): Calibration {
+  return isRecord(value) && isRgb(value.gamma) && isRgb(value.gain)
+    ? { gamma: value.gamma, gain: value.gain }
+    : defaultNovaState.calibration;
 }
 
 /** Palettes from the server; malformed entries are skipped. */
@@ -159,6 +192,7 @@ export const apiGetState = async (): Promise<NovaState | null> => {
       form: payload.form ?? defaultNovaState.form,
       void: payload.void ?? defaultNovaState.void,
       flip: payload['flip-vertical'] ?? defaultNovaState.flip,
+      calibration: parseCalibration(payload.calibration),
       module0Address:
         payload['module0-address'] ?? defaultNovaState.module0Address,
     };
