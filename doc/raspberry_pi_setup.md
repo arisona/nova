@@ -108,6 +108,6 @@ To use port 80, add `CAP_NET_BIND_SERVICE` to `AmbientCapabilities` and set `web
 - Update: `cd ~/nova && git pull && cargo install --path server && sudo systemctl restart nova`
 - Stop, for example before using option A: `sudo systemctl stop nova`; `sudo systemctl disable nova` also removes it from startup
 
-## Configure the display
+## Configure the voxel display
 
-By default Nova uses `eth0` and one module with jumper address 1. Change the interface or module address in the web app's settings. A layout of several modules is configured in `~/nova_settings.json`; see [Settings file](development.md#settings-file).
+By default Nova uses `eth0` and one module with jumper address 1. Change the interface in the settings file or module address in the web app's settings. A layout of several modules is configured in `~/nova_settings.json`; see [Settings file](development.md#settings-file).
