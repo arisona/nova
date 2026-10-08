@@ -8,18 +8,11 @@ import {
   VolumeUp,
   VolumeOff,
 } from '@mui/icons-material';
-import {
-  Autocomplete,
-  Divider,
-  IconButton,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Divider, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import * as React from 'react';
 
 import { NovaState } from './App';
+import { ContentSelector } from './ContentSelector';
 import { PaletteSelector } from './PaletteSelector';
 import { Slider } from './Slider';
 import { apiSetValue } from './api';
@@ -41,8 +34,12 @@ export const MainPage = ({
     void navigate('/settings');
   };
 
-  const handleContentChange = (name: string | null) => {
-    if (!name) return;
+  const paletteColors =
+    state.palettes
+      .find((palette) => palette.name === state.palette)
+      ?.colors.map((color) => color.hex) ?? [];
+
+  const handleContentChange = (name: string) => {
     apiSetValue('selected-content', name);
     setState((prevState) => ({ ...prevState, selectedContent: name }));
   };
@@ -118,43 +115,6 @@ export const MainPage = ({
         </Stack>
       </Stack>
 
-      {state.enabledContent.length > 1 && (
-        <Stack direction="row" sx={{ mb: 4 }}>
-          <Autocomplete
-            fullWidth
-            disablePortal
-            id="select-content"
-            disableCloseOnSelect
-            options={state.enabledContent}
-            value={
-              state.enabledContent.includes(state.selectedContent)
-                ? state.selectedContent
-                : null
-            }
-            onChange={(_e, value) => {
-              handleContentChange(value);
-            }}
-            renderInput={(params) => {
-              const { slotProps, ...rest } = params;
-              return (
-                <TextField
-                  {...rest}
-                  label="Select content"
-                  size="small"
-                  slotProps={{
-                    ...slotProps,
-                    htmlInput: {
-                      ...slotProps.htmlInput,
-                      readOnly: true,
-                    },
-                  }}
-                />
-              );
-            }}
-          />
-        </Stack>
-      )}
-
       <Slider
         icon={<WbSunny />}
         label="Brightness"
@@ -167,6 +127,15 @@ export const MainPage = ({
           label="Volume"
           value={state.volume}
           onChange={handleVolumeChange}
+        />
+      )}
+      {state.enabledContent.length > 1 && (
+        <ContentSelector
+          enabled={state.enabledContent}
+          value={state.selectedContent}
+          colors={paletteColors}
+          heat={state.heat}
+          onChange={handleContentChange}
         />
       )}
       <Divider sx={{ my: 3 }} />
