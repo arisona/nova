@@ -79,7 +79,7 @@ struct Pop {
     age: f32,
 }
 
-pub struct Swarm {
+pub struct LightCycleGrid {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -94,7 +94,7 @@ pub struct Swarm {
     scratch: Vec<f32>,
 }
 
-impl Swarm {
+impl LightCycleGrid {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -343,7 +343,7 @@ impl Swarm {
     }
 }
 
-impl Content for Swarm {
+impl Content for LightCycleGrid {
     fn name(&self) -> &str {
         "Light Cycle Grid"
     }

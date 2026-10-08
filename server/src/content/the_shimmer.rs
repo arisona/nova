@@ -42,7 +42,7 @@ const ROTATION: f64 = 0.03; // palette colors per simulated second
 const VOID_FADE: f32 = 0.25;
 const SEED: u64 = 0x7E7;
 
-pub struct Turing {
+pub struct TheShimmer {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -59,7 +59,7 @@ pub struct Turing {
     order: Vec<u32>,
 }
 
-impl Turing {
+impl TheShimmer {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -176,7 +176,7 @@ impl Turing {
     }
 }
 
-impl Content for Turing {
+impl Content for TheShimmer {
     fn name(&self) -> &str {
         "The Shimmer"
     }

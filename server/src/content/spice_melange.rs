@@ -20,7 +20,7 @@
 //! void:    by rank of F: exactly the void fraction stays dark (see `void_by_rank`)
 //! paddles: a 3 × 3 flash on the floor or ceiling where an orb bounced, fading over
 //!          0.6 s, weight smoothstep(0.4, 0.8, f)
-//! heat:    saturation, as in Flux
+//! heat:    saturation, as in Flux Capacitor
 //! ```
 
 use glam::Vec3;
@@ -68,7 +68,7 @@ struct Paddle {
     age: f32,
 }
 
-pub struct Orbs {
+pub struct SpiceMelange {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -81,7 +81,7 @@ pub struct Orbs {
     order: Vec<u32>,
 }
 
-impl Orbs {
+impl SpiceMelange {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -180,7 +180,7 @@ impl Orbs {
     }
 }
 
-impl Content for Orbs {
+impl Content for SpiceMelange {
     fn name(&self) -> &str {
         "Spice Melange"
     }

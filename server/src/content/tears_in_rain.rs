@@ -72,7 +72,7 @@ struct Ripple {
     age: f32,
 }
 
-pub struct Waves {
+pub struct TearsInRain {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -84,7 +84,7 @@ pub struct Waves {
     palette: PaletteMix,
 }
 
-impl Waves {
+impl TearsInRain {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -209,7 +209,7 @@ impl Waves {
     }
 }
 
-impl Content for Waves {
+impl Content for TearsInRain {
     fn name(&self) -> &str {
         "Tears in Rain"
     }

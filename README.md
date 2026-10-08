@@ -72,7 +72,7 @@ Modules are registered in `all_content()` in alphabetical order of their names, 
 
 Preserve readable structures at 5 x 5 x 10, and sample spatial patterns in voxel units so additional modules show more of the same field rather than a stretched one; particle counts scale with the number of modules.
 
-### Flux Capacitor (`flux.rs`)
+### Flux Capacitor (`flux_capacitor.rs`)
 
 - One 4D simplex noise primitive covers the whole Form range. Form blends five fields that differ only in their per-axis frequencies: layers (Form 0), columns (0.25), blobs (0.5), patches (0.75), and grain (1). Frequencies are fixed, so moving Form never zooms the pattern; blends are normalized to constant contrast.
 - Brightness is computed by rank, so Void is exactly the fraction of dark voxels and lit voxels look the same at any Void.
@@ -85,11 +85,11 @@ The Java version (branch `nova_final_java_version`) had 27 content classes. They
 
 | Module (file)     | Java origins                                            | Form, 0 → 1                                                     | Void                                          | Heat                         |
 | ---------- | ------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------- | ---------------------------- |
-| **Light Cycle Grid** (`swarm.rs`)  | Cylinder, Boids, BoidsNr, Snake                         | helix orbit → flock → lattice snakes that burst when trapped    | shorter trails, then a cap                    | saturation                   |
-| **Spice Melange** (`orbs.rs`)   | BouncingMetaBalls(T), ColorSplash, Pong, Pong2          | few large, merging, breathing metaballs → many small Pong balls with paddle flashes | by rank (exact)                  | saturation                   |
-| **Tannhäuser Gate** (`ember.rs`)  | Fire, Fire (Old), Stars, Random                         | flame bed → flame tongues → rising embers → star flares → sparks | lower flames, then a cap                     | picks the flame color        |
-| **Tears in Rain** (`waves.rs`)  | Waves, Waves3D, Sweep, Pulse, Jump, Snow                | bobbing level → rim/core jump → rolling → standing → choppy waves; rain above 0.5 | water level (1 − Void)       | picks the water color        |
-| **The Shimmer** (`turing.rs`) | ReactionDiffusion, ReactionDiffusionRandom              | broad spots (cheetah) → stripes → fine pattern                  | by rank (exact)                               | saturation                   |
+| **Light Cycle Grid** (`light_cycle_grid.rs`)  | Cylinder, Boids, BoidsNr, Snake                         | helix orbit → flock → lattice snakes that burst when trapped    | shorter trails, then a cap                    | saturation                   |
+| **Spice Melange** (`spice_melange.rs`)   | BouncingMetaBalls(T), ColorSplash, Pong, Pong2          | few large, merging, breathing metaballs → many small Pong balls with paddle flashes | by rank (exact)                  | saturation                   |
+| **Tannhäuser Gate** (`tannhauser_gate.rs`)  | Fire, Fire (Old), Stars, Random                         | flame bed → flame tongues → rising embers → star flares → sparks | lower flames, then a cap                     | picks the flame color        |
+| **Tears in Rain** (`tears_in_rain.rs`)  | Waves, Waves3D, Sweep, Pulse, Jump, Snow                | bobbing level → rim/core jump → rolling → standing → choppy waves; rain above 0.5 | water level (1 − Void)       | picks the water color        |
+| **The Shimmer** (`the_shimmer.rs`) | ReactionDiffusion, ReactionDiffusionRandom              | broad spots (cheetah) → stripes → fine pattern                  | by rank (exact)                               | saturation                   |
 
 - Simulated modules advance by `advance_seconds()`: simulated time runs in real time at Flow 0.5 and stops at Flow 0. Their randomness is seeded, so a reset replays the same animation.
 - Void as a cap (`void_as_cap`) keeps at most the brightest 1 − Void fraction lit, for sparse modules whose dark voxels are already part of the picture.

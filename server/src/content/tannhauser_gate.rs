@@ -6,7 +6,7 @@
 //!
 //! ```text
 //! inputs:  p = (x, y, z), f = form, T = simulated seconds (Flow-integrated), Z = height
-//! anchors (weights blend neighbours, as Form does in Flux):
+//! anchors (weights blend neighbours, as Form does in Flux Capacitor):
 //!          bed (0)      one flame sheet rising and falling together: layers
 //!          tongues (¼)  every column flickers on its own (Fire (Old)): columns
 //!          embers (½)   glowing spheres rising from the floor, shrinking (Fire): blobs
@@ -67,7 +67,7 @@ struct Spark {
     life: f32,
 }
 
-pub struct Ember {
+pub struct TannhauserGate {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -90,7 +90,7 @@ fn flash(spark: &Spark) -> f32 {
     (-t * t / (2.0 * 0.22 * 0.22)).exp()
 }
 
-impl Ember {
+impl TannhauserGate {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -183,7 +183,7 @@ impl Ember {
     }
 }
 
-impl Content for Ember {
+impl Content for TannhauserGate {
     fn name(&self) -> &str {
         "Tannhäuser Gate"
     }

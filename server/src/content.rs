@@ -2,12 +2,12 @@ use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 
 mod common;
-mod ember;
-mod flux;
-mod orbs;
-mod swarm;
-mod turing;
-mod waves;
+mod flux_capacitor;
+mod light_cycle_grid;
+mod spice_melange;
+mod tannhauser_gate;
+mod tears_in_rain;
+mod the_shimmer;
 
 const FLOW_SPEED_MULTIPLIER: f32 = 10.0;
 /// Flow at which simulated modules run in real time.
@@ -31,12 +31,12 @@ pub trait Content {
 /// names unique and free of commas.
 pub fn all_content() -> Vec<Box<dyn Content>> {
     vec![
-        Box::new(flux::Flux::new()),     // Flux Capacitor
-        Box::new(swarm::Swarm::new()),   // Light Cycle Grid
-        Box::new(orbs::Orbs::new()),     // Spice Melange
-        Box::new(ember::Ember::new()),   // Tannhäuser Gate
-        Box::new(waves::Waves::new()),   // Tears in Rain
-        Box::new(turing::Turing::new()), // The Shimmer
+        Box::new(flux_capacitor::FluxCapacitor::new()),
+        Box::new(light_cycle_grid::LightCycleGrid::new()),
+        Box::new(spice_melange::SpiceMelange::new()),
+        Box::new(tannhauser_gate::TannhauserGate::new()),
+        Box::new(tears_in_rain::TearsInRain::new()),
+        Box::new(the_shimmer::TheShimmer::new()),
     ]
 }
 
