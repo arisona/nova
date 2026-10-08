@@ -99,7 +99,8 @@ The preview test writes three unnormalized 30-second WAV files (`slow`, `bleeps`
 ## Adding content
 
 1. Create a struct in `server/src/content/` and implement the `Content` trait from `server/src/content.rs`.
-2. Register it in `all_content()`.
+2. Register it in `all_content()`, keeping the alphabetical order of names.
+3. Add a pictogram for its name in `webapp/src/ContentPictogram.tsx`, and rebuild the web app.
 
 Content writes unscaled RGB to `next`; the renderer applies Brightness to a separate output image. Drive motion with the Flow-integrated phase from `advance()`, or for simulations its step in seconds from `advance_seconds()`, never wall-clock time, and reset animation state when `RenderState::should_reset()` is true; seed randomness (`common::Rng`) so a reset replays the same animation. `content/common.rs` has helpers for palettes, Heat and Void. `render()` must finish within the render budget (see the [README](../README.md#color-and-performance)).
 
