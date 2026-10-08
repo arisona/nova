@@ -1,4 +1,4 @@
-//! Flux: the unified content module.
+//! Flux Capacitor: the unified content module.
 //!
 //! One noise primitive covers the whole range. `form` sweeps through five fields that
 //! differ only in their per-axis frequencies, in this order:
@@ -69,11 +69,9 @@
 
 use glam::Vec3;
 use noise::{NoiseFn, Simplex};
-use palette::convert::IntoColorUnclamped;
-use palette::{IntoColor, Mix, Oklab, Srgb};
 
+use crate::content::common::{PaletteMix, apply_heat, form_weights, smoothstep};
 use crate::content::{Content, advance};
-use crate::palettes::PALETTES;
 use crate::renderer::RenderState;
 use crate::tides::Tide;
 use crate::voxel_image::VoxelImage;
@@ -119,9 +117,6 @@ const SWAY_PERIOD: f64 = 230.0; // P, phase units (≈23 s at full Flow)
 const COLOR_SCALE: f64 = 0.6; // color regions are broader than brightness features
 const COLOR_EVOLUTION: f64 = 0.03;
 const COLOR_ROTATION: f64 = 1.0 / 150.0; // ρ, palette colors per phase unit (≈15 s at full Flow)
-const HEAT_NATIVE: f32 = 0.5; // heat at which the palette shows as published
-const HEAT_OVERDRIVE: f32 = 1.0; // extra saturation at heat 1 (1.0 = 2×)
-const LUMA: Vec3 = Vec3::new(0.2126, 0.7152, 0.0722);
 
 // Void.
 const VOID_FADE: f32 = 0.25; // share of lit voxels fading in from dark
@@ -131,58 +126,15 @@ const STRETCH: Tide = Tide::new(43.0, 0.485, [0.6, 2.8]); // along z: 2^offset, 
 const SPREAD: Tide = Tide::new(31.0, 0.3, [3.7, 1.2]); // colors at once: ×(1 + offset)
 const DRIFT: Tide = Tide::new(59.0, 0.5, [5.0, 0.4]); // dominant colors: ± half a color
 
-fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
-    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
-/// S(a) in the pseudocode.
-fn ease(a: f32) -> f32 {
-    smoothstep(0.0, 1.0, a)
-}
-
-/// The two neighbouring fields to blend at `form` and their weights.
-fn form_weights(form: f32) -> [(usize, f32); 2] {
-    let segment = form.clamp(0.0, 1.0) * (FIELDS.len() - 1) as f32;
-    let index = (segment.floor() as usize).min(FIELDS.len() - 2);
-    let w = ease(segment - index as f32);
-    [(index, 1.0 - w), (index + 1, w)]
-}
-
 /// Φ(n): rank of a unit-spread noise value, uniform in [0, 1] (logistic approximation).
 fn rank(n: f32) -> f32 {
     1.0 / (1.0 + (-1.7 * n).exp())
 }
 
-/// Heat: gray at 0, the palette as published at 0.5, oversaturated above.
-fn apply_heat(color: Vec3, heat: f32) -> Vec3 {
-    let gray = Vec3::splat(color.dot(LUMA));
-    let chroma = color - gray;
-    let saturation = if heat <= HEAT_NATIVE {
-        heat / HEAT_NATIVE
-    } else {
-        1.0 + HEAT_OVERDRIVE * (heat - HEAT_NATIVE) / (1.0 - HEAT_NATIVE)
-    };
-    // Largest factor that keeps every channel in [0, 1] along gray → color, so hue is preserved.
-    let limit = (0..3).fold(f32::INFINITY, |limit, i| {
-        let room = if chroma[i] > 0.0 {
-            (1.0 - gray[i]) / chroma[i]
-        } else if chroma[i] < 0.0 {
-            gray[i] / -chroma[i]
-        } else {
-            f32::INFINITY
-        };
-        limit.min(room)
-    });
-    // The clamp only absorbs float rounding at the cap.
-    (gray + chroma * saturation.min(limit)).clamp(Vec3::ZERO, Vec3::ONE)
-}
-
 pub struct Flux {
     phase: f64,
     noise: Simplex,
-    palette_index: Option<usize>,
-    palette: Vec<Oklab>,
+    palette: PaletteMix,
 }
 
 impl Flux {
@@ -190,27 +142,7 @@ impl Flux {
         Self {
             phase: 0.0,
             noise: Simplex::new(0x1337),
-            palette_index: None,
-            palette: Vec::new(),
-        }
-    }
-
-    /// Converts the selected palette to Oklab whenever the selection changes.
-    fn select_palette(&mut self, index: usize) {
-        let index = index.min(PALETTES.len() - 1);
-        if self.palette_index != Some(index) {
-            self.palette_index = Some(index);
-            let palette = &PALETTES[index];
-            self.palette = palette
-                .colors
-                .iter()
-                .map(|color| {
-                    let rgb = color.color();
-                    Srgb::new(rgb.x, rgb.y, rgb.z).into_color()
-                })
-                .collect();
-            let names: Vec<_> = palette.colors.iter().map(|color| color.name).collect();
-            log::info!("Flux palette: {} ({})", palette.name, names.join(", "));
+            palette: PaletteMix::default(),
         }
     }
 
@@ -242,21 +174,11 @@ impl Flux {
         }
         sum / norm.sqrt() / NOISE_STD
     }
-
-    /// C(q): Oklab mix between neighbouring palette colors, indices wrapping.
-    fn palette_color(&self, q: f32) -> Vec3 {
-        let len = self.palette.len() as i64;
-        let index = q.floor();
-        let a = self.palette[(index as i64).rem_euclid(len) as usize];
-        let b = self.palette[(index as i64 + 1).rem_euclid(len) as usize];
-        let rgb: Srgb = a.mix(b, ease(q - index)).into_color_unclamped();
-        Vec3::new(rgb.red, rgb.green, rgb.blue).clamp(Vec3::ZERO, Vec3::ONE)
-    }
 }
 
 impl Content for Flux {
     fn name(&self) -> &str {
-        "Flux"
+        "Flux Capacitor"
     }
 
     fn render(
@@ -273,9 +195,9 @@ impl Content for Flux {
         let form = state.form();
         let heat = state.heat();
         let void = state.void();
-        self.select_palette(state.palette());
+        self.palette.select(state.palette(), "Flux Capacitor");
 
-        let weights = form_weights(form);
+        let weights = form_weights(form, FIELDS.len());
         let spread: f32 = weights
             .iter()
             .map(|&(index, weight)| weight * FIELDS[index].colors)
@@ -305,7 +227,7 @@ impl Content for Flux {
                     }
                     let n_color =
                         self.field(position, COLOR_EVOLUTION * t, &weights, COLOR_SCALE, 500.0);
-                    let color = self.palette_color(rotation + spread * n_color);
+                    let color = self.palette.wrapped(rotation + spread * n_color);
                     next.set(x, y, z, apply_heat(color, heat) * intensity);
                 }
             }
@@ -316,6 +238,7 @@ impl Content for Flux {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::palettes::PALETTES;
 
     /// Bug-checking only (live evaluation is on the display). Renders a form sweep
     /// for every palette to a PPM contact sheet.

@@ -18,7 +18,7 @@ server/src/
 ├── web_server.rs    # HTTP API and embedded web app
 ├── renderer.rs      # Applies controls and tides, calls content
 ├── content.rs       # Content trait and registry
-├── content/flux.rs  # Flux, with its specification
+├── content/         # One file per module, each with its specification; common.rs holds shared helpers
 ├── tides.rs         # Slow system-driven variation
 ├── palettes.rs      # Curated Pantone palettes
 ├── audio.rs         # Audio service; synth and output in audio/
@@ -71,8 +71,8 @@ npm run dev
   "void": 0.5,
   "flip_vertical": false,
   "calibration": { "gamma": [2.2, 2.2, 2.2], "gain": [1.0, 0.95, 0.9] },
-  "enabled_content": ["Flux"],
-  "selected_content": "Flux"
+  "enabled_content": ["Flux Capacitor"],
+  "selected_content": "Flux Capacitor"
 }
 ```
 
@@ -101,11 +101,15 @@ The preview test writes three unnormalized 30-second WAV files (`slow`, `bleeps`
 1. Create a struct in `server/src/content/` and implement the `Content` trait from `server/src/content.rs`.
 2. Register it in `all_content()`.
 
-Content writes unscaled RGB to `next`; the renderer applies Brightness to a separate output image. Drive motion with the Flow-integrated phase from `advance()`, never wall-clock time, and reset animation state when `RenderState::should_reset()` is true. `render()` must finish within the render budget (see the [README](../README.md#color-and-performance)).
+Content writes unscaled RGB to `next`; the renderer applies Brightness to a separate output image. Drive motion with the Flow-integrated phase from `advance()`, or for simulations its step in seconds from `advance_seconds()`, never wall-clock time, and reset animation state when `RenderState::should_reset()` is true; seed randomness (`common::Rng`) so a reset replays the same animation. `content/common.rs` has helpers for palettes, Heat and Void. `render()` must finish within the render budget (see the [README](../README.md#color-and-performance)).
 
 ## Diagnostics
 
 `cargo test flux_form_sweep_dump -- --ignored --nocapture` in `server` writes `nova-flux-sweep.ppm` to the OS temporary directory. Its columns step Form from 0 to 1 by 0.125, and its rows are the palettes; each cell shows the middle slice of one module at Heat 0.5.
+
+`cargo test content_form_sweep_dump -- --ignored --nocapture` writes `nova-content-sweep.ppm` with every content module: the columns step Form from 0 to 1, and each module has three rows, after 2, 6 and 15 s at Flow 0.5. Each cell shows the middle slice of two modules side by side. `NOVA_PALETTE`, `NOVA_HEAT` and `NOVA_VOID` change the palette (by name) and the controls.
+
+`cargo test --release content_render_timing -- --ignored --nocapture` prints the render time per frame of every module, for one module and a 2 x 2 grid.
 
 ## Troubleshooting
 
