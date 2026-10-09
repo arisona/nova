@@ -52,6 +52,7 @@ impl NovaHardware {
 
         loop {
             let mut interface;
+            let modules_at_reset;
 
             // Retry loop for opening the interface
             loop {
@@ -77,6 +78,7 @@ impl NovaHardware {
                         let image = VoxelImage::new(self.state.lock().unwrap().dim());
                         self.reset_modules(&mut interface, &modules, &image);
                         log::info!("Module reset complete.");
+                        modules_at_reset = modules;
                         break;
                     }
                     Err(err) => {
@@ -118,6 +120,12 @@ impl NovaHardware {
                 if interface_name != interface.name() {
                     log::info!("Interface changed to {interface_name}.");
                     // Return back to interface opening loop
+                    break;
+                }
+
+                if modules != modules_at_reset {
+                    log::info!("Modules changed.");
+                    // Reopen the interface to reset the modules at their new addresses
                     break;
                 }
 
