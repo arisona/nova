@@ -1,435 +1,913 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1132" height="2356" viewBox="0 0 1132 2356" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1132" height="2954" viewBox="0 0 1132 2954" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+<defs><radialGradient id="voxel"><stop offset="0.45" stop-opacity="0"/><stop offset="1" stop-opacity="0.6"/></radialGradient></defs>
 <rect width="100%" height="100%" fill="#F3F2EE"/>
 <text x="48" y="56" font-size="30" font-weight="700" fill="#1C1B19">Nova palettes</text>
 <text x="48" y="84" font-size="15" fill="#6D6A62">12 palettes, ordered by the hue of their most saturated color · Pantone FHI (TCX) colors · generated from server/src/palettes.rs</text>
-<text x="48" y="138" font-size="13" font-weight="600" fill="#9A968C">01</text>
-<text x="48" y="164" font-size="21" font-weight="700" fill="#1C1B19">Uluwatu Wipeout</text>
-<g transform="translate(278,104)">
+<text x="48" y="106" font-size="15" fill="#6D6A62">Below each palette: its colors as light on black, blended as on the display, previewed at gamma 2.2</text>
+<text x="48" y="160" font-size="13" font-weight="600" fill="#9A968C">01</text>
+<text x="48" y="186" font-size="21" font-weight="700" fill="#1C1B19">Uluwatu Wipeout</text>
+<g transform="translate(278,126)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F1BF70"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Buff Yellow</text>
 <text x="10" y="129" font-size="12" fill="#55524B">14-0847 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F1BF70</text>
 </g>
-<g transform="translate(442,104)">
+<g transform="translate(442,126)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#DF7253"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Flamingo</text>
 <text x="10" y="129" font-size="12" fill="#55524B">16-1450 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#DF7253</text>
 </g>
-<g transform="translate(606,104)">
+<g transform="translate(606,126)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#5D89B3"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Lichen Blue</text>
 <text x="10" y="129" font-size="12" fill="#55524B">17-4032 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#5D89B3</text>
 </g>
-<g transform="translate(770,104)">
+<g transform="translate(770,126)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#363B7C"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Clematis Blue</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-3951 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#363B7C</text>
 </g>
-<g transform="translate(934,104)">
+<g transform="translate(934,126)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#263056"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Blue Depths</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-3940 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#263056</text>
 </g>
-<text x="48" y="324" font-size="13" font-weight="600" fill="#9A968C">02</text>
-<text x="48" y="350" font-size="21" font-weight="700" fill="#1C1B19">Texas Sun</text>
-<g transform="translate(278,290)">
+<rect x="271" y="298" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="315" r="8.6" fill="#98836E"/><circle cx="281.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="315" r="8.6" fill="#BD9D70"/><circle cx="301.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="315" r="8.6" fill="#DCB171"/><circle cx="322.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="315" r="8.6" fill="#EEBD70"/><circle cx="342.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="315" r="8.6" fill="#F1BE70"/><circle cx="363.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="315" r="8.6" fill="#F0B86D"/><circle cx="383.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="315" r="8.6" fill="#EEAE69"/><circle cx="404.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="315" r="8.6" fill="#EBA064"/><circle cx="424.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="315" r="8.6" fill="#E8925F"/><circle cx="445.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="315" r="8.6" fill="#E4845A"/><circle cx="465.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="315" r="8.6" fill="#E17956"/><circle cx="486.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="315" r="8.6" fill="#DF7353"/><circle cx="506.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="315" r="8.6" fill="#DE7354"/><circle cx="527.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="315" r="8.6" fill="#D5765F"/><circle cx="547.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="315" r="8.6" fill="#C57B6E"/><circle cx="568.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="315" r="8.6" fill="#B18180"/><circle cx="588.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="315" r="8.6" fill="#998591"/><circle cx="609.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="315" r="8.6" fill="#8287A0"/><circle cx="629.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="315" r="8.6" fill="#6D89AB"/><circle cx="650.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="315" r="8.6" fill="#5F89B2"/><circle cx="670.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="315" r="8.6" fill="#5D88B2"/><circle cx="691.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="315" r="8.6" fill="#5982AE"/><circle cx="711.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="315" r="8.6" fill="#5377A6"/><circle cx="732.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="315" r="8.6" fill="#4C699D"/><circle cx="752.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="315" r="8.6" fill="#455A92"/><circle cx="773.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="315" r="8.6" fill="#3F4D89"/><circle cx="793.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="315" r="8.6" fill="#394281"/><circle cx="814.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="315" r="8.6" fill="#363C7D"/><circle cx="834.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="315" r="8.6" fill="#363B7C"/><circle cx="855.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="315" r="8.6" fill="#343A78"/><circle cx="875.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="315" r="8.6" fill="#323973"/><circle cx="896.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="315" r="8.6" fill="#2F376C"/><circle cx="916.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="315" r="8.6" fill="#2C3565"/><circle cx="937.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="315" r="8.6" fill="#2A335F"/><circle cx="957.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="315" r="8.6" fill="#273159"/><circle cx="978.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="315" r="8.6" fill="#263056"/><circle cx="998.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="315" r="8.6" fill="#283257"/><circle cx="1019.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="315" r="8.6" fill="#363D5B"/><circle cx="1039.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="315" r="8.6" fill="#505162"/><circle cx="1060.2" cy="315" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="315" r="8.6" fill="#726969"/><circle cx="1080.8" cy="315" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="394" font-size="13" font-weight="600" fill="#9A968C">02</text>
+<text x="48" y="420" font-size="21" font-weight="700" fill="#1C1B19">Texas Sun</text>
+<g transform="translate(278,360)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#157EA0"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Bluejay</text>
 <text x="10" y="129" font-size="12" fill="#55524B">17-4427 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#157EA0</text>
 </g>
-<g transform="translate(442,290)">
+<g transform="translate(442,360)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#E2A829"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Golden Rod</text>
 <text x="10" y="129" font-size="12" fill="#55524B">14-0951 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#E2A829</text>
 </g>
-<g transform="translate(606,290)">
+<g transform="translate(606,360)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#DF7500"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Orange Pepper</text>
 <text x="10" y="129" font-size="12" fill="#55524B">16-1164 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#DF7500</text>
 </g>
-<g transform="translate(770,290)">
+<g transform="translate(770,360)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#BC322C"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Valiant Poppy</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-1549 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#BC322C</text>
 </g>
-<g transform="translate(934,290)">
+<g transform="translate(934,360)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#843E83"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Dahlia</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-3324 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#843E83</text>
 </g>
-<text x="48" y="510" font-size="13" font-weight="600" fill="#9A968C">03</text>
-<text x="48" y="536" font-size="21" font-weight="700" fill="#1C1B19">Infinite Radiance</text>
-<g transform="translate(278,476)">
+<rect x="271" y="532" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="549" r="8.6" fill="#5C6794"/><circle cx="281.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="549" r="8.6" fill="#497199"/><circle cx="301.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="549" r="8.6" fill="#32799D"/><circle cx="322.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="549" r="8.6" fill="#1A7DA0"/><circle cx="342.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="549" r="8.6" fill="#1B7F9F"/><circle cx="363.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="549" r="8.6" fill="#38839A"/><circle cx="383.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="549" r="8.6" fill="#5A8B90"/><circle cx="404.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="549" r="8.6" fill="#7C9382"/><circle cx="424.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="549" r="8.6" fill="#9D9B71"/><circle cx="445.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="549" r="8.6" fill="#BBA15B"/><circle cx="465.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="549" r="8.6" fill="#D3A543"/><circle cx="486.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="549" r="8.6" fill="#E0A82D"/><circle cx="506.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="549" r="8.6" fill="#E2A729"/><circle cx="527.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="549" r="8.6" fill="#E2A326"/><circle cx="547.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="549" r="8.6" fill="#E29D22"/><circle cx="568.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="549" r="8.6" fill="#E2941C"/><circle cx="588.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="549" r="8.6" fill="#E18A15"/><circle cx="609.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="549" r="8.6" fill="#E0810D"/><circle cx="629.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="549" r="8.6" fill="#E07A05"/><circle cx="650.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="549" r="8.6" fill="#DF7601"/><circle cx="670.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="549" r="8.6" fill="#DF7401"/><circle cx="691.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="549" r="8.6" fill="#DC6F0B"/><circle cx="711.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="549" r="8.6" fill="#D76716"/><circle cx="732.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="549" r="8.6" fill="#D15C1E"/><circle cx="752.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="549" r="8.6" fill="#CB5024"/><circle cx="773.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="549" r="8.6" fill="#C44428"/><circle cx="793.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="549" r="8.6" fill="#BF392B"/><circle cx="814.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="549" r="8.6" fill="#BC332C"/><circle cx="834.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="549" r="8.6" fill="#BB322E"/><circle cx="855.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="549" r="8.6" fill="#B73538"/><circle cx="875.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="549" r="8.6" fill="#AF3947"/><circle cx="896.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="549" r="8.6" fill="#A53C56"/><circle cx="916.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="549" r="8.6" fill="#9A3E65"/><circle cx="937.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="549" r="8.6" fill="#913F73"/><circle cx="957.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="549" r="8.6" fill="#893F7D"/><circle cx="978.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="549" r="8.6" fill="#853E82"/><circle cx="998.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="549" r="8.6" fill="#833F83"/><circle cx="1019.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="549" r="8.6" fill="#7F4686"/><circle cx="1039.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="549" r="8.6" fill="#77508A"/><circle cx="1060.2" cy="549" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="549" r="8.6" fill="#6C5C8F"/><circle cx="1080.8" cy="549" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="628" font-size="13" font-weight="600" fill="#9A968C">03</text>
+<text x="48" y="654" font-size="21" font-weight="700" fill="#1C1B19">Infinite Radiance</text>
+<g transform="translate(278,594)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F2AB46"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Artisan's Gold</text>
 <text x="10" y="129" font-size="12" fill="#55524B">15-1049 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F2AB46</text>
 </g>
-<g transform="translate(442,476)">
+<g transform="translate(442,594)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#B5B0AB"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Cumulus Cloud</text>
 <text x="10" y="129" font-size="12" fill="#55524B">14-0207 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#B5B0AB</text>
 </g>
-<g transform="translate(606,476)">
+<g transform="translate(606,594)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#2E272A"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Black Bean</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-3909 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#2E272A</text>
 </g>
-<text x="48" y="696" font-size="13" font-weight="600" fill="#9A968C">04</text>
-<text x="48" y="722" font-size="21" font-weight="700" fill="#1C1B19">Island Vibes</text>
-<g transform="translate(278,662)">
+<rect x="271" y="766" width="492" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="783" r="8.6" fill="#9C7241"/><circle cx="281.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="783" r="8.6" fill="#C08A44"/><circle cx="301.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="783" r="8.6" fill="#DE9E46"/><circle cx="322.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="783" r="8.6" fill="#F0A946"/><circle cx="342.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="783" r="8.6" fill="#F1AB48"/><circle cx="363.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="783" r="8.6" fill="#EDAC54"/><circle cx="383.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="783" r="8.6" fill="#E4AD65"/><circle cx="404.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="783" r="8.6" fill="#DAAE78"/><circle cx="424.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="783" r="8.6" fill="#CFAF89"/><circle cx="445.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="783" r="8.6" fill="#C4B098"/><circle cx="465.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="783" r="8.6" fill="#BBB0A4"/><circle cx="486.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="783" r="8.6" fill="#B6B0AA"/><circle cx="506.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="783" r="8.6" fill="#B3AEA9"/><circle cx="527.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="783" r="8.6" fill="#A7A29E"/><circle cx="547.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="783" r="8.6" fill="#938D8B"/><circle cx="568.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="783" r="8.6" fill="#7B7473"/><circle cx="588.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="783" r="8.6" fill="#615B5B"/><circle cx="609.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="783" r="8.6" fill="#4A4445"/><circle cx="629.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="783" r="8.6" fill="#393235"/><circle cx="650.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="783" r="8.6" fill="#2F282B"/><circle cx="670.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="783" r="8.6" fill="#30282B"/><circle cx="691.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="783" r="8.6" fill="#3E322F"/><circle cx="711.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="783" r="8.6" fill="#564335"/><circle cx="732.2" cy="783" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="783" r="8.6" fill="#77593C"/><circle cx="752.8" cy="783" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="862" font-size="13" font-weight="600" fill="#9A968C">04</text>
+<text x="48" y="888" font-size="21" font-weight="700" fill="#1C1B19">Island Vibes</text>
+<g transform="translate(278,828)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#D69C2F"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Mango Mojito</text>
 <text x="10" y="129" font-size="12" fill="#55524B">15-0960 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#D69C2F</text>
 </g>
-<g transform="translate(442,662)">
+<g transform="translate(442,828)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#D6AF66"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Ochre</text>
 <text x="10" y="129" font-size="12" fill="#55524B">14-1036 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#D6AF66</text>
 </g>
-<g transform="translate(606,662)">
+<g transform="translate(606,828)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#346CB0"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Palace Blue</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-4043 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#346CB0</text>
 </g>
-<g transform="translate(770,662)">
+<g transform="translate(770,828)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#203C7F"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Surf The Web</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-3952 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#203C7F</text>
 </g>
-<g transform="translate(934,662)">
+<g transform="translate(934,828)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#263056"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Blue Depths</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-3940 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#263056</text>
 </g>
-<text x="48" y="882" font-size="13" font-weight="600" fill="#9A968C">05</text>
-<text x="48" y="908" font-size="21" font-weight="700" fill="#1C1B19">Electric Escape</text>
-<g transform="translate(278,848)">
+<rect x="271" y="1000" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="1017" r="8.6" fill="#8A7152"/><circle cx="281.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="1017" r="8.6" fill="#AA8349"/><circle cx="301.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="1017" r="8.6" fill="#C4923C"/><circle cx="322.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="1017" r="8.6" fill="#D49B31"/><circle cx="342.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="1017" r="8.6" fill="#D69C30"/><circle cx="363.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="1017" r="8.6" fill="#D69E36"/><circle cx="383.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="1017" r="8.6" fill="#D6A03F"/><circle cx="404.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="1017" r="8.6" fill="#D6A449"/><circle cx="424.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="1017" r="8.6" fill="#D6A753"/><circle cx="445.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="1017" r="8.6" fill="#D6AB5B"/><circle cx="465.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="1017" r="8.6" fill="#D6AD62"/><circle cx="486.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="1017" r="8.6" fill="#D6AF65"/><circle cx="506.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="1017" r="8.6" fill="#D4AE68"/><circle cx="527.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="1017" r="8.6" fill="#C7AA71"/><circle cx="547.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="1017" r="8.6" fill="#B2A280"/><circle cx="568.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="1017" r="8.6" fill="#96978E"/><circle cx="588.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="1017" r="8.6" fill="#798B9B"/><circle cx="609.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="1017" r="8.6" fill="#5D7EA5"/><circle cx="629.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="1017" r="8.6" fill="#4574AC"/><circle cx="650.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="1017" r="8.6" fill="#366DB0"/><circle cx="670.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="1017" r="8.6" fill="#346BAF"/><circle cx="691.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="1017" r="8.6" fill="#3267AB"/><circle cx="711.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="1017" r="8.6" fill="#2F61A4"/><circle cx="732.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="1017" r="8.6" fill="#2B589C"/><circle cx="752.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="1017" r="8.6" fill="#284F93"/><circle cx="773.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="1017" r="8.6" fill="#24478A"/><circle cx="793.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="1017" r="8.6" fill="#224083"/><circle cx="814.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="1017" r="8.6" fill="#203D80"/><circle cx="834.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="1017" r="8.6" fill="#203C7F"/><circle cx="855.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="1017" r="8.6" fill="#213B7B"/><circle cx="875.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="1017" r="8.6" fill="#223975"/><circle cx="896.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="1017" r="8.6" fill="#23376E"/><circle cx="916.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="1017" r="8.6" fill="#243566"/><circle cx="937.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="1017" r="8.6" fill="#25335F"/><circle cx="957.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="1017" r="8.6" fill="#26315A"/><circle cx="978.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="1017" r="8.6" fill="#263056"/><circle cx="998.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="1017" r="8.6" fill="#283156"/><circle cx="1019.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="1017" r="8.6" fill="#343B57"/><circle cx="1039.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="1017" r="8.6" fill="#4B4A58"/><circle cx="1060.2" cy="1017" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="1017" r="8.6" fill="#695D57"/><circle cx="1080.8" cy="1017" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="1096" font-size="13" font-weight="600" fill="#9A968C">05</text>
+<text x="48" y="1122" font-size="21" font-weight="700" fill="#1C1B19">Electric Escape</text>
+<g transform="translate(278,1062)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#0061A3"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Directoire Blue</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-4244 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#0061A3</text>
 </g>
-<g transform="translate(442,848)">
+<g transform="translate(442,1062)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F3C12C"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Freesia</text>
 <text x="10" y="129" font-size="12" fill="#55524B">14-0852 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F3C12C</text>
 </g>
-<g transform="translate(606,848)">
+<g transform="translate(606,1062)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#D979A2"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Wild Orchid</text>
 <text x="10" y="129" font-size="12" fill="#55524B">16-2120 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#D979A2</text>
 </g>
-<g transform="translate(770,848)">
+<g transform="translate(770,1062)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#272F38"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Carbon</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-4012 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#272F38</text>
 </g>
-<g transform="translate(934,848)">
+<g transform="translate(934,1062)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#009B75"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Simply Green</text>
 <text x="10" y="129" font-size="12" fill="#55524B">17-5936 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#009B75</text>
 </g>
-<text x="48" y="1068" font-size="13" font-weight="600" fill="#9A968C">06</text>
-<text x="48" y="1094" font-size="21" font-weight="700" fill="#1C1B19">Brilliant Abyss</text>
-<g transform="translate(278,1034)">
+<rect x="271" y="1234" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="1251" r="8.6" fill="#007A93"/><circle cx="281.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="1251" r="8.6" fill="#00709A"/><circle cx="301.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="1251" r="8.6" fill="#0067A0"/><circle cx="322.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="1251" r="8.6" fill="#0062A3"/><circle cx="342.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="1251" r="8.6" fill="#0862A3"/><circle cx="363.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="1251" r="8.6" fill="#2A6C9F"/><circle cx="383.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="1251" r="8.6" fill="#4E7B98"/><circle cx="404.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="1251" r="8.6" fill="#758D8C"/><circle cx="424.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="1251" r="8.6" fill="#9D9E7C"/><circle cx="445.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="1251" r="8.6" fill="#C2AE66"/><circle cx="465.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="1251" r="8.6" fill="#DFBA4B"/><circle cx="486.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="1251" r="8.6" fill="#F1C031"/><circle cx="506.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="1251" r="8.6" fill="#F3C030"/><circle cx="527.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="1251" r="8.6" fill="#F1BB44"/><circle cx="547.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="1251" r="8.6" fill="#EDB25B"/><circle cx="568.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="1251" r="8.6" fill="#E8A671"/><circle cx="588.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="1251" r="8.6" fill="#E49883"/><circle cx="609.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="1251" r="8.6" fill="#DF8B92"/><circle cx="629.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="1251" r="8.6" fill="#DB809C"/><circle cx="650.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="1251" r="8.6" fill="#D97AA1"/><circle cx="670.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="1251" r="8.6" fill="#D778A1"/><circle cx="691.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="1251" r="8.6" fill="#C77297"/><circle cx="711.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="1251" r="8.6" fill="#AD6888"/><circle cx="732.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="1251" r="8.6" fill="#8D5B75"/><circle cx="752.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="1251" r="8.6" fill="#6C4D61"/><circle cx="773.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="1251" r="8.6" fill="#4E404F"/><circle cx="793.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="1251" r="8.6" fill="#373641"/><circle cx="814.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="1251" r="8.6" fill="#293039"/><circle cx="834.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="1251" r="8.6" fill="#273039"/><circle cx="855.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="1251" r="8.6" fill="#29383E"/><circle cx="875.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="1251" r="8.6" fill="#2A4646"/><circle cx="896.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="1251" r="8.6" fill="#2A5950"/><circle cx="916.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="1251" r="8.6" fill="#276D5C"/><circle cx="937.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="1251" r="8.6" fill="#208067"/><circle cx="957.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="1251" r="8.6" fill="#13906F"/><circle cx="978.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="1251" r="8.6" fill="#039A74"/><circle cx="998.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="1251" r="8.6" fill="#009A76"/><circle cx="1019.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="1251" r="8.6" fill="#00967A"/><circle cx="1039.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="1251" r="8.6" fill="#008F82"/><circle cx="1060.2" cy="1251" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="1251" r="8.6" fill="#00858B"/><circle cx="1080.8" cy="1251" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="1330" font-size="13" font-weight="600" fill="#9A968C">06</text>
+<text x="48" y="1356" font-size="21" font-weight="700" fill="#1C1B19">Brilliant Abyss</text>
+<g transform="translate(278,1296)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F6D155"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Primrose Yellow</text>
 <text x="10" y="129" font-size="12" fill="#55524B">13-0755 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F6D155</text>
 </g>
-<g transform="translate(442,1034)">
+<g transform="translate(442,1296)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#2F3441"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Outer Space</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-4009 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#2F3441</text>
 </g>
-<g transform="translate(606,1034)">
+<g transform="translate(606,1296)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#A3CCD6"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Aqua-esque</text>
 <text x="10" y="129" font-size="12" fill="#55524B">13-5411 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#A3CCD6</text>
 </g>
-<g transform="translate(770,1034)">
+<g transform="translate(770,1296)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#7A6332"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Plantation</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-0832 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#7A6332</text>
 </g>
-<g transform="translate(934,1034)">
+<g transform="translate(934,1296)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#9C4C8D"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Cattleya Orchid</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-3223 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#9C4C8D</text>
 </g>
-<text x="48" y="1254" font-size="13" font-weight="600" fill="#9A968C">07</text>
-<text x="48" y="1280" font-size="21" font-weight="700" fill="#1C1B19">Nueva York</text>
-<g transform="translate(278,1220)">
+<rect x="271" y="1468" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="1485" r="8.6" fill="#D19C7B"/><circle cx="281.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="1485" r="8.6" fill="#E1B36F"/><circle cx="301.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="1485" r="8.6" fill="#EDC561"/><circle cx="322.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="1485" r="8.6" fill="#F5D057"/><circle cx="342.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="1485" r="8.6" fill="#F4CF55"/><circle cx="363.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="1485" r="8.6" fill="#E2C157"/><circle cx="383.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="1485" r="8.6" fill="#C3AA58"/><circle cx="404.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="1485" r="8.6" fill="#9F8E57"/><circle cx="424.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="1485" r="8.6" fill="#797153"/><circle cx="445.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="1485" r="8.6" fill="#58564C"/><circle cx="465.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="1485" r="8.6" fill="#3F4146"/><circle cx="486.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="1485" r="8.6" fill="#313642"/><circle cx="506.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="1485" r="8.6" fill="#303542"/><circle cx="527.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="1485" r="8.6" fill="#39404D"/><circle cx="547.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="1485" r="8.6" fill="#485461"/><circle cx="568.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="1485" r="8.6" fill="#5B6E7A"/><circle cx="588.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="1485" r="8.6" fill="#718A96"/><circle cx="609.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="1485" r="8.6" fill="#86A6B1"/><circle cx="629.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="1485" r="8.6" fill="#97BDC7"/><circle cx="650.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="1485" r="8.6" fill="#A2CAD4"/><circle cx="670.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="1485" r="8.6" fill="#A3CBD4"/><circle cx="691.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="1485" r="8.6" fill="#A0C2C7"/><circle cx="711.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="1485" r="8.6" fill="#9BB3B0"/><circle cx="732.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="1485" r="8.6" fill="#94A193"/><circle cx="752.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="1485" r="8.6" fill="#8C8D75"/><circle cx="773.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="1485" r="8.6" fill="#857B59"/><circle cx="793.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="1485" r="8.6" fill="#7E6D42"/><circle cx="814.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="1485" r="8.6" fill="#7B6434"/><circle cx="834.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="1485" r="8.6" fill="#7A6333"/><circle cx="855.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="1485" r="8.6" fill="#7D623D"/><circle cx="875.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="1485" r="8.6" fill="#82604B"/><circle cx="896.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="1485" r="8.6" fill="#885C5C"/><circle cx="916.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="1485" r="8.6" fill="#8E586C"/><circle cx="937.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="1485" r="8.6" fill="#94547A"/><circle cx="957.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="1485" r="8.6" fill="#994F86"/><circle cx="978.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="1485" r="8.6" fill="#9C4C8C"/><circle cx="998.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="1485" r="8.6" fill="#9D4E8D"/><circle cx="1019.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="1485" r="8.6" fill="#A4598C"/><circle cx="1039.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="1485" r="8.6" fill="#B06D89"/><circle cx="1060.2" cy="1485" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="1485" r="8.6" fill="#C08483"/><circle cx="1080.8" cy="1485" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="1564" font-size="13" font-weight="600" fill="#9A968C">07</text>
+<text x="48" y="1590" font-size="21" font-weight="700" fill="#1C1B19">Nueva York</text>
+<g transform="translate(278,1530)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#FEE715"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Blazing Yellow</text>
 <text x="10" y="129" font-size="12" fill="#55524B">12-0643 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#FEE715</text>
 </g>
-<g transform="translate(442,1220)">
+<g transform="translate(442,1530)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#FF9687"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Desert Flower</text>
 <text x="10" y="129" font-size="12" fill="#55524B">15-1435 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#FF9687</text>
 </g>
-<g transform="translate(606,1220)">
+<g transform="translate(606,1530)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#4ABBD5"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Bachelor Button</text>
 <text x="10" y="129" font-size="12" fill="#55524B">14-4522 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#4ABBD5</text>
 </g>
-<g transform="translate(770,1220)">
+<g transform="translate(770,1530)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#7391C8"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Cornflower Blue</text>
 <text x="10" y="129" font-size="12" fill="#55524B">16-4031 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#7391C8</text>
 </g>
-<g transform="translate(934,1220)">
+<g transform="translate(934,1530)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#C5AECF"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Orchid Bloom</text>
 <text x="10" y="129" font-size="12" fill="#55524B">14-3612 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#C5AECF</text>
 </g>
-<text x="48" y="1440" font-size="13" font-weight="600" fill="#9A968C">08</text>
-<text x="48" y="1466" font-size="21" font-weight="700" fill="#1C1B19">Horizon Beam</text>
-<g transform="translate(278,1406)">
+<rect x="271" y="1702" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="1719" r="8.6" fill="#E5D288"/><circle cx="281.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="1719" r="8.6" fill="#F0DB69"/><circle cx="301.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="1719" r="8.6" fill="#F8E246"/><circle cx="322.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="1719" r="8.6" fill="#FDE61F"/><circle cx="342.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="1719" r="8.6" fill="#FEE61A"/><circle cx="363.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="1719" r="8.6" fill="#FFE032"/><circle cx="383.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="1719" r="8.6" fill="#FFD54A"/><circle cx="404.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="1719" r="8.6" fill="#FFC75E"/><circle cx="424.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="1719" r="8.6" fill="#FFB86E"/><circle cx="445.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="1719" r="8.6" fill="#FFAA7A"/><circle cx="465.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="1719" r="8.6" fill="#FF9E82"/><circle cx="486.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="1719" r="8.6" fill="#FF9786"/><circle cx="506.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="1719" r="8.6" fill="#FE9788"/><circle cx="527.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="1719" r="8.6" fill="#F39B8F"/><circle cx="547.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="1719" r="8.6" fill="#E0A29B"/><circle cx="568.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="1719" r="8.6" fill="#C7AAA9"/><circle cx="588.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="1719" r="8.6" fill="#A9B1B7"/><circle cx="609.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="1719" r="8.6" fill="#88B6C4"/><circle cx="629.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="1719" r="8.6" fill="#68B9CE"/><circle cx="650.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="1719" r="8.6" fill="#4EBBD4"/><circle cx="670.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="1719" r="8.6" fill="#4BBBD5"/><circle cx="691.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="1719" r="8.6" fill="#50B7D4"/><circle cx="711.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="1719" r="8.6" fill="#58B1D2"/><circle cx="732.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="1719" r="8.6" fill="#60AAD0"/><circle cx="752.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="1719" r="8.6" fill="#67A2CD"/><circle cx="773.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="1719" r="8.6" fill="#6D9BCB"/><circle cx="793.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="1719" r="8.6" fill="#7195C9"/><circle cx="814.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="1719" r="8.6" fill="#7391C8"/><circle cx="834.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="1719" r="8.6" fill="#7491C8"/><circle cx="855.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="1719" r="8.6" fill="#7B94C9"/><circle cx="875.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="1719" r="8.6" fill="#8798CA"/><circle cx="896.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="1719" r="8.6" fill="#959DCB"/><circle cx="916.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="1719" r="8.6" fill="#A4A3CD"/><circle cx="937.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="1719" r="8.6" fill="#B2A8CE"/><circle cx="957.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="1719" r="8.6" fill="#BEABCE"/><circle cx="978.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="1719" r="8.6" fill="#C4AECF"/><circle cx="998.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="1719" r="8.6" fill="#C6AFCE"/><circle cx="1019.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="1719" r="8.6" fill="#CAB4C6"/><circle cx="1039.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="1719" r="8.6" fill="#D1BDB7"/><circle cx="1060.2" cy="1719" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="1719" r="8.6" fill="#DBC7A2"/><circle cx="1080.8" cy="1719" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="1798" font-size="13" font-weight="600" fill="#9A968C">08</text>
+<text x="48" y="1824" font-size="21" font-weight="700" fill="#1C1B19">Horizon Beam</text>
+<g transform="translate(278,1764)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#A0AC4F"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Dark Citron</text>
 <text x="10" y="129" font-size="12" fill="#55524B">16-0435 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#A0AC4F</text>
 </g>
-<g transform="translate(442,1406)">
+<g transform="translate(442,1764)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#233658"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Estate Blue</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-4027 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#233658</text>
 </g>
-<g transform="translate(606,1406)">
+<g transform="translate(606,1764)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F8A3A4"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Murex Shell</text>
 <text x="10" y="129" font-size="12" fill="#55524B">15-1712 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F8A3A4</text>
 </g>
-<g transform="translate(770,1406)">
+<g transform="translate(770,1764)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#BAB8D3"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Purple Heather</text>
 <text x="10" y="129" font-size="12" fill="#55524B">14-3911 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#BAB8D3</text>
 </g>
-<g transform="translate(934,1406)">
+<g transform="translate(934,1764)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#3A4132"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Kombu Green</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-0417 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#3A4132</text>
 </g>
-<text x="48" y="1626" font-size="13" font-weight="600" fill="#9A968C">09</text>
-<text x="48" y="1652" font-size="21" font-weight="700" fill="#1C1B19">Playful Voxel Glow</text>
-<g transform="translate(278,1592)">
+<rect x="271" y="1936" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="1953" r="8.6" fill="#747E45"/><circle cx="281.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="1953" r="8.6" fill="#87924A"/><circle cx="301.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="1953" r="8.6" fill="#96A14D"/><circle cx="322.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="1953" r="8.6" fill="#9FAB4F"/><circle cx="342.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="1953" r="8.6" fill="#9EAB50"/><circle cx="363.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="1953" r="8.6" fill="#93A154"/><circle cx="383.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="1953" r="8.6" fill="#809059"/><circle cx="404.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="1953" r="8.6" fill="#697B5C"/><circle cx="424.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="1953" r="8.6" fill="#52655D"/><circle cx="445.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="1953" r="8.6" fill="#3D515C"/><circle cx="465.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="1953" r="8.6" fill="#2D415A"/><circle cx="486.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="1953" r="8.6" fill="#243758"/><circle cx="506.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="1953" r="8.6" fill="#253759"/><circle cx="527.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="1953" r="8.6" fill="#36405F"/><circle cx="547.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="1953" r="8.6" fill="#524F6B"/><circle cx="568.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="1953" r="8.6" fill="#766278"/><circle cx="588.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="1953" r="8.6" fill="#9D7686"/><circle cx="609.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="1953" r="8.6" fill="#C48993"/><circle cx="629.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="1953" r="8.6" fill="#E3999D"/><circle cx="650.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="1953" r="8.6" fill="#F5A2A3"/><circle cx="670.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="1953" r="8.6" fill="#F7A3A5"/><circle cx="691.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="1953" r="8.6" fill="#F3A5A9"/><circle cx="711.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="1953" r="8.6" fill="#EBA9AF"/><circle cx="732.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="1953" r="8.6" fill="#E0ADB8"/><circle cx="752.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="1953" r="8.6" fill="#D5B1C0"/><circle cx="773.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="1953" r="8.6" fill="#CAB4C8"/><circle cx="793.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="1953" r="8.6" fill="#C0B6CF"/><circle cx="814.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="1953" r="8.6" fill="#BBB8D2"/><circle cx="834.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="1953" r="8.6" fill="#B8B7D1"/><circle cx="855.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="1953" r="8.6" fill="#ADACC3"/><circle cx="875.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="1953" r="8.6" fill="#9A9BAB"/><circle cx="896.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="1953" r="8.6" fill="#83858E"/><circle cx="916.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="1953" r="8.6" fill="#6B6F6F"/><circle cx="937.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="1953" r="8.6" fill="#555B54"/><circle cx="957.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="1953" r="8.6" fill="#454B3F"/><circle cx="978.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="1953" r="8.6" fill="#3B4234"/><circle cx="998.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="1953" r="8.6" fill="#3B4232"/><circle cx="1019.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="1953" r="8.6" fill="#434A35"/><circle cx="1039.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="1953" r="8.6" fill="#50583A"/><circle cx="1060.2" cy="1953" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="1953" r="8.6" fill="#616A40"/><circle cx="1080.8" cy="1953" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="2032" font-size="13" font-weight="600" fill="#9A968C">09</text>
+<text x="48" y="2058" font-size="21" font-weight="700" fill="#1C1B19">Playful Voxel Glow</text>
+<g transform="translate(278,1998)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#B0D3D1"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Icy Morn</text>
 <text x="10" y="129" font-size="12" fill="#55524B">13-5306 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#B0D3D1</text>
 </g>
-<g transform="translate(442,1592)">
+<g transform="translate(442,1998)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#CE5B78"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Fruit Dove</text>
 <text x="10" y="129" font-size="12" fill="#55524B">17-1926 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#CE5B78</text>
 </g>
-<g transform="translate(606,1592)">
+<g transform="translate(606,1998)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#008C4E"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Green Bee</text>
 <text x="10" y="129" font-size="12" fill="#55524B">17-6154 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#008C4E</text>
 </g>
-<g transform="translate(770,1592)">
+<g transform="translate(770,1998)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#386192"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Star Sapphire</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-4041 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#386192</text>
 </g>
-<g transform="translate(934,1592)">
+<g transform="translate(934,1998)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#E881A6"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Aurora Pink</text>
 <text x="10" y="129" font-size="12" fill="#55524B">15-2217 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#E881A6</text>
 </g>
-<text x="48" y="1812" font-size="13" font-weight="600" fill="#9A968C">10</text>
-<text x="48" y="1838" font-size="21" font-weight="700" fill="#1C1B19">Voxel Vision</text>
-<g transform="translate(278,1778)">
+<rect x="271" y="2170" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="2187" r="8.6" fill="#CDB4BF"/><circle cx="281.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="2187" r="8.6" fill="#C2C1C7"/><circle cx="301.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="2187" r="8.6" fill="#B8CCCD"/><circle cx="322.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="2187" r="8.6" fill="#B1D2D1"/><circle cx="342.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="2187" r="8.6" fill="#B1D2D0"/><circle cx="363.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="2187" r="8.6" fill="#B6C9C8"/><circle cx="383.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="2187" r="8.6" fill="#BEB9BC"/><circle cx="404.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="2187" r="8.6" fill="#C5A5AC"/><circle cx="424.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="2187" r="8.6" fill="#CA8F9B"/><circle cx="445.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="2187" r="8.6" fill="#CD7A8C"/><circle cx="465.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="2187" r="8.6" fill="#CE6880"/><circle cx="486.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="2187" r="8.6" fill="#CE5D79"/><circle cx="506.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="2187" r="8.6" fill="#CD5C78"/><circle cx="527.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="2187" r="8.6" fill="#C36374"/><circle cx="547.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="2187" r="8.6" fill="#B16D6F"/><circle cx="568.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="2187" r="8.6" fill="#9A7668"/><circle cx="588.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="2187" r="8.6" fill="#7E7F60"/><circle cx="609.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="2187" r="8.6" fill="#5E8558"/><circle cx="629.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="2187" r="8.6" fill="#3A8A52"/><circle cx="650.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="2187" r="8.6" fill="#108C4F"/><circle cx="670.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="2187" r="8.6" fill="#018C4F"/><circle cx="691.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="2187" r="8.6" fill="#0C8956"/><circle cx="711.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="2187" r="8.6" fill="#188362"/><circle cx="732.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="2187" r="8.6" fill="#227C6E"/><circle cx="752.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="2187" r="8.6" fill="#2A747A"/><circle cx="773.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="2187" r="8.6" fill="#316C85"/><circle cx="793.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="2187" r="8.6" fill="#35668D"/><circle cx="814.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="2187" r="8.6" fill="#386291"/><circle cx="834.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="2187" r="8.6" fill="#3B6292"/><circle cx="855.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="2187" r="8.6" fill="#4C6594"/><circle cx="875.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="2187" r="8.6" fill="#666B97"/><circle cx="896.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="2187" r="8.6" fill="#85719B"/><circle cx="916.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="2187" r="8.6" fill="#A4779F"/><circle cx="937.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="2187" r="8.6" fill="#C17CA2"/><circle cx="957.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="2187" r="8.6" fill="#D97FA5"/><circle cx="978.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="2187" r="8.6" fill="#E681A6"/><circle cx="998.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="2187" r="8.6" fill="#E882A6"/><circle cx="1019.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="2187" r="8.6" fill="#E58AAA"/><circle cx="1039.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="2187" r="8.6" fill="#DF96B0"/><circle cx="1060.2" cy="2187" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="2187" r="8.6" fill="#D7A5B7"/><circle cx="1080.8" cy="2187" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="2266" font-size="13" font-weight="600" fill="#9A968C">10</text>
+<text x="48" y="2292" font-size="21" font-weight="700" fill="#1C1B19">Voxel Vision</text>
+<g transform="translate(278,2232)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#00B1D2"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Blue Atoll</text>
 <text x="10" y="129" font-size="12" fill="#55524B">16-4535 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#00B1D2</text>
 </g>
-<g transform="translate(442,1778)">
+<g transform="translate(442,2232)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#272F38"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Carbon</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-4012 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#272F38</text>
 </g>
-<g transform="translate(606,1778)">
+<g transform="translate(606,2232)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#AFCB80"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Sap Green</text>
 <text x="10" y="129" font-size="12" fill="#55524B">13-0331 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#AFCB80</text>
 </g>
-<g transform="translate(770,1778)">
+<g transform="translate(770,2232)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F7969E"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Flamingo Pink</text>
 <text x="10" y="129" font-size="12" fill="#55524B">15-1821 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F7969E</text>
 </g>
-<g transform="translate(934,1778)">
+<g transform="translate(934,2232)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F5B895"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Peach Quartz</text>
 <text x="10" y="129" font-size="12" fill="#55524B">13-1125 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F5B895</text>
 </g>
-<text x="48" y="1998" font-size="13" font-weight="600" fill="#9A968C">11</text>
-<text x="48" y="2024" font-size="21" font-weight="700" fill="#1C1B19">Spectrum Twist</text>
-<g transform="translate(278,1964)">
+<rect x="271" y="2404" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="2421" r="8.6" fill="#91B7BC"/><circle cx="281.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="2421" r="8.6" fill="#6BB5C6"/><circle cx="301.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="2421" r="8.6" fill="#42B3CD"/><circle cx="322.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="2421" r="8.6" fill="#13B1D1"/><circle cx="342.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="2421" r="8.6" fill="#04AFD0"/><circle cx="363.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="2421" r="8.6" fill="#17A4C2"/><circle cx="383.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="2421" r="8.6" fill="#2591AB"/><circle cx="404.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="2421" r="8.6" fill="#2C798F"/><circle cx="424.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="2421" r="8.6" fill="#2E6172"/><circle cx="445.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="2421" r="8.6" fill="#2D4B58"/><circle cx="465.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="2421" r="8.6" fill="#2A3A45"/><circle cx="486.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="2421" r="8.6" fill="#27303A"/><circle cx="506.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="2421" r="8.6" fill="#283139"/><circle cx="527.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="2421" r="8.6" fill="#323C3F"/><circle cx="547.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="2421" r="8.6" fill="#43504A"/><circle cx="568.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="2421" r="8.6" fill="#5A6A57"/><circle cx="588.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="2421" r="8.6" fill="#738864"/><circle cx="609.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="2421" r="8.6" fill="#8CA470"/><circle cx="629.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="2421" r="8.6" fill="#A1BB7A"/><circle cx="650.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="2421" r="8.6" fill="#ADC97F"/><circle cx="670.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="2421" r="8.6" fill="#B0CA80"/><circle cx="691.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="2421" r="8.6" fill="#B7C783"/><circle cx="711.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="2421" r="8.6" fill="#C3C088"/><circle cx="732.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="2421" r="8.6" fill="#D0B78D"/><circle cx="752.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="2421" r="8.6" fill="#DEAE93"/><circle cx="773.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="2421" r="8.6" fill="#E9A498"/><circle cx="793.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="2421" r="8.6" fill="#F29C9C"/><circle cx="814.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="2421" r="8.6" fill="#F6979E"/><circle cx="834.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="2421" r="8.6" fill="#F7969E"/><circle cx="855.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="2421" r="8.6" fill="#F7999D"/><circle cx="875.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="2421" r="8.6" fill="#F79E9C"/><circle cx="896.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="2421" r="8.6" fill="#F7A49B"/><circle cx="916.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="2421" r="8.6" fill="#F6AA99"/><circle cx="937.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="2421" r="8.6" fill="#F6B097"/><circle cx="957.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="2421" r="8.6" fill="#F5B596"/><circle cx="978.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="2421" r="8.6" fill="#F5B895"/><circle cx="998.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="2421" r="8.6" fill="#F3B896"/><circle cx="1019.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="2421" r="8.6" fill="#E7B99C"/><circle cx="1039.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="2421" r="8.6" fill="#D0B9A6"/><circle cx="1060.2" cy="2421" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="2421" r="8.6" fill="#B3B9B1"/><circle cx="1080.8" cy="2421" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="2500" font-size="13" font-weight="600" fill="#9A968C">11</text>
+<text x="48" y="2526" font-size="21" font-weight="700" fill="#1C1B19">Spectrum Twist</text>
+<g transform="translate(278,2466)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F4E87A"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Lemon Verbena</text>
 <text x="10" y="129" font-size="12" fill="#55524B">12-0742 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F4E87A</text>
 </g>
-<g transform="translate(442,1964)">
+<g transform="translate(442,2466)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#41354D"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Purple Velvet</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-3725 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#41354D</text>
 </g>
-<g transform="translate(606,1964)">
+<g transform="translate(606,2466)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#F5B895"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Peach Quartz</text>
 <text x="10" y="129" font-size="12" fill="#55524B">13-1125 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#F5B895</text>
 </g>
-<g transform="translate(770,1964)">
+<g transform="translate(770,2466)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#5CA6CE"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Ethereal Blue</text>
 <text x="10" y="129" font-size="12" fill="#55524B">15-4323 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#5CA6CE</text>
 </g>
-<g transform="translate(934,1964)">
+<g transform="translate(934,2466)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#D4367A"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Fuchsia Purple</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-2436 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#D4367A</text>
 </g>
-<text x="48" y="2184" font-size="13" font-weight="600" fill="#9A968C">12</text>
-<text x="48" y="2210" font-size="21" font-weight="700" fill="#1C1B19">Dazzling Dimensions</text>
-<g transform="translate(278,2150)">
+<rect x="271" y="2638" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="2655" r="8.6" fill="#EDA67F"/><circle cx="281.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="2655" r="8.6" fill="#F1C37E"/><circle cx="301.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="2655" r="8.6" fill="#F3D97C"/><circle cx="322.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="2655" r="8.6" fill="#F4E67A"/><circle cx="342.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="2655" r="8.6" fill="#F2E67A"/><circle cx="363.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="2655" r="8.6" fill="#E2D678"/><circle cx="383.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="2655" r="8.6" fill="#C7BC75"/><circle cx="404.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="2655" r="8.6" fill="#A69B6E"/><circle cx="424.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="2655" r="8.6" fill="#847A66"/><circle cx="445.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="2655" r="8.6" fill="#665C5C"/><circle cx="465.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="2655" r="8.6" fill="#4F4453"/><circle cx="486.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="2655" r="8.6" fill="#43374E"/><circle cx="506.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="2655" r="8.6" fill="#43364E"/><circle cx="527.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="2655" r="8.6" fill="#504054"/><circle cx="547.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="2655" r="8.6" fill="#67515F"/><circle cx="568.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="2655" r="8.6" fill="#85686C"/><circle cx="588.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="2655" r="8.6" fill="#A78079"/><circle cx="609.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="2655" r="8.6" fill="#C89885"/><circle cx="629.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="2655" r="8.6" fill="#E3AB8F"/><circle cx="650.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="2655" r="8.6" fill="#F3B694"/><circle cx="670.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="2655" r="8.6" fill="#F3B896"/><circle cx="691.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="2655" r="8.6" fill="#E9B79C"/><circle cx="711.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="2655" r="8.6" fill="#D5B6A5"/><circle cx="732.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="2655" r="8.6" fill="#BDB3B0"/><circle cx="752.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="2655" r="8.6" fill="#A2B0BA"/><circle cx="773.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="2655" r="8.6" fill="#86ACC3"/><circle cx="793.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="2655" r="8.6" fill="#6EA9CA"/><circle cx="814.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="2655" r="8.6" fill="#5EA6CD"/><circle cx="834.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="2655" r="8.6" fill="#5FA5CD"/><circle cx="855.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="2655" r="8.6" fill="#719FC6"/><circle cx="875.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="2655" r="8.6" fill="#8993BA"/><circle cx="896.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="2655" r="8.6" fill="#A083AB"/><circle cx="916.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="2655" r="8.6" fill="#B4719C"/><circle cx="937.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="2655" r="8.6" fill="#C35C8D"/><circle cx="957.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="2655" r="8.6" fill="#CE4882"/><circle cx="978.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="2655" r="8.6" fill="#D3387B"/><circle cx="998.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="2655" r="8.6" fill="#D5397A"/><circle cx="1019.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="2655" r="8.6" fill="#D94C7C"/><circle cx="1039.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="2655" r="8.6" fill="#E0687E"/><circle cx="1060.2" cy="2655" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="2655" r="8.6" fill="#E7877F"/><circle cx="1080.8" cy="2655" r="8.6" fill="url(#voxel)"/>
+<text x="48" y="2734" font-size="13" font-weight="600" fill="#9A968C">12</text>
+<text x="48" y="2760" font-size="21" font-weight="700" fill="#1C1B19">Dazzling Dimensions</text>
+<g transform="translate(278,2700)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#EDDD59"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Aurora</text>
 <text x="10" y="129" font-size="12" fill="#55524B">12-0642 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#EDDD59</text>
 </g>
-<g transform="translate(442,2150)">
+<g transform="translate(442,2700)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#005871"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Lyons Blue</text>
 <text x="10" y="129" font-size="12" fill="#55524B">19-4340 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#005871</text>
 </g>
-<g transform="translate(606,2150)">
+<g transform="translate(606,2700)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#EED4D9"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Primrose Pink</text>
 <text x="10" y="129" font-size="12" fill="#55524B">12-2904 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#EED4D9</text>
 </g>
-<g transform="translate(770,2150)">
+<g transform="translate(770,2700)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#854C65"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Damson</text>
 <text x="10" y="129" font-size="12" fill="#55524B">18-1716 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#854C65</text>
 </g>
-<g transform="translate(934,2150)">
+<g transform="translate(934,2700)">
 <rect width="150" height="158" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#DC343B"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Poppy Red</text>
 <text x="10" y="129" font-size="12" fill="#55524B">17-1664 TCX</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#DC343B</text>
 </g>
+<rect x="271" y="2872" width="820" height="34" rx="6" fill="#000000"/>
+<circle cx="281.2" cy="2889" r="8.6" fill="#EDA04D"/><circle cx="281.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="301.8" cy="2889" r="8.6" fill="#EEBA52"/><circle cx="301.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="322.2" cy="2889" r="8.6" fill="#EECF56"/><circle cx="322.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="342.8" cy="2889" r="8.6" fill="#EDDB59"/><circle cx="342.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="363.2" cy="2889" r="8.6" fill="#EBDB5A"/><circle cx="363.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="383.8" cy="2889" r="8.6" fill="#D9D162"/><circle cx="383.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="404.2" cy="2889" r="8.6" fill="#BABE6B"/><circle cx="404.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="424.8" cy="2889" r="8.6" fill="#95A771"/><circle cx="424.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="445.2" cy="2889" r="8.6" fill="#6D8E75"/><circle cx="445.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="465.8" cy="2889" r="8.6" fill="#477775"/><circle cx="465.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="486.2" cy="2889" r="8.6" fill="#256473"/><circle cx="486.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="506.8" cy="2889" r="8.6" fill="#065A71"/><circle cx="506.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="527.2" cy="2889" r="8.6" fill="#075972"/><circle cx="527.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="547.8" cy="2889" r="8.6" fill="#27637A"/><circle cx="547.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="568.2" cy="2889" r="8.6" fill="#497489"/><circle cx="568.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="588.8" cy="2889" r="8.6" fill="#6F8A9B"/><circle cx="588.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="609.2" cy="2889" r="8.6" fill="#96A1AE"/><circle cx="609.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="629.8" cy="2889" r="8.6" fill="#BCB7C0"/><circle cx="629.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="650.2" cy="2889" r="8.6" fill="#DAC8CF"/><circle cx="650.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="670.8" cy="2889" r="8.6" fill="#ECD3D8"/><circle cx="670.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="691.2" cy="2889" r="8.6" fill="#EDD2D8"/><circle cx="691.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="711.8" cy="2889" r="8.6" fill="#E4C7CE"/><circle cx="711.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="732.2" cy="2889" r="8.6" fill="#D6B3BD"/><circle cx="732.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="752.8" cy="2889" r="8.6" fill="#C39BA8"/><circle cx="752.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="773.2" cy="2889" r="8.6" fill="#B08192"/><circle cx="773.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="793.8" cy="2889" r="8.6" fill="#9D6A7E"/><circle cx="793.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="814.2" cy="2889" r="8.6" fill="#8F586F"/><circle cx="814.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="834.8" cy="2889" r="8.6" fill="#864D66"/><circle cx="834.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="855.2" cy="2889" r="8.6" fill="#864C65"/><circle cx="855.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="875.8" cy="2889" r="8.6" fill="#8D4B62"/><circle cx="875.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="896.2" cy="2889" r="8.6" fill="#994A5E"/><circle cx="896.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="916.8" cy="2889" r="8.6" fill="#A84857"/><circle cx="916.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="937.2" cy="2889" r="8.6" fill="#B94450"/><circle cx="937.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="957.8" cy="2889" r="8.6" fill="#C83E48"/><circle cx="957.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="978.2" cy="2889" r="8.6" fill="#D43941"/><circle cx="978.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="998.8" cy="2889" r="8.6" fill="#DB353C"/><circle cx="998.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="1019.2" cy="2889" r="8.6" fill="#DC373B"/><circle cx="1019.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="1039.8" cy="2889" r="8.6" fill="#E04A3E"/><circle cx="1039.8" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="1060.2" cy="2889" r="8.6" fill="#E56542"/><circle cx="1060.2" cy="2889" r="8.6" fill="url(#voxel)"/>
+<circle cx="1080.8" cy="2889" r="8.6" fill="#E98248"/><circle cx="1080.8" cy="2889" r="8.6" fill="url(#voxel)"/>
 </svg>

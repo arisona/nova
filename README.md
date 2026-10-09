@@ -107,7 +107,7 @@ Tides are slow, subtle variation brought in by the system rather than the user, 
 
 ## Color and performance
 
-- Palettes are curated Pantone sets in `server/src/palettes.rs`, compiled into the binary and listed by hue. Each has 1 to 6 colors (checked at compile time), and names must be unique. The file documents where each value comes from. `doc/palettes.svg` and `doc/palettes.png` show all palettes; regenerate the SVG with `cargo test --manifest-path server/Cargo.toml palettes_overview_svg -- --ignored`.
+- Palettes are curated Pantone sets in `server/src/palettes.rs`, compiled into the binary and listed by hue. Each has 1 to 6 colors (checked at compile time), and names must be unique. The file documents where each value comes from. `doc/palettes.svg` and `doc/palettes.png` show all palettes, each with a strip of its colors as light on black, blended as the display blends them; regenerate the SVG with `cargo test --manifest-path server/Cargo.toml palettes_overview_svg -- --ignored`, and the PNG from it at 2×.
 - A separate, slower noise picks palette positions. Neighbouring colors are mixed in Oklab: about two colors show at once for smooth structures and all colors for grain, slowly rotating through the palette.
 - Heat preserves hue: it stops increasing saturation before any channel would clip.
 - Pantone colors describe surfaces, so dark palette colors drive the LEDs at low power. Evaluate brightness on the physical display before compensating.

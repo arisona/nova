@@ -1,7 +1,7 @@
 use crate::renderer::RenderState;
 use crate::voxel_image::VoxelImage;
 
-mod common;
+pub mod common;
 mod flux_capacitor;
 mod light_cycle_grid;
 mod spice_melange;
