@@ -1,23 +1,21 @@
 import { Animation } from '@mui/icons-material';
 
 import { ControlRow } from './ControlRow';
-import { ContentPictogram } from './ContentPictogram';
+import { ContentSignature } from './ContentSignature';
 import { CycleButton } from './CycleButton';
 
-// The selected content module as a pictogram in the palette's colors, as wide as the
-// sliders, with the module's name briefly on top. Tapping it selects the next enabled
-// module, wrapping around.
+// The selected content module as its spectral signature in the palette's colors, as
+// wide as the sliders, with the module's name briefly on top. Tapping it selects the
+// next enabled module, wrapping around.
 export const ContentSelector = ({
   enabled,
   value,
   colors,
-  heat,
   onChange,
 }: {
   enabled: string[];
   value: string;
   colors: string[];
-  heat: number;
   onChange: (name: string) => void;
 }) => {
   const index = Math.max(0, enabled.indexOf(value));
@@ -36,7 +34,7 @@ export const ContentSelector = ({
         disabled={enabled.length < 2}
         onClick={selectNext}
       >
-        <ContentPictogram name={name} colors={colors} heat={heat} />
+        <ContentSignature name={name} colors={colors} />
       </CycleButton>
     </ControlRow>
   );

@@ -134,7 +134,6 @@ export const MainPage = ({
           enabled={state.enabledContent}
           value={state.selectedContent}
           colors={paletteColors}
-          heat={state.heat}
           onChange={handleContentChange}
         />
       )}
