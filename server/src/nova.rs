@@ -9,7 +9,8 @@ use crate::ethernet::Interface;
 use crate::renderer::{RenderState, Renderer};
 use crate::voxel_image::VoxelImage;
 
-/// Drives the Nova hardware on the calling thread. Never returns.
+/// Drives the Nova hardware on the calling thread. Returns when a shutdown is requested,
+/// after resetting the modules so the display stays dark.
 pub fn run(state: Arc<Mutex<AppState>>, renderer: Renderer) {
     check_run_once!("Nova hardware driver already running.");
 
@@ -56,13 +57,19 @@ impl NovaHardware {
 
             // Retry loop for opening the interface
             loop {
-                let (interface_name, modules) = {
+                let (interface_name, modules, shutdown_requested) = {
                     let state = self.state.lock().unwrap();
                     (
                         state.ethernet_interface().to_string(),
                         state.modules().to_vec(),
+                        state.shutdown_requested(),
                     )
                 };
+
+                if shutdown_requested {
+                    log::info!("Shutting down without an open interface.");
+                    return;
+                }
 
                 match Interface::new(&interface_name, Some(filter.as_str())) {
                     Ok(iface) => {
@@ -100,7 +107,15 @@ impl NovaHardware {
             let mut status_time = Instant::now();
             loop {
                 // Make sure state is unlocked quickly otherwise webserver thread will starve
-                let (interface_name, modules, mut render_state, flip, calibration, reset_requested) = {
+                let (
+                    interface_name,
+                    modules,
+                    mut render_state,
+                    flip,
+                    calibration,
+                    reset_requested,
+                    shutdown_requested,
+                ) = {
                     let mut state = self.state.lock().unwrap();
                     (
                         state.ethernet_interface().to_string(),
@@ -109,8 +124,17 @@ impl NovaHardware {
                         state.flip_vertical(),
                         state.calibration(),
                         state.take_hardware_reset_request(),
+                        state.shutdown_requested(),
                     )
                 };
+
+                if shutdown_requested {
+                    log::info!("Shutting down: resetting all modules.");
+                    let image = VoxelImage::new(self.state.lock().unwrap().dim());
+                    self.reset_modules(&mut interface, &modules_at_reset, &image);
+                    log::info!("Module reset complete.");
+                    return;
+                }
 
                 if reset_requested {
                     log::info!("Hardware reset requested.");
@@ -212,7 +236,6 @@ impl NovaHardware {
                 }
             }
         }
-        // Won't reach (we're running on the main thread)
     }
 
     fn handle_status_packet(&mut self, packet: &[u8], modules: &[(usize, usize, u8)]) {

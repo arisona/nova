@@ -18,13 +18,23 @@ fn main() {
     let env = env_logger::Env::default().default_filter_or("debug,actix_server=warn");
     env_logger::Builder::from_env(env).init();
 
-    ctrlc::set_handler(|| {
-        log::info!("Interrupt received, exiting.");
-        std::process::exit(0);
+    let state = Arc::new(Mutex::new(app_state::AppState::load()));
+
+    // Ctrl+C, SIGTERM (e.g. systemctl stop) and SIGHUP let the hardware loop reset the
+    // modules before exiting, so the display stays dark. A second signal exits right away.
+    let signal_state = Arc::clone(&state);
+    ctrlc::set_handler(move || {
+        if signal_state
+            .lock()
+            .is_ok_and(|mut state| state.request_shutdown())
+        {
+            log::info!("Signal received, resetting modules before exiting.");
+        } else {
+            log::info!("Signal received, exiting.");
+            std::process::exit(0);
+        }
     })
     .expect("Error setting signal handler");
-
-    let state = Arc::new(Mutex::new(app_state::AppState::load()));
     log::debug!("Using settings:\n{:#?}", *state.lock().unwrap());
     let (run_simulator, start_audio) = {
         let state = state.lock().unwrap();

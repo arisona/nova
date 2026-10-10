@@ -106,7 +106,7 @@ To use port 80, add `CAP_NET_BIND_SERVICE` to `AmbientCapabilities` and set `web
 
 - Logs: `journalctl -u nova -f`
 - Update: `cd ~/nova && git pull && cargo install --path server && sudo systemctl restart nova`
-- Stop, for example before using option A: `sudo systemctl stop nova`; `sudo systemctl disable nova` also removes it from startup
+- Stop, for example before using option A: `sudo systemctl stop nova`; `sudo systemctl disable nova` also removes it from startup. Stopping resets the modules, so the display goes dark.
 
 ## Configure the voxel display
 

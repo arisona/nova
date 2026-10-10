@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 actix-web = "4.15.0"
-ctrlc = "3.5.2"
+ctrlc = { version = "3.5.2", features = ["termination"] }
 cpal = "0.18.2"
 fundsp = { version = "0.23.0", default-features = false, features = ["std"] }
 include_dir = "0.7.4"

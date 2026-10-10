@@ -54,6 +54,8 @@ pub struct AppState {
     #[serde(skip)]
     hardware_reset_requested: bool,
     #[serde(skip)]
+    shutdown_requested: bool,
+    #[serde(skip)]
     calibration_pattern: PatternSelection,
 }
 
@@ -416,6 +418,21 @@ impl AppState {
         std::mem::take(&mut self.hardware_reset_requested)
     }
 
+    /// Asks the hardware loop to reset the modules, so the display stays dark, and exit.
+    /// Returns false if the caller should exit right away instead: in the simulator, or
+    /// when a shutdown was already requested and has not finished.
+    pub fn request_shutdown(&mut self) -> bool {
+        if self.simulator || self.shutdown_requested {
+            return false;
+        }
+        self.shutdown_requested = true;
+        true
+    }
+
+    pub fn shutdown_requested(&self) -> bool {
+        self.shutdown_requested
+    }
+
     /// Restores default settings, keeping runtime status, the display calibration, and
     /// what can only be configured in the settings file: the Ethernet interface, the web
     /// server port, the simulator and audio switches, and a layout of more than one module.
@@ -437,6 +454,7 @@ impl AppState {
             status: std::mem::take(&mut self.status),
             audio_status: std::mem::take(&mut self.audio_status),
             hardware_reset_requested: self.hardware_reset_requested,
+            shutdown_requested: self.shutdown_requested,
             ..defaults
         };
     }
@@ -481,6 +499,7 @@ impl Default for AppState {
             status: Status::Unknown,
             audio_status: Status::Unknown,
             hardware_reset_requested: false,
+            shutdown_requested: false,
             calibration_pattern: PatternSelection::default(),
         }
     }
@@ -502,6 +521,24 @@ mod tests {
         assert!(!restored.take_hardware_reset_request());
         assert!(state.take_hardware_reset_request());
         assert!(!state.take_hardware_reset_request());
+    }
+
+    #[test]
+    fn shutdown_is_requested_once_and_not_in_the_simulator() {
+        let mut state = AppState::default();
+        assert!(!state.shutdown_requested());
+        assert!(state.request_shutdown());
+        assert!(state.shutdown_requested());
+        // A second request exits right away, e.g. a second Ctrl+C.
+        assert!(!state.request_shutdown());
+        let saved = serde_json::to_value(&state).unwrap();
+        assert!(saved.get("shutdown_requested").is_none());
+
+        let mut simulator = AppState {
+            simulator: true,
+            ..AppState::default()
+        };
+        assert!(!simulator.request_shutdown());
     }
 
     #[test]

@@ -5,7 +5,7 @@ webapp/node_modules/
 server/target/
 
 # Nova configuration file
-server/nova_settings.json
+nova_settings.json
 
 # Others
 .claude/

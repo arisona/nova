@@ -304,9 +304,13 @@ async fn command(
                 return HttpResponse::Ok();
             }
             "reload" => {
-                // save state and exit the application (rely on external process manager to restart)
+                // Save state and exit like on a signal, resetting the modules first so the
+                // display stays dark if no process manager restarts the server.
                 state.save();
-                std::process::exit(0);
+                if !state.request_shutdown() {
+                    std::process::exit(0);
+                }
+                return HttpResponse::Ok();
             }
             _ => {
                 return HttpResponse::NotFound();

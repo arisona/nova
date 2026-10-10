@@ -47,6 +47,8 @@ Offset  Len  Field           Value / Meaning
 1. **Reset**: 4 rounds of UDP `UDP_CMD_RESET (0x00)`, 200 ms between rounds
 2. **Auto-ID**: 1 round of UDP `UDP_CMD_AUTOID (0x70)`, 200 ms after
 
+The server runs this sequence when it opens the interface and again before it exits, so the display stays dark.
+
 _All use the same UDP payload format ([data packet](#data-packet-ethertype-0x0800--udp-3210)) with `sequence=0`, `shift=false`._
 
 ## Data packet (`EtherType 0x0800` / UDP 3210)
