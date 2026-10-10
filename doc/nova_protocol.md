@@ -47,7 +47,7 @@ Offset  Len  Field           Value / Meaning
 1. **Reset**: 4 rounds of UDP `UDP_CMD_RESET (0x00)`, 200 ms between rounds
 2. **Auto-ID**: 1 round of UDP `UDP_CMD_AUTOID (0x70)`, 200 ms after
 
-The server runs this sequence when it opens the interface and again before it exits, so the display stays dark.
+After power-on, a module answers status polls but shows nothing until it has received this sequence. The server runs it for the responding modules, those that answer status polls, when it opens the interface and again before it exits, so the display stays dark. Whenever the responding modules change, because one started or restarted, stopped answering, or the configuration changed, the server reopens the interface and resets the responding modules again. A reset requested from the web app also reopens the interface.
 
 _All use the same UDP payload format ([data packet](#data-packet-ethertype-0x0800--udp-3210)) with `sequence=0`, `shift=false`._
 
@@ -104,10 +104,10 @@ Byte  Field            Value / Meaning
 
 ## Timing and framing
 
-1. Wait for next 20 ms tick (sleep until ~5 ms before, then busy-wait)
+1. Wait for next 20 ms tick (sleep until ~5 ms before, then busy-wait). Ticks are counted from the first one; if the loop fell behind, the missed ticks are skipped, never sent late, so syncs are always a multiple of 20 ms apart
 2. Send sync packet with current `sequence_number` and `shift_pixels = (sync_mode == ShiftPixels)`
 3. If `SendPixels`:
-   - Render image
+   - Render image, unless ticks were just missed
    - Send UDP RGB to each module (`UDP_CMD_RGB=0x02`) with `sequence+1`
    - `sync_mode = ShiftPixels`
 4. Else (`ShiftPixels`):
@@ -124,4 +124,4 @@ On recv sync-packet (`Command=0x04`):
 - Verify length ≥ `NOVA_PACKET_LEN`
 - Verify IP src prefix == `NOVA_IP_PREFIX`
 - Record `Instant::now()`
-- Module is “ready” if seen within last 5 s
+- Module is responding, shown as “ready” in the web app, if seen within the last 7.5 s, so a reply that comes late does not drop it

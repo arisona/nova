@@ -35,7 +35,8 @@ struct NovaHardware {
     state: Arc<Mutex<AppState>>,
     renderer: Renderer,
 
-    ready_modules: HashMap<u8, Instant>,
+    // When each module last responded to a status request
+    last_reply: HashMap<u8, Instant>,
 }
 
 impl NovaHardware {
@@ -43,7 +44,7 @@ impl NovaHardware {
         Self {
             state,
             renderer,
-            ready_modules: HashMap::new(),
+            last_reply: HashMap::new(),
         }
     }
 
@@ -53,7 +54,7 @@ impl NovaHardware {
 
         loop {
             let mut interface;
-            let modules_at_reset;
+            let responding_modules_at_reset;
 
             // Retry loop for opening the interface
             loop {
@@ -74,18 +75,20 @@ impl NovaHardware {
                 match Interface::new(&interface_name, Some(filter.as_str())) {
                     Ok(iface) => {
                         log::info!("Opened interface {interface_name}.");
-
                         interface = iface;
-
-                        // Successfully opened interface
-                        self.state.lock().unwrap().set_status(Status::Ok(format!(
-                            "Resetting all modules at interface {interface_name}."
-                        )));
-
-                        let image = VoxelImage::new(self.state.lock().unwrap().dim());
-                        self.reset_modules(&mut interface, &modules, &image);
-                        log::info!("Module reset complete.");
-                        modules_at_reset = modules;
+                        responding_modules_at_reset =
+                            Self::responding_modules(&self.last_reply, &modules, Instant::now());
+                        if !responding_modules_at_reset.is_empty() {
+                            self.state.lock().unwrap().set_status(Status::Ok(format!(
+                                "Resetting modules at interface {interface_name}."
+                            )));
+                            let image = VoxelImage::new(self.state.lock().unwrap().dim());
+                            self.reset_modules(
+                                &mut interface,
+                                &responding_modules_at_reset,
+                                &image,
+                            );
+                        }
                         break;
                     }
                     Err(err) => {
@@ -99,8 +102,6 @@ impl NovaHardware {
             }
 
             // Main processing loop for opened interface
-            self.ready_modules.clear();
-
             let mut sequence_number = 0;
             let mut sync_mode = SyncMode::SendPixels;
             let mut sync_time = Instant::now();
@@ -129,10 +130,9 @@ impl NovaHardware {
                 };
 
                 if shutdown_requested {
-                    log::info!("Shutting down: resetting all modules.");
+                    log::info!("Shutting down.");
                     let image = VoxelImage::new(self.state.lock().unwrap().dim());
-                    self.reset_modules(&mut interface, &modules_at_reset, &image);
-                    log::info!("Module reset complete.");
+                    self.reset_modules(&mut interface, &responding_modules_at_reset, &image);
                     return;
                 }
 
@@ -144,12 +144,6 @@ impl NovaHardware {
                 if interface_name != interface.name() {
                     log::info!("Interface changed to {interface_name}.");
                     // Return back to interface opening loop
-                    break;
-                }
-
-                if modules != modules_at_reset {
-                    log::info!("Modules changed.");
-                    // Reopen the interface to reset the modules at their new addresses
                     break;
                 }
 
@@ -169,29 +163,36 @@ impl NovaHardware {
 
                     // Update the app state with the latest module status
                     let num_modules = modules.len();
-                    let num_ready_modules = self
-                        .ready_modules
-                        .values()
-                        .filter(|t| now.duration_since(**t) < MODULE_READY_TIMEOUT)
-                        .count();
-                    log::debug!("Status update: {num_ready_modules} of {num_modules} ready.");
+                    let num_responding =
+                        Self::responding_modules(&self.last_reply, &modules, now).len();
+                    log::debug!("Status update: {num_responding} of {num_modules} responding.");
                     self.state
                         .lock()
                         .unwrap()
-                        .set_status(if num_modules == num_ready_modules {
-                            Status::Ok(format!(
-                                "{num_ready_modules} of {num_modules} modules ready."
-                            ))
+                        .set_status(if num_modules == num_responding {
+                            Status::Ok(format!("{num_responding} of {num_modules} modules ready."))
                         } else {
-                            Status::Err(format!(
-                                "{num_ready_modules} of {num_modules} modules ready."
-                            ))
+                            Status::Err(format!("{num_responding} of {num_modules} modules ready."))
                         });
                 }
 
                 // Handle received status packets
                 while let Ok(packet) = interface.receive() {
                     self.handle_status_packet(&packet, &modules);
+                }
+
+                // A module that starts responding has not been reset yet, and one that stops may be
+                // restarting. Configuration changes show up here too.
+                let responding_modules =
+                    Self::responding_modules(&self.last_reply, &modules, Instant::now());
+                if responding_modules != responding_modules_at_reset {
+                    log::info!(
+                        "Responding modules changed from {:?} to {:?}.",
+                        Self::addresses(&responding_modules_at_reset),
+                        Self::addresses(&responding_modules)
+                    );
+                    // Reopen the interface to reset the responding modules
+                    break;
                 }
 
                 // Sync loop to hardware and check for render time budget
@@ -269,8 +270,29 @@ impl NovaHardware {
             return;
         }
 
-        log::debug!("Module at address {module_address} is ready.");
-        self.ready_modules.insert(module_address, Instant::now());
+        log::debug!("Module at address {module_address} responded.");
+        self.last_reply.insert(module_address, Instant::now());
+    }
+
+    /// The configured modules that responded to a recent status request.
+    fn responding_modules(
+        last_reply: &HashMap<u8, Instant>,
+        modules: &[(usize, usize, u8)],
+        now: Instant,
+    ) -> Vec<(usize, usize, u8)> {
+        modules
+            .iter()
+            .copied()
+            .filter(|(_, _, address)| {
+                last_reply
+                    .get(address)
+                    .is_some_and(|&t| now.duration_since(t) < RESPONSE_TIMEOUT)
+            })
+            .collect()
+    }
+
+    fn addresses(modules: &[(usize, usize, u8)]) -> Vec<u8> {
+        modules.iter().map(|&(_, _, address)| address).collect()
     }
 
     fn reset_modules(
@@ -279,6 +301,10 @@ impl NovaHardware {
         modules: &[(usize, usize, u8)],
         image: &VoxelImage,
     ) {
+        if modules.is_empty() {
+            return;
+        }
+        log::info!("Resetting modules {:?}.", Self::addresses(modules));
         // Legacy note: the logic here is taken from the original java code
         let mac = &interface.address();
         for _ in 0..4 {
@@ -309,32 +335,42 @@ impl NovaHardware {
             let _ = interface.send(packet);
         }
         std::thread::sleep(Duration::from_millis(200));
+        log::info!("Module reset complete.");
     }
 
+    /// Waits for the next sync slot, every SYNC_PERIOD from the first. Returns false if the
+    /// loop fell behind: the missed slots are skipped, never sent late, and the caller does
+    /// not render this time.
     fn wait_for_next_sync(sync_time: &mut Instant) -> bool {
         // Legacy note: Nova sync timing is critical
-        let target = *sync_time + SYNC_PERIOD;
         *sync_time += SYNC_PERIOD;
 
         let now = Instant::now();
-        if now > target {
-            // Missed sync: do not render and wait for next sync
-            log::warn!("Missed sync by {}us", (now - target).as_micros());
-            return false;
-        } else if now < target - SYNC_BUSY_WAIT_MARGIN {
-            // Thread sleep wait for as much as possible
-            let sleep_duration = target
-                .duration_since(now)
-                .saturating_sub(SYNC_BUSY_WAIT_MARGIN);
-            if sleep_duration != Duration::ZERO {
-                std::thread::sleep(sleep_duration);
+        let mut on_time = true;
+        if now > *sync_time {
+            // Missed sync: skip to the next slot, so syncs stay SYNC_PERIOD apart
+            let late = now - *sync_time;
+            let mut missed = 0;
+            while *sync_time < now {
+                *sync_time += SYNC_PERIOD;
+                missed += 1;
             }
+            log::warn!(
+                "Missed {missed} sync(s), the first by {}us.",
+                late.as_micros()
+            );
+            on_time = false;
         }
-        while Instant::now() < target {
+
+        if *sync_time > now + SYNC_BUSY_WAIT_MARGIN {
+            // Thread sleep wait for as much as possible
+            std::thread::sleep(*sync_time - now - SYNC_BUSY_WAIT_MARGIN);
+        }
+        while Instant::now() < *sync_time {
             // Busy wait for the last bit to keep the timing
             std::thread::yield_now();
         }
-        true
+        on_time
     }
 
     fn nova_packet(
@@ -493,8 +529,9 @@ impl NovaHardware {
 const SYNC_PERIOD: Duration = Duration::from_millis(20);
 const SYNC_BUSY_WAIT_MARGIN: Duration = Duration::from_millis(5);
 const STATUS_PERIOD: Duration = Duration::from_millis(5000);
-// A module counts as ready if it answered the latest status request
-const MODULE_READY_TIMEOUT: Duration = STATUS_PERIOD;
+// A module counts as responding if it responded to the latest status request. The margin over
+// STATUS_PERIOD absorbs loop jitter, which would otherwise briefly drop a module and reset all.
+const RESPONSE_TIMEOUT: Duration = Duration::from_millis(7500);
 const INTERFACE_RETRY_PERIOD: Duration = Duration::from_millis(500);
 
 // Ethernet / IP / UDP related constants
@@ -613,6 +650,58 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn responding_modules_answered_recently() {
+        let start = Instant::now();
+        let modules = [(0, 0, 1), (1, 0, 2)];
+        let mut last_reply = HashMap::new();
+        let responding = |last_reply: &HashMap<u8, Instant>, t| {
+            NovaHardware::addresses(&NovaHardware::responding_modules(last_reply, &modules, t))
+        };
+
+        // Server first: nothing answers, nothing responds
+        assert!(responding(&last_reply, start).is_empty());
+
+        // A module starts responding
+        last_reply.insert(1, start);
+        assert_eq!(responding(&last_reply, start), [1]);
+
+        // It keeps responding until the next reply, even if that comes late
+        let late = start + STATUS_PERIOD + Duration::from_millis(100);
+        assert_eq!(responding(&last_reply, late), [1]);
+
+        // A missed reply stops it responding
+        assert!(responding(&last_reply, start + STATUS_PERIOD * 2).is_empty());
+
+        // Modules no longer configured do not count
+        last_reply.insert(3, start);
+        assert_eq!(responding(&last_reply, start), [1]);
+    }
+
+    #[test]
+    fn syncs_on_time_keep_their_slots() {
+        let start = Instant::now();
+        let mut sync_time = start;
+        assert!(NovaHardware::wait_for_next_sync(&mut sync_time));
+        assert_eq!(sync_time, start + SYNC_PERIOD);
+        assert!(Instant::now() >= sync_time);
+    }
+
+    #[test]
+    fn missed_syncs_are_skipped_not_sent_late() {
+        // The loop stalled for three and a half periods
+        let start = Instant::now();
+        let mut sync_time = start - SYNC_PERIOD * 7 / 2;
+        let first = sync_time;
+        assert!(!NovaHardware::wait_for_next_sync(&mut sync_time));
+        // The next sync is the first slot after the stall, still on the schedule
+        assert_eq!(sync_time, first + SYNC_PERIOD * 4);
+        assert!(Instant::now() >= sync_time);
+        // and the one after that follows a full period later
+        assert!(NovaHardware::wait_for_next_sync(&mut sync_time));
+        assert_eq!(sync_time, first + SYNC_PERIOD * 5);
     }
 
     #[test]
