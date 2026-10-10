@@ -1,4 +1,4 @@
-//! Light Cycle Grid: glowing agents that leave fading trails.
+//! Oort Cloud: glowing agents that leave fading trails.
 //!
 //! Ported from the Java modules Cylinder, Boids, BoidsNr and Snake. Form moves the
 //! swarm from order to independence: a spinning helix, a flock, then snakes that crawl
@@ -81,7 +81,7 @@ struct Pop {
     age: f32,
 }
 
-pub struct LightCycleGrid {
+pub struct OortCloud {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -96,7 +96,7 @@ pub struct LightCycleGrid {
     scratch: Vec<f32>,
 }
 
-impl LightCycleGrid {
+impl OortCloud {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -348,9 +348,9 @@ impl LightCycleGrid {
     }
 }
 
-impl Content for LightCycleGrid {
+impl Content for OortCloud {
     fn name(&self) -> &str {
-        "Light Cycle Grid"
+        "Oort Cloud"
     }
 
     fn render(
@@ -366,7 +366,7 @@ impl Content for LightCycleGrid {
         if state.should_reset() || self.dim != dim {
             self.reset(dim);
         }
-        self.palette.select(state.palette(), "Light Cycle Grid");
+        self.palette.select(state.palette(), "Oort Cloud");
         self.step(dt, state.form(), state.void());
 
         self.intensity.copy_from_slice(&self.trail);

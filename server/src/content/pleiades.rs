@@ -1,4 +1,4 @@
-//! The Shimmer: a reaction-diffusion system growing spots, stripes and mazes.
+//! Pleiades: a reaction-diffusion system growing spots, stripes and mazes.
 //!
 //! Ported from the Java modules ReactionDiffusion and ReactionDiffusionRandom (Turing's
 //! two-morphogen model, as popularised by Greg Turk). Two chemicals A and B react in
@@ -42,7 +42,7 @@ const ROTATION: f64 = 0.03; // palette colors per simulated second
 const VOID_FADE: f32 = 0.25;
 const SEED: u64 = 0x7E7;
 
-pub struct TheShimmer {
+pub struct Pleiades {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -59,7 +59,7 @@ pub struct TheShimmer {
     order: Vec<u32>,
 }
 
-impl TheShimmer {
+impl Pleiades {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -176,9 +176,9 @@ impl TheShimmer {
     }
 }
 
-impl Content for TheShimmer {
+impl Content for Pleiades {
     fn name(&self) -> &str {
-        "The Shimmer"
+        "Pleiades"
     }
 
     fn render(
@@ -194,7 +194,7 @@ impl Content for TheShimmer {
         if state.should_reset() || self.dim != dim {
             self.reset(dim);
         }
-        self.palette.select(state.palette(), "The Shimmer");
+        self.palette.select(state.palette(), "Pleiades");
         self.step(dt, state.form());
 
         self.values.copy_from_slice(&self.a);

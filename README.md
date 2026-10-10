@@ -2,7 +2,7 @@
 
 Rust-based procedural content generation for the Nova voxel display, with a desktop simulator and a React control interface.
 
-Six content modules explore the low-resolution volume: **Flux Capacitor** with a single noise primitive, and **Light Cycle Grid**, **Spice Melange**, **Tannhäuser Gate**, **Tears in Rain** and **The Shimmer**, which reinterpret the content of the former Java version. Independent **Brightness** and **Volume** control visual and audio output; **Palette**, **Heat**, **Flow**, and **Form** shape both, and **Void** shapes the visuals. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios.
+Six content modules explore the low-resolution volume: **Orion's Belt** with a single noise primitive, and **Andromeda**, **Betelgeuse**, **Oort Cloud**, **Pleiades** and **Tannhäuser Gate**, which reinterpret the content of the former Java version. Independent **Brightness** and **Volume** control visual and audio output; **Palette**, **Heat**, **Flow**, and **Form** shape both, and **Void** shapes the visuals. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios.
 
 This README is the canonical project guidance for both human contributors and coding agents. Follow the control semantics and design constraints below when changing the project.
 
@@ -72,7 +72,7 @@ Modules are registered in `all_content()` in alphabetical order of their names, 
 
 Preserve readable structures at 5 x 5 x 10, and sample spatial patterns in voxel units so additional modules show more of the same field rather than a stretched one; particle counts scale with the number of modules.
 
-### Flux Capacitor (`flux_capacitor.rs`)
+### Orion's Belt (`orions_belt.rs`)
 
 - One 4D simplex noise primitive covers the whole Form range. Form blends five fields that differ only in their per-axis frequencies: layers (Form 0), columns (0.25), blobs (0.5), patches (0.75), and grain (1). Frequencies are fixed, so moving Form never zooms the pattern; blends are normalized to constant contrast.
 - Brightness is computed by rank, so Void is exactly the fraction of dark voxels and lit voxels look the same at any Void.
@@ -85,23 +85,23 @@ The Java version (branch `nova_final_java_version`) had 27 content classes. They
 
 | Module (file)     | Java origins                                            | Form, 0 → 1                                                     | Void                                          | Heat                         |
 | ---------- | ------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------- | ---------------------------- |
-| **Light Cycle Grid** (`light_cycle_grid.rs`)  | Cylinder, Boids, BoidsNr, Snake                         | helix orbit → flock → lattice snakes that burst when trapped    | shorter trails, then a cap                    | saturation                   |
-| **Spice Melange** (`spice_melange.rs`)   | BouncingMetaBalls(T), ColorSplash, Pong, Pong2          | few large, merging, breathing metaballs → many small Pong balls with paddle flashes | by rank (exact)                  | saturation                   |
+| **Andromeda** (`andromeda.rs`)   | BouncingMetaBalls(T), ColorSplash, Pong, Pong2          | few large, merging, breathing metaballs → many small Pong balls with paddle flashes | by rank (exact)                  | saturation                   |
+| **Betelgeuse** (`betelgeuse.rs`)  | Waves, Waves3D, Sweep, Pulse, Jump, Snow                | bobbing level → rim/core jump → rolling → standing → choppy waves; rain above 0.5 | water level (1 − Void)       | picks the water color        |
+| **Oort Cloud** (`oort_cloud.rs`)  | Cylinder, Boids, BoidsNr, Snake                         | helix orbit → flock → lattice snakes that burst when trapped    | shorter trails, then a cap                    | saturation                   |
+| **Pleiades** (`pleiades.rs`) | ReactionDiffusion, ReactionDiffusionRandom              | broad spots (cheetah) → stripes → fine pattern                  | by rank (exact)                               | saturation                   |
 | **Tannhäuser Gate** (`tannhauser_gate.rs`)  | Fire, Fire (Old), Stars, Random                         | flame bed → flame tongues → rising embers → star flares → sparks | lower flames, then a cap                     | picks the flame color        |
-| **Tears in Rain** (`tears_in_rain.rs`)  | Waves, Waves3D, Sweep, Pulse, Jump, Snow                | bobbing level → rim/core jump → rolling → standing → choppy waves; rain above 0.5 | water level (1 − Void)       | picks the water color        |
-| **The Shimmer** (`the_shimmer.rs`) | ReactionDiffusion, ReactionDiffusionRandom              | broad spots (cheetah) → stripes → fine pattern                  | by rank (exact)                               | saturation                   |
 
 - Simulated modules advance by `advance_seconds()`: simulated time runs in real time at Flow 0.5 and stops at Flow 0. Their randomness is seeded, so a reset replays the same animation.
 - Void as a cap (`void_as_cap`) keeps at most the brightest 1 − Void fraction lit, for sparse modules whose dark voxels are already part of the picture.
-- Heat as a picker: modules whose Java ancestors had a single color (fire in Tannhäuser Gate, water in Tears in Rain) use Heat to choose that color as a blend sliding through the palette, from its first color at 0 to its last at 1, with neighbouring palette colors for cooler or deeper parts. All other modules keep Heat as saturation.
-- Not ported: Test, Solid and Planes, which are test patterns (the calibration page covers them); Colorcube, a gradient through RGB space that palettes and Flux Capacitor replace; the cellular automaton CA_Alexander, which at 5 x 10 per slice reads as random flicker; and SSP, a lettering.
+- Heat as a picker: modules whose Java ancestors had a single color (fire in Tannhäuser Gate, water in Betelgeuse) use Heat to choose that color as a blend sliding through the palette, from its first color at 0 to its last at 1, with neighbouring palette colors for cooler or deeper parts. All other modules keep Heat as saturation.
+- Not ported: Test, Solid and Planes, which are test patterns (the calibration page covers them); Colorcube, a gradient through RGB space that palettes and Orion's Belt replace; the cellular automaton CA_Alexander, which at 5 x 10 per slice reads as random flicker; and SSP, a lettering.
 
 ## Tides
 
 Tides are slow, subtle variation brought in by the system rather than the user, defined in `server/src/tides.rs`. Each tide is a smooth, bounded swell of two sines with golden-ratio periods, so it never loops exactly and needs no state; sound can later compute identical values.
 
 - Global tides, applied by the renderer to every content module: Heat (37 s, ±0.08), Flow (23 s, ±0.10), Form (53 s, ±0.06) and Void (29 s, ±0.08). The swing tapers to nothing at 0 and 1, so both extremes stay exact; in particular Flow 0 stays 0.
-- Content modules can run their own tides on the same clock (`RenderState::tide_seconds`). Flux Capacitor stretches its structures vertically, varies how many colors show at once, and swings which colors dominate.
+- Content modules can run their own tides on the same clock (`RenderState::tide_seconds`). Orion's Belt stretches its structures vertically, varies how many colors show at once, and swings which colors dominate.
 - `FREEZE_WITH_FLOW` (on): the tide clock only advances while Flow is above 0, so Flow 0 keeps the display completely still. `TIDE_DEPTH` scales every tide; 0 switches them off.
 - Tides must never change the coefficient of a time term, or patterns jump; they only move bounded values.
 

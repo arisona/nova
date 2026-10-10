@@ -6,7 +6,7 @@
 //!
 //! ```text
 //! inputs:  p = (x, y, z), f = form, T = simulated seconds (Flow-integrated), Z = height
-//! anchors (weights blend neighbours, as Form does in Flux Capacitor):
+//! anchors (weights blend neighbours, as Form does in Orion's Belt):
 //!          bed (0)      one flame sheet rising and falling together: layers
 //!          tongues (¼)  every column flickers on its own (Fire (Old)): columns
 //!          embers (½)   glowing spheres rising from the floor, shrinking (Fire): blobs

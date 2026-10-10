@@ -1,4 +1,4 @@
-//! Spice Melange: soft spheres drifting and bouncing through the volume.
+//! Andromeda: soft spheres drifting and bouncing through the volume.
 //!
 //! Ported from the Java modules BouncingMetaBalls, BouncingMetaBallsT, ColorSplash, Pong
 //! and Pong2. Their fields add up like metaballs, so nearby orbs melt into each other;
@@ -20,7 +20,7 @@
 //! void:    by rank of F: exactly the void fraction stays dark (see `void_by_rank`)
 //! paddles: a 3 × 3 flash on the floor or ceiling where an orb bounced, fading over
 //!          0.6 s, weight smoothstep(0.4, 0.8, f)
-//! heat:    saturation, as in Flux Capacitor
+//! heat:    saturation, as in Orion's Belt
 //! ```
 
 use glam::Vec3;
@@ -68,7 +68,7 @@ struct Paddle {
     age: f32,
 }
 
-pub struct SpiceMelange {
+pub struct Andromeda {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -81,7 +81,7 @@ pub struct SpiceMelange {
     order: Vec<u32>,
 }
 
-impl SpiceMelange {
+impl Andromeda {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -180,9 +180,9 @@ impl SpiceMelange {
     }
 }
 
-impl Content for SpiceMelange {
+impl Content for Andromeda {
     fn name(&self) -> &str {
-        "Spice Melange"
+        "Andromeda"
     }
 
     fn render(
@@ -198,7 +198,7 @@ impl Content for SpiceMelange {
         if state.should_reset() || self.dim != dim {
             self.reset(dim);
         }
-        self.palette.select(state.palette(), "Spice Melange");
+        self.palette.select(state.palette(), "Andromeda");
         let form = state.form();
         let heat = state.heat();
         self.step(dt, form);

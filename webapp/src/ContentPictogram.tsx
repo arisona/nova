@@ -45,7 +45,7 @@ interface Drawing {
   id: string;
 }
 
-// Flux Capacitor: soft noise blobs blending into each other.
+// Orion's Belt: soft noise blobs blending into each other.
 const Flux = ({ colors, id }: Drawing) => {
   const rand = random(1);
   return (
@@ -69,7 +69,7 @@ const Flux = ({ colors, id }: Drawing) => {
   );
 };
 
-// Light Cycle Grid: right-angled trails fading behind bright heads.
+// Oort Cloud: right-angled trails fading behind bright heads.
 const LightCycles = ({ colors, id }: Drawing) => {
   const rand = random(2);
   const lanes = [6, 13, 20, 27];
@@ -122,7 +122,7 @@ const LightCycles = ({ colors, id }: Drawing) => {
   );
 };
 
-// Spice Melange: soft orbs melting into each other, plus two small bouncing balls.
+// Andromeda: soft orbs melting into each other, plus two small bouncing balls.
 const Melange = ({ colors, id }: Drawing) => {
   const rand = random(3);
   return (
@@ -193,7 +193,7 @@ const Flames = ({ colors, heat, id }: Drawing) => {
   );
 };
 
-// Tears in Rain: a wavy water level in the color Heat picks, raindrops and ripples.
+// Betelgeuse: a wavy water level in the color Heat picks, raindrops and ripples.
 const Water = ({ colors, heat, id }: Drawing) => {
   const rand = random(5);
   const hot = heat * (colors.length - 1);
@@ -242,7 +242,7 @@ const Water = ({ colors, heat, id }: Drawing) => {
   );
 };
 
-// The Shimmer: Turing spots and short stripes, colored by a slow drift through the palette.
+// Pleiades: Turing spots and short stripes, colored by a slow drift through the palette.
 const Shimmer = ({ colors, id }: Drawing) => {
   const rand = random(6);
   const spots: React.ReactNode[] = [];
@@ -290,12 +290,12 @@ const Fallback = ({ colors, id }: Drawing) => (
 );
 
 const DRAWINGS: Record<string, (drawing: Drawing) => React.ReactNode> = {
-  'Flux Capacitor': Flux,
-  'Light Cycle Grid': LightCycles,
-  'Spice Melange': Melange,
+  Andromeda: Melange,
+  Betelgeuse: Water,
+  'Oort Cloud': LightCycles,
+  "Orion's Belt": Flux,
+  Pleiades: Shimmer,
   'Tannhäuser Gate': Flames,
-  'Tears in Rain': Water,
-  'The Shimmer': Shimmer,
 };
 
 export const ContentPictogram = ({

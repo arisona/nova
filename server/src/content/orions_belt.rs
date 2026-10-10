@@ -1,4 +1,4 @@
-//! Flux Capacitor: the unified content module.
+//! Orion's Belt: the unified content module.
 //!
 //! One noise primitive covers the whole range. `form` sweeps through five fields that
 //! differ only in their per-axis frequencies, in this order:
@@ -25,7 +25,7 @@
 //!          noise = 4D simplex (σ ≈ 0.2); each use has its own offset, so fields are independent
 //!
 //! tides (see `crate::tides`): the renderer has already moved heat, flow, form and void
-//! around the sliders. Inside Flux Capacitor, on the same tide clock T:
+//! around the sliders. Inside Orion's Belt, on the same tide clock T:
 //!          a     = 2^(0.485·tide(T, 43 s))        stretch along z, up to ±40%
 //!          spread × (1 + 0.3·tide(T, 31 s))       colors at once, ±30%
 //!          drift = 0.5·tide(T, 59 s)              dominant colors swing by ± half a color
@@ -122,7 +122,7 @@ const COLOR_ROTATION: f64 = 1.0 / 150.0; // ρ, palette colors per phase unit (�
 // Void.
 const VOID_FADE: f32 = 0.25; // share of lit voxels fading in from dark
 
-// Tides inside Flux Capacitor, on the renderer's tide clock (see `crate::tides`).
+// Tides inside Orion's Belt, on the renderer's tide clock (see `crate::tides`).
 const STRETCH: Tide = Tide::new(43.0, 0.485, [0.6, 2.8]); // along z: 2^offset, up to ±40%
 const SPREAD: Tide = Tide::new(31.0, 0.3, [3.7, 1.2]); // colors at once: ×(1 + offset)
 const DRIFT: Tide = Tide::new(59.0, 0.5, [5.0, 0.4]); // dominant colors: ± half a color
@@ -132,13 +132,13 @@ fn rank(n: f32) -> f32 {
     1.0 / (1.0 + (-1.7 * n).exp())
 }
 
-pub struct FluxCapacitor {
+pub struct OrionsBelt {
     phase: f64,
     noise: Simplex,
     palette: PaletteMix,
 }
 
-impl FluxCapacitor {
+impl OrionsBelt {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -177,9 +177,9 @@ impl FluxCapacitor {
     }
 }
 
-impl Content for FluxCapacitor {
+impl Content for OrionsBelt {
     fn name(&self) -> &str {
-        "Flux Capacitor"
+        "Orion's Belt"
     }
 
     fn render(
@@ -196,7 +196,7 @@ impl Content for FluxCapacitor {
         let form = state.form();
         let heat = state.heat();
         let void = state.void();
-        self.palette.select(state.palette(), "Flux Capacitor");
+        self.palette.select(state.palette(), "Orion's Belt");
 
         let weights = form_weights(form, FIELDS.len());
         let spread: f32 = weights
@@ -262,7 +262,7 @@ mod tests {
                 settings.set_form(*form);
                 settings.set_flow(1.0);
                 let state = RenderState::from(&settings);
-                let mut effect = FluxCapacitor::new();
+                let mut effect = OrionsBelt::new();
                 let mut image = previous.clone();
                 // advance a few frames so time-based structure is visible
                 for frame in 0..30 {
@@ -292,7 +292,7 @@ mod tests {
         bytes.extend(bitmap);
         std::fs::write(&path, bytes).unwrap();
         println!(
-            "Flux Capacitor sweep: {} (columns: form 0 .. 1, rows: palettes)",
+            "Orion's Belt sweep: {} (columns: form 0 .. 1, rows: palettes)",
             path.display()
         );
     }

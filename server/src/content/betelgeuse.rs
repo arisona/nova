@@ -1,4 +1,4 @@
-//! Tears in Rain: a body of water filling the volume from the floor, with rain.
+//! Betelgeuse: a body of water filling the volume from the floor, with rain.
 //!
 //! Ported from the Java modules Waves, Waves3D, Sweep, Pulse, Jump and Snow. The water
 //! was a single blue, so Heat picks the water color from the palette; the depths blend
@@ -72,7 +72,7 @@ struct Ripple {
     age: f32,
 }
 
-pub struct TearsInRain {
+pub struct Betelgeuse {
     phase: f64,
     time: f64,
     rng: Rng,
@@ -84,7 +84,7 @@ pub struct TearsInRain {
     palette: PaletteMix,
 }
 
-impl TearsInRain {
+impl Betelgeuse {
     pub fn new() -> Self {
         Self {
             phase: 0.0,
@@ -209,9 +209,9 @@ impl TearsInRain {
     }
 }
 
-impl Content for TearsInRain {
+impl Content for Betelgeuse {
     fn name(&self) -> &str {
-        "Tears in Rain"
+        "Betelgeuse"
     }
 
     fn render(
@@ -227,7 +227,7 @@ impl Content for TearsInRain {
         if state.should_reset() || self.dim != dim {
             self.reset(dim);
         }
-        self.palette.select(state.palette(), "Tears in Rain");
+        self.palette.select(state.palette(), "Betelgeuse");
         let form = state.form();
         let void = state.void();
         let rain = ease((form - RAIN_FORM) / (1.0 - RAIN_FORM)) * (4.0 * (1.0 - void)).min(1.0);

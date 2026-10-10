@@ -71,8 +71,8 @@ npm run dev
   "void": 0.5,
   "flip_vertical": false,
   "calibration": { "gamma": [2.2, 2.2, 2.2], "gain": [0.6, 1.0, 1.0] },
-  "enabled_content": ["Flux Capacitor"],
-  "selected_content": "Flux Capacitor"
+  "enabled_content": ["Orion's Belt"],
+  "selected_content": "Orion's Belt"
 }
 ```
 
