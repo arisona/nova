@@ -57,7 +57,8 @@
 //! color:   n_c = the same blend with its own offset, frequencies × 0.6, slower evolution
 //!          spread = (1 − w)·colorsᵢ + w·colorsᵢ₊₁  palette colors per unit of n_c
 //!          q = ρ·t + drift + spread·n_c            ρ slowly rotates through the palette
-//!          C(q) = Oklab mix of C[⌊q⌋] and C[⌊q⌋ + 1] by S(q − ⌊q⌋)   (indices wrap)
+//!          C(q) = Oklab mix of C[⌊q⌋] and C[⌊q⌋ + 1] by smoothstep over the middle
+//!                 BLEND_WIDTH of q − ⌊q⌋                (indices wrap)
 //! heat:    saturation 0 at heat 0, palette as published at 0.5, up to 2× at 1
 //!
 //! voxel = heat(C(q)) · intensity

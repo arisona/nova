@@ -24,7 +24,7 @@
 //! void:    flames burn lower with Void, and at most the 1 − void hottest voxels stay lit
 //! color:   q = heat·(len − 1) − 0.5·(1 − t)   clamped to the palette, so Heat slides the
 //!          flame color through the palette and cool edges blend into the previous color
-//! voxel  = C(q) · t
+//! voxel  = C(q) · t^0.75                            a mild lift for embers, glints and sparks
 //! ```
 
 use glam::Vec3;
@@ -317,7 +317,7 @@ impl Content for TannhauserGate {
                         continue;
                     }
                     let color = self.palette.clamped(hot - COOLING * (1.0 - t));
-                    next.set(x, y, z, color * t);
+                    next.set(x, y, z, color * t.powf(0.75));
                 }
             }
         }

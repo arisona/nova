@@ -13,13 +13,15 @@
 //!          wander  a random nudge, stronger towards form 0.75
 //!          walls   a soft push back from the boundary
 //!          acc = (1 − S(2f))·orbit + flock·(1 − S(2f) − S(2f − 1)) + wander + walls
-//!          speed is kept within [1, 2.5] voxels/s; heads deposit trilinearly
+//!          speed is kept within [1, 2.5] voxels/s; heads deposit trilinearly, scaled
+//!          so the nearest voxel gets full intensity
 //! lattice  (form ≥ 0.75, Snake): every 0.3 s an agent steps one voxel along an axis,
 //!          turning at random or when the next voxel is a wall or a fresh trail; with no
 //!          way out it bursts, a sphere swelling to 3.5 voxels and fading over 1.2 s,
 //!          and respawns elsewhere
-//! trails:  intensity decays by e^(−dt/τ), τ = lerp(1.6, 0.4, void) s, shown as √intensity; a deposit keeps the
-//!          brighter value and takes the depositing agent's color
+//! trails:  intensity decays by e^(−dt/τ), τ = lerp(1.6, 0.4, void) s, shown as intensity^¼ so
+//!          trails stay visible as light; a deposit keeps the brighter value and takes the
+//!          depositing agent's color
 //! void:    trails shorten with Void, and at most the 1 − void brightest voxels stay lit
 //!          (see `void_as_cap`)
 //! color:   each agent owns a palette position, rotating slowly; heat = saturation
@@ -156,6 +158,9 @@ impl LightCycleGrid {
         let p = position.clamp(Vec3::ZERO, max);
         let base = p.floor();
         let t = p - base;
+        // The nearest voxel gets full intensity, the others in proportion.
+        let nearest = t.max(Vec3::ONE - t);
+        let peak = nearest.x * nearest.y * nearest.z;
         for corner in 0..8 {
             let offset = Vec3::new(
                 (corner & 1) as f32,
@@ -168,7 +173,7 @@ impl LightCycleGrid {
             if weight > 0.0 {
                 self.deposit(
                     [voxel.x as usize, voxel.y as usize, voxel.z as usize],
-                    weight,
+                    weight / peak,
                     hue,
                 );
             }
@@ -396,7 +401,7 @@ impl Content for LightCycleGrid {
             for y in 0..dim.1 {
                 for z in 0..dim.2 {
                     let index = voxel_index(dim, x, y, z);
-                    let intensity = self.intensity[index].min(1.0).sqrt();
+                    let intensity = self.intensity[index].min(1.0).powf(0.25);
                     if intensity <= 0.0 {
                         next.set(x, y, z, Vec3::ZERO);
                         continue;

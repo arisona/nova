@@ -7,6 +7,10 @@ use palette::{IntoColor, Mix, Oklab, Srgb};
 
 use crate::palettes::PALETTES;
 
+// Share of the way between two palette colors spent blending them; the rest shows the
+// colors as published. 1 blends all the way, smaller values keep blends short, so
+// neighbours that mix through gray or pastel show less of it.
+const BLEND_WIDTH: f32 = 0.5;
 const HEAT_NATIVE: f32 = 0.5; // heat at which the palette shows as published
 const HEAT_OVERDRIVE: f32 = 1.0; // extra saturation at heat 1 (1.0 = 2×)
 const LUMA: Vec3 = Vec3::new(0.2126, 0.7152, 0.0722);
@@ -94,13 +98,10 @@ impl PaletteMix {
         self.colors.len()
     }
 
-    /// The Oklab mix at palette position `q`, indices wrapping.
+    /// The Oklab mix at palette position `q`, indices wrapping. The blend takes the middle
+    /// `BLEND_WIDTH` of the way between two colors.
     pub fn oklab(&self, q: f32) -> Oklab {
-        let len = self.colors.len() as i64;
-        let index = q.floor();
-        let a = self.colors[(index as i64).rem_euclid(len) as usize];
-        let b = self.colors[(index as i64 + 1).rem_euclid(len) as usize];
-        a.mix(b, ease(q - index))
+        self.mix(q, BLEND_WIDTH)
     }
 
     /// C(q): the mix at palette position `q` in sRGB, indices wrapping.
@@ -109,9 +110,19 @@ impl PaletteMix {
     }
 
     /// The mix at palette position `q`, clamped to the first and last color instead of
-    /// wrapping.
+    /// wrapping. Blends all the way, since modules use it as a gradient.
     pub fn clamped(&self, q: f32) -> Vec3 {
-        self.wrapped(q.clamp(0.0, (self.colors.len() - 1) as f32))
+        to_rgb(self.mix(q.clamp(0.0, (self.colors.len() - 1) as f32), 1.0))
+    }
+
+    /// The Oklab mix at palette position `q`, blending over the middle `width` of the way
+    /// between two colors, indices wrapping.
+    fn mix(&self, q: f32, width: f32) -> Oklab {
+        let len = self.colors.len() as i64;
+        let index = q.floor();
+        let a = self.colors[(index as i64).rem_euclid(len) as usize];
+        let b = self.colors[(index as i64 + 1).rem_euclid(len) as usize];
+        a.mix(b, smoothstep(0.5 - 0.5 * width, 0.5 + 0.5 * width, q - index))
     }
 
     /// Heat as a picker, for modules built around a single color: the blend that slides
