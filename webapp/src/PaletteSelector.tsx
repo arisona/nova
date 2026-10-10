@@ -40,7 +40,7 @@ export const PaletteSelector = ({
         {palette?.colors.map((color, position) => (
           <Box
             key={`${String(position)}-${color.hex}`}
-            title={`${color.name} ${color.code}`}
+            title={color.name}
             sx={{ flex: 1, alignSelf: 'stretch', bgcolor: color.hex }}
           />
         ))}

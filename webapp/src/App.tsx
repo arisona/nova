@@ -9,7 +9,6 @@ import { Status } from './Status';
 
 export interface PaletteColor {
   name: string;
-  code: string;
   hex: string;
 }
 

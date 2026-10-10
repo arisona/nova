@@ -122,7 +122,8 @@ impl PaletteMix {
         let index = q.floor();
         let a = self.colors[(index as i64).rem_euclid(len) as usize];
         let b = self.colors[(index as i64 + 1).rem_euclid(len) as usize];
-        a.mix(b, smoothstep(0.5 - 0.5 * width, 0.5 + 0.5 * width, q - index))
+        let w = smoothstep(0.5 - 0.5 * width, 0.5 + 0.5 * width, q - index);
+        a.mix(b, w)
     }
 
     /// Heat as a picker, for modules built around a single color: the blend that slides

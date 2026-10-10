@@ -1,177 +1,284 @@
-//! Curated Pantone palettes, compiled into the binary.
+//! Curated palettes, compiled into the binary.
 //!
-//! Sources:
-//! - Pantone Connect palette generator exports. Colors listed on the exported color-code
-//!   sheet use the values published there.
-//! - Colors marked `dataset` use the values of a public Pantone FHI dataset
-//!   (github.com/Margaret2/pantone-colors). Where it overlaps with Pantone Connect, it
-//!   matches within ΔE 0.5 (Oklab distance × 100).
-//! - Colors marked `sampled` are not in that dataset; they were measured from the
-//!   Connect screenshots after converting Display P3 to sRGB (accurate to ±1 per channel).
-//! - Island Vibes, Nueva York, Texas Sun and Uluwatu Wipeout are based on reference
-//!   images: they use the Pantone colors from the dataset closest to colors picked from
-//!   each image. Colors marked `out of gamut`
-//!   have no close Pantone equivalent; the nearest one is used.
+//! Colors are specified for light, as the display shows them, and converted to sRGB:
+//! - OKLCh (lightness 0–1, chroma, hue in degrees) for most colors, so lightness, purity
+//!   and hue can be tuned one at a time on the display.
+//! - Color temperature in kelvin for whites, at full brightness.
+//! - sRGB hex for Nueva York Buzz, Texas Sun Burn and Uluwatu Wipeout, which keep the
+//!   Pantone colors closest to colors picked from reference images.
 //!
-//! Palettes are listed by the hue of their most saturated color, so moving through them
-//! goes around the color wheel. Colors keep the order of the source palette.
+//! A color that started from another, typically a Pantone color, names it as its source.
+//! Judged on the display: warm dark colors vanish while bluish ones survive as dim color;
+//! blue is strong, so a palette has at most one strong blue; pastels read as white; and
+//! the green LEDs are so bright that greens need a lower lightness and little red or blue
+//! to look lush rather than pale.
+//!
+//! Palettes are listed alphabetically. Colors run in the order Heat as a picker slides
+//! through them (see the README), and the blends between neighbours are what the
+//! wrapping modules show.
 
 use glam::Vec3;
+use palette::convert::FromColorUnclamped;
+use palette::{LinSrgb, Oklch, Srgb, Xyz};
 
 /// Palettes have between 1 and this many colors.
 pub const MAX_COLORS: usize = 6;
 
-pub struct PantoneColor {
-    pub name: &'static str,
-    pub code: &'static str,
-    pub rgb: [u8; 3],
+/// How a palette color is specified.
+#[derive(Clone, Copy, Debug)]
+pub enum Spec {
+    /// Lightness 0–1, chroma, hue in degrees; must lie within sRGB (checked by a test).
+    Oklch(f32, f32, f32),
+    /// A white of this color temperature, at full brightness.
+    Kelvin(f32),
+    /// sRGB, for colors taken over as they are.
+    Hex(u32),
 }
 
-impl PantoneColor {
-    const fn new(name: &'static str, code: &'static str, hex: u32) -> Self {
+pub struct PaletteColor {
+    pub name: &'static str,
+    pub spec: Spec,
+    /// The color this one started from, or empty.
+    pub source: &'static str,
+}
+
+impl PaletteColor {
+    const fn new(name: &'static str, spec: Spec) -> Self {
         Self {
             name,
-            code,
-            rgb: [(hex >> 16) as u8, (hex >> 8) as u8, hex as u8],
+            spec,
+            source: "",
         }
     }
 
-    /// CSS-style hex, e.g. `#F6D155`.
-    pub fn hex(&self) -> String {
-        let [r, g, b] = self.rgb;
-        format!("#{r:02X}{g:02X}{b:02X}")
+    const fn after(name: &'static str, spec: Spec, source: &'static str) -> Self {
+        Self { name, spec, source }
+    }
+
+    /// Linear sRGB, unclamped, so a test can check the gamut.
+    fn linear(&self) -> Vec3 {
+        match self.spec {
+            Spec::Oklch(l, c, h) => {
+                let rgb = LinSrgb::from_color_unclamped(Oklch::new(l, c, h));
+                Vec3::new(rgb.red, rgb.green, rgb.blue)
+            }
+            Spec::Kelvin(t) => kelvin(t),
+            Spec::Hex(hex) => {
+                let rgb = Srgb::new((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
+                    .into_format::<f32>()
+                    .into_linear();
+                Vec3::new(rgb.red, rgb.green, rgb.blue)
+            }
+        }
     }
 
     /// sRGB in [0, 1].
     pub fn color(&self) -> Vec3 {
-        Vec3::new(self.rgb[0] as f32, self.rgb[1] as f32, self.rgb[2] as f32) / 255.0
+        let linear = self.linear().clamp(Vec3::ZERO, Vec3::ONE);
+        let rgb = Srgb::from_linear(LinSrgb::new(linear.x, linear.y, linear.z));
+        Vec3::new(rgb.red, rgb.green, rgb.blue)
     }
+
+    /// CSS-style hex, e.g. `#F6D155`.
+    pub fn hex(&self) -> String {
+        let [r, g, b] = (self.color() * 255.0).round().to_array().map(|c| c as u8);
+        format!("#{r:02X}{g:02X}{b:02X}")
+    }
+
+    /// The specification as written, e.g. `L 0.48 · C 0.150 · h 145` or `3000 K`.
+    pub fn describe(&self) -> String {
+        match self.spec {
+            Spec::Oklch(l, c, h) => format!("L {l:.2} · C {c:.3} · h {h:.0}"),
+            Spec::Kelvin(t) => format!("{t:.0} K"),
+            Spec::Hex(_) => "sRGB".into(),
+        }
+    }
+}
+
+/// Linear sRGB of a blackbody at `t` kelvin (1667 to 25000), scaled to full brightness.
+/// Its chromaticity follows Kim et al. (2002).
+fn kelvin(t: f32) -> Vec3 {
+    let x = if t <= 4000.0 {
+        -0.266_123_9e9 / t.powi(3) - 0.234_358_9e6 / t.powi(2) + 0.877_695_6e3 / t + 0.179_910
+    } else {
+        -3.025_846_9e9 / t.powi(3) + 2.107_037_9e6 / t.powi(2) + 0.222_634_7e3 / t + 0.240_390
+    };
+    let y = if t <= 2222.0 {
+        -1.106_381_4 * x.powi(3) - 1.348_110_2 * x.powi(2) + 2.185_558_3 * x - 0.202_196_83
+    } else if t <= 4000.0 {
+        -0.954_947_6 * x.powi(3) - 1.374_185_9 * x.powi(2) + 2.091_370_2 * x - 0.167_488_67
+    } else {
+        3.081_758 * x.powi(3) - 5.873_386_7 * x.powi(2) + 3.751_13 * x - 0.370_014_83
+    };
+    let rgb = LinSrgb::from_color_unclamped(Xyz::new(x / y, 1.0, (1.0 - x - y) / y));
+    let rgb = Vec3::new(rgb.red, rgb.green, rgb.blue).max(Vec3::ZERO);
+    rgb / rgb.max_element()
 }
 
 pub struct Palette {
     pub name: &'static str,
-    pub colors: &'static [PantoneColor],
+    pub colors: &'static [PaletteColor],
 }
 
-// Brilliant Abyss
-const PRIMROSE_YELLOW: PantoneColor = PantoneColor::new("Primrose Yellow", "13-0755 TCX", 0xF6D155);
-const OUTER_SPACE: PantoneColor = PantoneColor::new("Outer Space", "19-4009 TCX", 0x2F3441);
-const AQUA_ESQUE: PantoneColor = PantoneColor::new("Aqua-esque", "13-5411 TCX", 0xA3CCD6);
-const PLANTATION: PantoneColor = PantoneColor::new("Plantation", "18-0832 TCX", 0x7A6332);
-const CATTLEYA_ORCHID: PantoneColor = PantoneColor::new("Cattleya Orchid", "18-3223 TCX", 0x9C4C8D);
+// Antarctica Freeze
+const PACK_ICE: PaletteColor = PaletteColor::new("Pack Ice", Spec::Kelvin(9000.0));
+const GLACIER: PaletteColor = PaletteColor::after(
+    "Glacier",
+    Spec::Oklch(0.70, 0.120, 217.0),
+    "Pantone Blue Atoll",
+);
+const POLAR_SEA: PaletteColor = PaletteColor::after(
+    "Polar Sea",
+    Spec::Oklch(0.44, 0.130, 253.0),
+    "Pantone Princess Blue",
+);
 
-// Spectrum Twist
-const LEMON_VERBENA: PantoneColor = PantoneColor::new("Lemon Verbena", "12-0742 TCX", 0xF4E87A);
-const PURPLE_VELVET: PantoneColor = PantoneColor::new("Purple Velvet", "19-3725 TCX", 0x41354D);
-const PEACH_QUARTZ: PantoneColor = PantoneColor::new("Peach Quartz", "13-1125 TCX", 0xF5B895);
-const ETHEREAL_BLUE: PantoneColor = PantoneColor::new("Ethereal Blue", "15-4323 TCX", 0x5CA6CE);
-const FUCHSIA_PURPLE: PantoneColor = PantoneColor::new("Fuchsia Purple", "18-2436 TCX", 0xD4367A);
+// Avignon Breeze
+const LAVENDER: PaletteColor = PaletteColor::new("Lavender", Spec::Oklch(0.64, 0.120, 320.0));
+const OLIVE_GROVE: PaletteColor = PaletteColor::new("Olive Grove", Spec::Oklch(0.60, 0.100, 128.0));
+const SUNFLOWER: PaletteColor = PaletteColor::after(
+    "Sunflower",
+    Spec::Oklch(0.85, 0.170, 86.0),
+    "Pantone Lemon Chrome",
+);
 
-// Horizon Beam
-const DARK_CITRON: PantoneColor = PantoneColor::new("Dark Citron", "16-0435 TCX", 0xA0AC4F);
-const ESTATE_BLUE: PantoneColor = PantoneColor::new("Estate Blue", "19-4027 TCX", 0x233658);
-const MUREX_SHELL: PantoneColor = PantoneColor::new("Murex Shell", "15-1712 TCX", 0xF8A3A4);
-const PURPLE_HEATHER: PantoneColor = PantoneColor::new("Purple Heather", "14-3911 TCX", 0xBAB8D3);
-const KOMBU_GREEN: PantoneColor = PantoneColor::new("Kombu Green", "19-0417 TCX", 0x3A4132);
+// Belize Ripple
+const SAND: PaletteColor = PaletteColor::new("Sand", Spec::Oklch(0.93, 0.035, 85.0));
+const SHALLOWS: PaletteColor = PaletteColor::new("Shallows", Spec::Oklch(0.82, 0.100, 190.0));
+const REEF: PaletteColor = PaletteColor::after(
+    "Reef",
+    Spec::Oklch(0.70, 0.125, 178.0),
+    "Pantone Aqua Green",
+);
+const BLUE_HOLE: PaletteColor = PaletteColor::after(
+    "Blue Hole",
+    Spec::Oklch(0.47, 0.080, 210.0),
+    "Pantone Fanfare",
+);
 
-// Infinite Radiance
-const ARTISANS_GOLD: PantoneColor = PantoneColor::new("Artisan's Gold", "15-1049 TCX", 0xF2AB46);
-const CUMULUS_CLOUD: PantoneColor = PantoneColor::new("Cumulus Cloud", "14-0207 TCX", 0xB5B0AB);
-const BLACK_BEAN: PantoneColor = PantoneColor::new("Black Bean", "19-3909 TCX", 0x2E272A);
+// Kiruna Glow
+const SNOWFIELD: PaletteColor = PaletteColor::new("Snowfield", Spec::Kelvin(7000.0));
+const AURORA: PaletteColor = PaletteColor::new("Aurora", Spec::Oklch(0.60, 0.170, 148.0));
+const CORONA: PaletteColor = PaletteColor::new("Corona", Spec::Oklch(0.55, 0.170, 332.0));
 
-// Voxel Vision (also uses Peach Quartz)
-const BLUE_ATOLL: PantoneColor = PantoneColor::new("Blue Atoll", "16-4535 TCX", 0x00B1D2); // dataset
-const CARBON: PantoneColor = PantoneColor::new("Carbon", "19-4012 TCX", 0x272F38); // dataset
-const SAP_GREEN: PantoneColor = PantoneColor::new("Sap Green", "13-0331 TCX", 0xAFCB80); // dataset
-const FLAMINGO_PINK: PantoneColor = PantoneColor::new("Flamingo Pink", "15-1821 TCX", 0xF7969E); // dataset
+// Lampung Blink
+const NIGHT_CANOPY: PaletteColor =
+    PaletteColor::new("Night Canopy", Spec::Oklch(0.40, 0.120, 145.0));
+const FIREFLY: PaletteColor = PaletteColor::after(
+    "Firefly",
+    Spec::Oklch(0.78, 0.200, 136.0),
+    "Pantone Acid Lime",
+);
 
-// Electric Escape (also uses Carbon)
-const DIRECTOIRE_BLUE: PantoneColor = PantoneColor::new("Directoire Blue", "18-4244 TCX", 0x0061A3); // dataset
-const FREESIA: PantoneColor = PantoneColor::new("Freesia", "14-0852 TCX", 0xF3C12C); // dataset
-const WILD_ORCHID: PantoneColor = PantoneColor::new("Wild Orchid", "16-2120 TCX", 0xD979A2); // dataset
-const SIMPLY_GREEN: PantoneColor = PantoneColor::new("Simply Green", "17-5936 TCX", 0x009B75); // dataset
+// Nueva York Buzz
+const BLAZING_YELLOW: PaletteColor =
+    PaletteColor::after("Blazing Yellow", Spec::Hex(0xFEE715), "Pantone 12-0643 TCX");
+const DESERT_FLOWER: PaletteColor =
+    PaletteColor::after("Desert Flower", Spec::Hex(0xFF9687), "Pantone 15-1435 TCX");
+const BACHELOR_BUTTON: PaletteColor = PaletteColor::after(
+    "Bachelor Button",
+    Spec::Hex(0x4ABBD5),
+    "Pantone 14-4522 TCX",
+);
+const CORNFLOWER_BLUE: PaletteColor = PaletteColor::after(
+    "Cornflower Blue",
+    Spec::Hex(0x7391C8),
+    "Pantone 16-4031 TCX",
+);
+const ORCHID_BLOOM: PaletteColor =
+    PaletteColor::after("Orchid Bloom", Spec::Hex(0xC5AECF), "Pantone 14-3612 TCX");
 
-// Playful Voxel Glow
-const ICY_MORN: PantoneColor = PantoneColor::new("Icy Morn", "13-5306 TCX", 0xB0D3D1); // dataset
-const FRUIT_DOVE: PantoneColor = PantoneColor::new("Fruit Dove", "17-1926 TCX", 0xCE5B78); // dataset
-const GREEN_BEE: PantoneColor = PantoneColor::new("Green Bee", "17-6154 TCX", 0x008C4E); // sampled
-const STAR_SAPPHIRE: PantoneColor = PantoneColor::new("Star Sapphire", "18-4041 TCX", 0x386192); // dataset
-const AURORA_PINK: PantoneColor = PantoneColor::new("Aurora Pink", "15-2217 TCX", 0xE881A6); // dataset
+// Sahara Drift
+const DUNE: PaletteColor =
+    PaletteColor::after("Dune", Spec::Oklch(0.84, 0.150, 80.0), "Pantone Daffodil");
+const SAFFRON: PaletteColor =
+    PaletteColor::after("Saffron", Spec::Oklch(0.79, 0.170, 71.0), "Pantone Saffron");
+const DUSK: PaletteColor = PaletteColor::after(
+    "Dusk",
+    Spec::Oklch(0.60, 0.160, 50.0),
+    "Pantone Autumn Maple",
+);
 
-// Dazzling Dimensions
-const AURORA: PantoneColor = PantoneColor::new("Aurora", "12-0642 TCX", 0xEDDD59); // dataset
-const LYONS_BLUE: PantoneColor = PantoneColor::new("Lyons Blue", "19-4340 TCX", 0x005871); // dataset
-const PRIMROSE_PINK: PantoneColor = PantoneColor::new("Primrose Pink", "12-2904 TCX", 0xEED4D9); // dataset
-const DAMSON: PantoneColor = PantoneColor::new("Damson", "18-1716 TCX", 0x854C65); // dataset
-const POPPY_RED: PantoneColor = PantoneColor::new("Poppy Red", "17-1664 TCX", 0xDC343B); // dataset
+// Shenzhen Lantern Flicker
+const PAPER_LANTERN: PaletteColor = PaletteColor::new("Paper Lantern", Spec::Kelvin(3000.0));
+const AMBER: PaletteColor = PaletteColor::after(
+    "Amber",
+    Spec::Oklch(0.78, 0.160, 66.0),
+    "Pantone Radiant Yellow",
+);
+const VERMILION: PaletteColor = PaletteColor::after(
+    "Vermilion",
+    Spec::Oklch(0.62, 0.210, 31.0),
+    "Pantone Cherry Tomato",
+);
 
-// Island Vibes
-const MANGO_MOJITO: PantoneColor = PantoneColor::new("Mango Mojito", "15-0960 TCX", 0xD69C2F);
-const OCHRE: PantoneColor = PantoneColor::new("Ochre", "14-1036 TCX", 0xD6AF66);
-const PALACE_BLUE: PantoneColor = PantoneColor::new("Palace Blue", "18-4043 TCX", 0x346CB0);
-const SURF_THE_WEB: PantoneColor = PantoneColor::new("Surf The Web", "19-3952 TCX", 0x203C7F); // out of gamut
-const BLUE_DEPTHS: PantoneColor = PantoneColor::new("Blue Depths", "19-3940 TCX", 0x263056); // out of gamut
+// Texas Sun Burn
+const BLUEJAY: PaletteColor =
+    PaletteColor::after("Bluejay", Spec::Hex(0x157EA0), "Pantone 17-4427 TCX");
+const GOLDEN_ROD: PaletteColor =
+    PaletteColor::after("Golden Rod", Spec::Hex(0xE2A829), "Pantone 14-0951 TCX");
+const ORANGE_PEPPER: PaletteColor =
+    PaletteColor::after("Orange Pepper", Spec::Hex(0xDF7500), "Pantone 16-1164 TCX");
+const VALIANT_POPPY: PaletteColor =
+    PaletteColor::after("Valiant Poppy", Spec::Hex(0xBC322C), "Pantone 18-1549 TCX");
 
-// Nueva York
-const BLAZING_YELLOW: PantoneColor = PantoneColor::new("Blazing Yellow", "12-0643 TCX", 0xFEE715);
-const DESERT_FLOWER: PantoneColor = PantoneColor::new("Desert Flower", "15-1435 TCX", 0xFF9687);
-const BACHELOR_BUTTON: PantoneColor = PantoneColor::new("Bachelor Button", "14-4522 TCX", 0x4ABBD5); // out of gamut
-const CORNFLOWER_BLUE: PantoneColor = PantoneColor::new("Cornflower Blue", "16-4031 TCX", 0x7391C8);
-const ORCHID_BLOOM: PantoneColor = PantoneColor::new("Orchid Bloom", "14-3612 TCX", 0xC5AECF);
+// Tikal Humm
+const CANOPY: PaletteColor = PaletteColor::new("Canopy", Spec::Oklch(0.48, 0.150, 145.0));
+const FERN: PaletteColor = PaletteColor::new("Fern", Spec::Oklch(0.56, 0.170, 144.0));
+const LEAF: PaletteColor = PaletteColor::new("Leaf", Spec::Oklch(0.64, 0.170, 134.0));
+const SUNFLECK: PaletteColor = PaletteColor::after(
+    "Sunfleck",
+    Spec::Oklch(0.80, 0.160, 93.0),
+    "Pantone Sulphur",
+);
 
-// Texas Sun
-const BLUEJAY: PantoneColor = PantoneColor::new("Bluejay", "17-4427 TCX", 0x157EA0);
-const GOLDEN_ROD: PantoneColor = PantoneColor::new("Golden Rod", "14-0951 TCX", 0xE2A829);
-const ORANGE_PEPPER: PantoneColor = PantoneColor::new("Orange Pepper", "16-1164 TCX", 0xDF7500);
-const VALIANT_POPPY: PantoneColor = PantoneColor::new("Valiant Poppy", "18-1549 TCX", 0xBC322C);
-const DAHLIA: PantoneColor = PantoneColor::new("Dahlia", "18-3324 TCX", 0x843E83); // out of gamut
+// Tokyo Lights Flash
+const NIGHT: PaletteColor = PaletteColor::new("Night", Spec::Oklch(0.30, 0.060, 275.0));
+const NEON_CYAN: PaletteColor = PaletteColor::new("Neon Cyan", Spec::Oklch(0.72, 0.120, 208.0));
+const NEON_MAGENTA: PaletteColor =
+    PaletteColor::new("Neon Magenta", Spec::Oklch(0.62, 0.250, 340.0));
+const NEON_YELLOW: PaletteColor = PaletteColor::after(
+    "Neon Yellow",
+    Spec::Oklch(0.90, 0.180, 100.0),
+    "Pantone Vibrant Yellow",
+);
 
-// Uluwatu Wipeout (also uses Blue Depths)
-const BUFF_YELLOW: PantoneColor = PantoneColor::new("Buff Yellow", "14-0847 TCX", 0xF1BF70);
-const FLAMINGO: PantoneColor = PantoneColor::new("Flamingo", "16-1450 TCX", 0xDF7253);
-const LICHEN_BLUE: PantoneColor = PantoneColor::new("Lichen Blue", "17-4032 TCX", 0x5D89B3);
-const CLEMATIS_BLUE: PantoneColor = PantoneColor::new("Clematis Blue", "19-3951 TCX", 0x363B7C);
+// Uluwatu Wipeout
+const BUFF_YELLOW: PaletteColor =
+    PaletteColor::after("Buff Yellow", Spec::Hex(0xF1BF70), "Pantone 14-0847 TCX");
+const FLAMINGO: PaletteColor =
+    PaletteColor::after("Flamingo", Spec::Hex(0xDF7253), "Pantone 16-1450 TCX");
+const LICHEN_BLUE: PaletteColor =
+    PaletteColor::after("Lichen Blue", Spec::Hex(0x5D89B3), "Pantone 17-4032 TCX");
+const CLEMATIS_BLUE: PaletteColor =
+    PaletteColor::after("Clematis Blue", Spec::Hex(0x363B7C), "Pantone 19-3951 TCX");
+const BLUE_DEPTHS: PaletteColor =
+    PaletteColor::after("Blue Depths", Spec::Hex(0x263056), "Pantone 19-3940 TCX");
 
 // Palette names are what settings and the API refer to: keep them unique.
 pub const PALETTES: &[Palette] = &[
     Palette {
-        name: "Uluwatu Wipeout",
-        colors: &[
-            BUFF_YELLOW,
-            FLAMINGO,
-            LICHEN_BLUE,
-            CLEMATIS_BLUE,
-            BLUE_DEPTHS,
-        ],
+        name: "Antarctica Freeze",
+        colors: &[PACK_ICE, GLACIER, POLAR_SEA],
     },
     Palette {
-        name: "Texas Sun",
-        colors: &[BLUEJAY, GOLDEN_ROD, ORANGE_PEPPER, VALIANT_POPPY, DAHLIA],
+        name: "Avignon Breeze",
+        colors: &[LAVENDER, OLIVE_GROVE, SUNFLOWER],
     },
     Palette {
-        name: "Infinite Radiance",
-        colors: &[ARTISANS_GOLD, CUMULUS_CLOUD, BLACK_BEAN],
+        name: "Belize Ripple",
+        colors: &[SAND, SHALLOWS, REEF, BLUE_HOLE],
     },
     Palette {
-        name: "Island Vibes",
-        colors: &[MANGO_MOJITO, OCHRE, PALACE_BLUE, SURF_THE_WEB, BLUE_DEPTHS],
+        name: "Kiruna Glow",
+        colors: &[SNOWFIELD, AURORA, CORONA],
     },
     Palette {
-        name: "Electric Escape",
-        colors: &[DIRECTOIRE_BLUE, FREESIA, WILD_ORCHID, CARBON, SIMPLY_GREEN],
+        name: "Lampung Blink",
+        colors: &[NIGHT_CANOPY, FIREFLY],
     },
     Palette {
-        name: "Brilliant Abyss",
-        colors: &[
-            PRIMROSE_YELLOW,
-            OUTER_SPACE,
-            AQUA_ESQUE,
-            PLANTATION,
-            CATTLEYA_ORCHID,
-        ],
-    },
-    Palette {
-        name: "Nueva York",
+        name: "Nueva York Buzz",
         colors: &[
             BLAZING_YELLOW,
             DESERT_FLOWER,
@@ -181,36 +288,34 @@ pub const PALETTES: &[Palette] = &[
         ],
     },
     Palette {
-        name: "Horizon Beam",
+        name: "Sahara Drift",
+        colors: &[DUNE, SAFFRON, DUSK],
+    },
+    Palette {
+        name: "Shenzhen Lantern Flicker",
+        colors: &[PAPER_LANTERN, AMBER, VERMILION],
+    },
+    Palette {
+        name: "Texas Sun Burn",
+        colors: &[BLUEJAY, GOLDEN_ROD, ORANGE_PEPPER, VALIANT_POPPY],
+    },
+    Palette {
+        name: "Tikal Humm",
+        colors: &[CANOPY, FERN, LEAF, SUNFLECK],
+    },
+    Palette {
+        name: "Tokyo Lights Flash",
+        colors: &[NIGHT, NEON_CYAN, NEON_MAGENTA, NEON_YELLOW],
+    },
+    Palette {
+        name: "Uluwatu Wipeout",
         colors: &[
-            DARK_CITRON,
-            ESTATE_BLUE,
-            MUREX_SHELL,
-            PURPLE_HEATHER,
-            KOMBU_GREEN,
+            BUFF_YELLOW,
+            FLAMINGO,
+            LICHEN_BLUE,
+            CLEMATIS_BLUE,
+            BLUE_DEPTHS,
         ],
-    },
-    Palette {
-        name: "Playful Voxel Glow",
-        colors: &[ICY_MORN, FRUIT_DOVE, GREEN_BEE, STAR_SAPPHIRE, AURORA_PINK],
-    },
-    Palette {
-        name: "Voxel Vision",
-        colors: &[BLUE_ATOLL, CARBON, SAP_GREEN, FLAMINGO_PINK, PEACH_QUARTZ],
-    },
-    Palette {
-        name: "Spectrum Twist",
-        colors: &[
-            LEMON_VERBENA,
-            PURPLE_VELVET,
-            PEACH_QUARTZ,
-            ETHEREAL_BLUE,
-            FUCHSIA_PURPLE,
-        ],
-    },
-    Palette {
-        name: "Dazzling Dimensions",
-        colors: &[AURORA, LYONS_BLUE, PRIMROSE_PINK, DAMSON, POPPY_RED],
     },
 ];
 
@@ -232,6 +337,36 @@ mod tests {
     use super::*;
     use crate::content::common::PaletteMix;
 
+    #[test]
+    fn oklch_colors_lie_within_srgb() {
+        for palette in PALETTES {
+            for color in palette.colors {
+                if let Spec::Oklch(..) = color.spec {
+                    let linear = color.linear();
+                    assert!(
+                        linear.min_element() > -0.002 && linear.max_element() < 1.002,
+                        "{} in {} lies outside sRGB: {linear}",
+                        color.name,
+                        palette.name
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn kelvin_whites_warm_up_with_falling_temperature() {
+        let daylight = kelvin(6500.0);
+        assert!(
+            daylight.min_element() > 0.9,
+            "6500 K is near neutral: {daylight}"
+        );
+        let lantern = kelvin(3000.0);
+        assert_eq!(lantern.x, 1.0);
+        assert!(lantern.z < 0.5 * lantern.y, "3000 K is warm: {lantern}");
+        assert!(kelvin(9000.0).z > kelvin(9000.0).x, "9000 K is cool");
+    }
+
     fn escape(text: &str) -> String {
         text.replace('&', "&amp;")
             .replace('<', "&lt;")
@@ -239,7 +374,7 @@ mod tests {
     }
 
     /// Documentation, not a check: writes `doc/palettes.svg`, an overview of all palettes
-    /// in order, with each color's name, Pantone code and hex value. Below the colors, a
+    /// in order, with each color's name, specification, hex value and source. Below the colors, a
     /// strip shows the palette as light: voxels on black, blended as the content modules
     /// blend them, with each pure color under its chip and the wrap from the last color back
     /// to the first split across both ends.
@@ -247,9 +382,9 @@ mod tests {
     #[ignore = "writes doc/palettes.svg"]
     fn palettes_overview_svg() {
         const MARGIN: usize = 48;
-        const NAME_WIDTH: usize = 230;
+        const NAME_WIDTH: usize = 290;
         const CHIP: (usize, usize) = (150, 92); // color block
-        const LABEL: usize = 66;
+        const LABEL: usize = 82;
         const GAP: usize = 14;
         const STRIP: usize = 34; // height of the light strip
         const VOXELS_PER_COLOR: usize = 8;
@@ -268,7 +403,7 @@ mod tests {
 <defs><radialGradient id="voxel"><stop offset="0.45" stop-opacity="0"/><stop offset="1" stop-opacity="0.6"/></radialGradient></defs>
 <rect width="100%" height="100%" fill="#F3F2EE"/>
 <text x="{MARGIN}" y="{y1}" font-size="30" font-weight="700" fill="#1C1B19">Nova palettes</text>
-<text x="{MARGIN}" y="{y2}" font-size="15" fill="#6D6A62">{count} palettes, ordered by the hue of their most saturated color · Pantone FHI (TCX) colors · generated from server/src/palettes.rs</text>
+<text x="{MARGIN}" y="{y2}" font-size="15" fill="#6D6A62">{count} palettes in alphabetical order · colors in OKLCh, kelvin or sRGB · generated from server/src/palettes.rs</text>
 <text x="{MARGIN}" y="{y3}" font-size="15" fill="#6D6A62">Below each palette: its colors as light on black, blended as on the display, previewed at gamma {PREVIEW_GAMMA}</text>
 "##,
             y1 = MARGIN + 8,
@@ -295,8 +430,9 @@ mod tests {
 <rect width="{w}" height="{h}" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h{inner} a6 6 0 0 1 6 6 v{chip} h-{w} z" fill="{hex}"/>
 <text x="10" y="{t1}" font-size="13" font-weight="700" fill="#1C1B19">{name}</text>
-<text x="10" y="{t2}" font-size="12" fill="#55524B">{code}</text>
+<text x="10" y="{t2}" font-size="12" fill="#55524B">{spec}</text>
 <text x="10" y="{t3}" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">{hex}</text>
+<text x="10" y="{t4}" font-size="11" fill="#8A867C">{source}</text>
 </g>
 "##,
                     w = CHIP.0,
@@ -306,8 +442,10 @@ mod tests {
                     t1 = CHIP.1 + 20,
                     t2 = CHIP.1 + 37,
                     t3 = CHIP.1 + 54,
+                    t4 = CHIP.1 + 71,
                     name = escape(color.name),
-                    code = escape(color.code),
+                    spec = escape(&color.describe()),
+                    source = escape(color.source),
                 );
             }
 

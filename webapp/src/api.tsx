@@ -131,7 +131,6 @@ function parsePalettes(value: unknown): Palette[] {
         ? [
             {
               name: typeof color.name === 'string' ? color.name : '',
-              code: typeof color.code === 'string' ? color.code : '',
               hex: color.hex,
             },
           ]

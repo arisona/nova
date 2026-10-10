@@ -20,7 +20,7 @@ server/src/
 ├── content.rs       # Content trait and registry
 ├── content/         # One file per module, each with its specification; common.rs holds shared helpers
 ├── tides.rs         # Slow system-driven variation
-├── palettes.rs      # Curated Pantone palettes
+├── palettes.rs      # Curated palettes
 ├── audio.rs         # Audio service; synth and output in audio/
 ├── nova.rs          # Hardware driver loop and protocol
 ├── ethernet.rs      # pcap packet I/O
@@ -64,7 +64,7 @@ npm run dev
   ],
   "brightness": 0.5,
   "volume": 0.0,
-  "palette": "Island Vibes",
+  "palette": "Belize Ripple",
   "heat": 0.5,
   "flow": 0.5,
   "form": 0.5,

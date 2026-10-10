@@ -97,8 +97,9 @@ fn palettes_json() -> serde_json::Value {
                     .map(|color| {
                         serde_json::json!({
                             "name": color.name,
-                            "code": color.code,
                             "hex": color.hex(),
+                            "spec": color.describe(),
+                            "source": color.source,
                         })
                     })
                     .collect::<Vec<_>>(),
