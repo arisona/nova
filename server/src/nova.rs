@@ -267,7 +267,7 @@ impl NovaHardware {
                     0,
                     image,
                     false,
-                    &Calibration::default(),
+                    &Calibration::IDENTITY,
                 );
                 let _ = interface.send(packet);
             }
@@ -281,7 +281,7 @@ impl NovaHardware {
                 0,
                 image,
                 false,
-                &Calibration::default(),
+                &Calibration::IDENTITY,
             );
             let _ = interface.send(packet);
         }
@@ -563,7 +563,7 @@ mod tests {
             7,
             image,
             flip,
-            &Calibration::default(),
+            &Calibration::IDENTITY,
         );
         packet[UDP_PAYLOAD_OFFSET..].to_vec()
     }

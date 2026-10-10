@@ -56,7 +56,7 @@ export const defaultNovaState: NovaState = {
   form: 0.5,
   void: 0.5,
   flip: false,
-  calibration: { gamma: [1, 1, 1], gain: [1, 1, 1] },
+  calibration: { gamma: [2.2, 2.2, 2.2], gain: [0.6, 1, 1] },
   module0Address: '1',
 };
 

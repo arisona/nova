@@ -70,7 +70,7 @@ npm run dev
   "form": 0.5,
   "void": 0.5,
   "flip_vertical": false,
-  "calibration": { "gamma": [2.2, 2.2, 2.2], "gain": [1.0, 0.95, 0.9] },
+  "calibration": { "gamma": [2.2, 2.2, 2.2], "gain": [0.6, 1.0, 1.0] },
   "enabled_content": ["Flux Capacitor"],
   "selected_content": "Flux Capacitor"
 }

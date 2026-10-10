@@ -20,7 +20,7 @@ pub const GAIN_RANGE: (f32, f32) = (0.2, 1.0);
 /// cannot stay stuck on it if the calibration page is closed without saying so.
 const PATTERN_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
-/// Per channel: red, green, blue. Gamma 1 and gain 1 send values to the LEDs unchanged.
+/// Per channel: red, green, blue.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Calibration {
@@ -28,16 +28,23 @@ pub struct Calibration {
     gain: [f32; 3],
 }
 
+/// Measured on the Nova hardware: its LEDs respond linearly, and red is the strongest.
 impl Default for Calibration {
     fn default() -> Self {
         Self {
-            gamma: [1.0; 3],
-            gain: [1.0; 3],
+            gamma: [2.2; 3],
+            gain: [0.6, 1.0, 1.0],
         }
     }
 }
 
 impl Calibration {
+    /// Sends values to the LEDs unchanged.
+    pub const IDENTITY: Self = Self {
+        gamma: [1.0; 3],
+        gain: [1.0; 3],
+    };
+
     pub fn gamma(&self) -> [f32; 3] {
         self.gamma
     }
@@ -171,7 +178,7 @@ mod tests {
 
     #[test]
     fn calibration_maps_values_and_rejects_invalid_settings() {
-        let mut calibration = Calibration::default();
+        let mut calibration = Calibration::IDENTITY;
         assert_eq!(calibration.apply(0, 0.5), 0.5);
         assert_eq!(calibration.apply(2, 1.7), 1.0);
         assert!(calibration.set_gamma(1, 2.0));
