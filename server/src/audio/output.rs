@@ -14,8 +14,7 @@ use super::{AudioControls, Synth};
 use crate::app_state::{AppState, Status};
 use crate::palettes::PALETTES;
 
-/// Until the sound is reworked, the selected palette's position in the list stands in
-/// for the old Tone control.
+/// The selected palette's position in the list, which sets the pitch centre.
 fn palette_tone(state: &AppState) -> f32 {
     state.palette_index() as f32 / PALETTES.len() as f32
 }

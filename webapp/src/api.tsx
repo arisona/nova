@@ -83,7 +83,7 @@ interface ApiStateResponse {
   void: number;
   'flip-vertical': boolean;
   calibration: unknown;
-  'module0-address': string;
+  'module0-address': number; // -1 for a layout of several modules
 }
 
 interface ApiStatusResponse {
@@ -192,8 +192,9 @@ export const apiGetState = async (): Promise<NovaState | null> => {
       void: payload.void ?? defaultNovaState.void,
       flip: payload['flip-vertical'] ?? defaultNovaState.flip,
       calibration: parseCalibration(payload.calibration),
-      module0Address:
-        payload['module0-address'] ?? defaultNovaState.module0Address,
+      module0Address: String(
+        payload['module0-address'] ?? defaultNovaState.module0Address
+      ),
     };
 
     return state;

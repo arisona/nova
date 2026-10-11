@@ -158,7 +158,7 @@ export const SettingsPage = ({
               </ListItemButton>
             </ListItem>
           ))}
-        </List>{' '}
+        </List>
       </Box>
 
       <Stack

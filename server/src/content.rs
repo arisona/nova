@@ -15,16 +15,8 @@ const REAL_TIME_FLOW: f32 = 0.5;
 
 pub trait Content {
     fn name(&self) -> &str;
-    /// `elapsed` is the time since this module was selected; `delta` is the frame time,
-    /// capped by the renderer so a stalled frame never jumps.
-    fn render(
-        &mut self,
-        state: &RenderState,
-        elapsed: f32,
-        delta: f32,
-        prev: &VoxelImage,
-        next: &mut VoxelImage,
-    );
+    /// `delta` is the frame time, capped by the renderer so a stalled frame never jumps.
+    fn render(&mut self, state: &RenderState, delta: f32, next: &mut VoxelImage);
 }
 
 /// Content modules in display order, alphabetical by name. Settings and the API refer to them by name: keep
@@ -131,28 +123,27 @@ mod tests {
                     settings.set_palette(PALETTES[palette].name);
                     settings.set_heat(value);
                     settings.set_void(value);
-                    let previous = VoxelImage::new(dim);
                     for mut content in all_content() {
                         let name = content.name().to_string();
                         let mut image = VoxelImage::new(dim);
                         let mut still = RenderState::from(&settings);
                         still.set_reset(true);
-                        content.render(&still, 0.0, 0.04, &previous, &mut image);
+                        content.render(&still, 0.04, &mut image);
                         let initial = pixels(&image);
                         assert_bounded(&image, &name);
 
                         still.set_reset(false);
-                        content.render(&still, 10.0, 0.2, &previous, &mut image);
+                        content.render(&still, 0.2, &mut image);
                         assert_eq!(initial, pixels(&image), "{name} must freeze at Flow 0");
 
                         settings.set_flow(1.0);
                         let mut moving = RenderState::from(&settings);
-                        for frame in 0..50 {
-                            content.render(&moving, frame as f32 * 0.1, 0.1, &previous, &mut image);
+                        for _ in 0..50 {
+                            content.render(&moving, 0.1, &mut image);
                             assert_bounded(&image, &name);
                         }
                         moving.set_reset(true);
-                        content.render(&moving, 100.0, 0.1, &previous, &mut image);
+                        content.render(&moving, 0.1, &mut image);
                         assert_eq!(initial, pixels(&image), "{name} must restart on reset");
                         settings.set_flow(0.0);
                     }
@@ -186,7 +177,6 @@ mod tests {
         let width = forms.len() * (dim.0 * cell + gap) + gap;
         let height = rows * (dim.2 * cell + gap) + gap;
         let mut bitmap = vec![12u8; width * height * 3];
-        let previous = VoxelImage::new(dim);
         for (col, form) in forms.iter().enumerate() {
             let mut settings = AppState::default();
             assert!(settings.set_palette(&palette), "unknown palette {palette}");
@@ -198,12 +188,12 @@ mod tests {
             for (module, mut content) in all_content().into_iter().enumerate() {
                 let mut image = VoxelImage::new(dim);
                 state.set_reset(true);
-                content.render(&state, 0.0, 0.04, &previous, &mut image);
+                content.render(&state, 0.04, &mut image);
                 state.set_reset(false);
                 let mut now = 0.0;
                 for (t, &time) in times.iter().enumerate() {
                     while now < time {
-                        content.render(&state, now, 0.04, &previous, &mut image);
+                        content.render(&state, 0.04, &mut image);
                         now += 0.04;
                     }
                     let row = module * times.len() + t;
@@ -245,16 +235,15 @@ mod tests {
             let mut settings = AppState::default();
             settings.set_flow(1.0);
             let state = RenderState::from(&settings);
-            let previous = VoxelImage::new(dim);
             for mut content in all_content() {
                 let mut image = VoxelImage::new(dim);
                 let frames = 500;
                 let start = std::time::Instant::now();
-                for frame in 0..frames {
-                    content.render(&state, frame as f32 * 0.04, 0.04, &previous, &mut image);
+                for _ in 0..frames {
+                    content.render(&state, 0.04, &mut image);
                 }
                 let per_frame = start.elapsed().as_secs_f64() * 1000.0 / frames as f64;
-                println!("{:>8} {dim:?}: {per_frame:.3} ms/frame", content.name());
+                println!("{:<15} {dim:?}: {per_frame:.3} ms/frame", content.name());
             }
         }
     }

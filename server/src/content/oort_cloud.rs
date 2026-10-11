@@ -353,14 +353,7 @@ impl Content for OortCloud {
         "Oort Cloud"
     }
 
-    fn render(
-        &mut self,
-        state: &RenderState,
-        _elapsed: f32,
-        delta: f32,
-        _prev: &VoxelImage,
-        next: &mut VoxelImage,
-    ) {
+    fn render(&mut self, state: &RenderState, delta: f32, next: &mut VoxelImage) {
         let dt = advance_seconds(&mut self.phase, state, delta);
         let dim = next.dim();
         if state.should_reset() || self.dim != dim {

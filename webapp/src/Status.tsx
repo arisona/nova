@@ -30,7 +30,7 @@ export const Status = ({ ok, message }: StatusProps) => {
         >
           {message}
         </Typography>
-      </Stack>{' '}
+      </Stack>
     </>
   );
 };

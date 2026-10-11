@@ -14,7 +14,7 @@
 //!          roll  (½)  four travelling sines along a fixed diagonal (Waves): blobs
 //!          cross (¾)  standing waves across x and y (Waves3D): patches
 //!          chop  (1)  short, fast interference: grain
-//! rain:    weight S(2f − 1); drops (Snow) fall from the top at 5 voxels/s, each with a
+//! rain:    weight S(2f − 1)·min(1, 4·(1 − void)); drops (Snow) fall from the top at 5 voxels/s, each with a
 //!          short tail; where one meets the surface, a ripple ring spreads at 2.5 voxels/s
 //!          and fades over 0.9 s
 //! water:   w = S(s − z)    voxels below the surface are lit, the surface voxel partly
@@ -214,14 +214,7 @@ impl Content for Betelgeuse {
         "Betelgeuse"
     }
 
-    fn render(
-        &mut self,
-        state: &RenderState,
-        _elapsed: f32,
-        delta: f32,
-        _prev: &VoxelImage,
-        next: &mut VoxelImage,
-    ) {
+    fn render(&mut self, state: &RenderState, delta: f32, next: &mut VoxelImage) {
         let dt = advance_seconds(&mut self.phase, state, delta);
         let dim = next.dim();
         if state.should_reset() || self.dim != dim {

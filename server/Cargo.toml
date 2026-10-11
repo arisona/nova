@@ -1,7 +1,8 @@
 [package]
 name = "nova-server"
-version = "0.1.0"
+version = "3.0.0"
 edition = "2024"
+rust-version = "1.94"
 
 [dependencies]
 actix-web = "4.15.0"
@@ -20,7 +21,7 @@ serde_json = "1.0.151"
 env_logger = "0.11.11"
 log = "0.4.34"
 
-## networking 
+## networking
 mac_address = "1.1.8"
 pcap = "2.5.0"
 

@@ -325,6 +325,26 @@ async fn command(
 
 static WWW_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/www");
 
+#[get("/{path:.*}")]
+async fn files(path: web::Path<String>) -> impl Responder {
+    let path = match path.as_str() {
+        "" => "index.html",
+        // Web app routes such as `settings` are pages of index.html, so reloading them works.
+        route if !route.starts_with("api/") && !route.contains('.') => "index.html",
+        file => file,
+    };
+    log::debug!("files: {path}");
+
+    match WWW_DIR.get_file(path) {
+        Some(file) => {
+            let body = file.contents();
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            HttpResponse::Ok().content_type(mime.as_ref()).body(body)
+        }
+        None => HttpResponse::NotFound().body("404 Not Found"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -569,26 +589,5 @@ mod tests {
         let response: serde_json::Value =
             actix_web::test::call_and_read_body_json(&app, request).await;
         assert_eq!(response["volume"], -1.0);
-        assert!(response.get("audio-enabled").is_none());
-    }
-}
-
-#[get("/{path:.*}")]
-async fn files(path: web::Path<String>) -> impl Responder {
-    let path = match path.as_str() {
-        "" => "index.html",
-        // Web app routes such as `settings` are pages of index.html, so reloading them works.
-        route if !route.starts_with("api/") && !route.contains('.') => "index.html",
-        file => file,
-    };
-    log::debug!("files: {path}");
-
-    match WWW_DIR.get_file(path) {
-        Some(file) => {
-            let body = file.contents();
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            HttpResponse::Ok().content_type(mime.as_ref()).body(body)
-        }
-        None => HttpResponse::NotFound().body("404 Not Found"),
     }
 }

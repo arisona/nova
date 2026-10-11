@@ -4,7 +4,7 @@ How to build, run, configure, and extend the Nova server and web app. Control se
 
 ## Prerequisites
 
-- Rust 1.89 or newer, with Cargo
+- Rust 1.94 or newer, with Cargo
 - `libpcap` development headers
 - Audio: on Linux, ALSA development headers (`libasound2-dev`) and `pkg-config`; on macOS, 14.2 or newer (CoreAudio); on Windows, WASAPI
 - Node.js 20.19+, 22.13+, or 24+, only for changing the web app. The built UI is committed in `server/src/www` and embedded in the server binary.
@@ -13,7 +13,7 @@ How to build, run, configure, and extend the Nova server and web app. Control se
 
 ```text
 server/src/
-├── main.rs          # Entry point and build-time switches
+├── main.rs          # Entry point
 ├── app_state.rs     # Settings and shared state
 ├── web_server.rs    # HTTP API and embedded web app
 ├── renderer.rs      # Applies controls and tides, calls content
@@ -21,6 +21,7 @@ server/src/
 ├── content/         # One file per module, each with its specification; common.rs holds shared helpers
 ├── tides.rs         # Slow system-driven variation
 ├── palettes.rs      # Curated palettes
+├── calibration.rs   # Display calibration and test patterns
 ├── audio.rs         # Audio service; synth and output in audio/
 ├── nova.rs          # Hardware driver loop and protocol
 ├── ethernet.rs      # pcap packet I/O
@@ -80,7 +81,7 @@ npm run dev
 - `ethernet_interface`, `webserver_port`, `simulator`, and `audio` can only be changed here; restart the server afterwards. `simulator` shows the desktop simulator instead of driving the hardware; both use the same renderer. `audio` starts the audio service; while it is off or failing, the web app hides Volume.
 - Missing fields fall back to defaults. A file that cannot be parsed is moved to `nova_settings.json.invalid`, and the server starts with defaults.
 - `calibration` holds the display calibration per channel (red, green, blue); set it on the web app's calibration page. Values outside gamma 1 to 3 and gain 0.2 to 1 are clamped.
-- Content and palettes are stored by name. Unknown names fall back: content to all modules enabled and the first selected, the palette to the first palette.
+- Content and palettes are stored by name. Unknown names are dropped; if no enabled content remains, all modules are enabled. An unknown selection falls back to the first enabled module, an unknown palette to the first palette.
 
 ## Audio output
 
@@ -105,7 +106,7 @@ Content writes unscaled RGB to `next`; the renderer applies Brightness to a sepa
 
 ## Diagnostics
 
-`cargo test flux_form_sweep_dump -- --ignored --nocapture` in `server` writes `nova-flux-sweep.ppm` to the OS temporary directory. Its columns step Form from 0 to 1 by 0.125, and its rows are the palettes; each cell shows the middle slice of one module at Heat 0.5.
+`cargo test orions_belt_form_sweep_dump -- --ignored --nocapture` in `server` writes `nova-orions-belt-sweep.ppm` to the OS temporary directory. Its columns step Form from 0 to 1 by 0.125, and its rows are the palettes; each cell shows the middle slice of one module at Heat 0.5.
 
 `cargo test content_form_sweep_dump -- --ignored --nocapture` writes `nova-content-sweep.ppm` with every content module: the columns step Form from 0 to 1, and each module has three rows, after 2, 6 and 15 s at Flow 0.5. Each cell shows the middle slice of two modules side by side. `NOVA_PALETTE`, `NOVA_HEAT` and `NOVA_VOID` change the palette (by name) and the controls.
 

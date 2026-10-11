@@ -141,7 +141,6 @@
     "sips": true,
     "cargo test": true,
     "rustc": true,
-    "\"$TMPDIR/nova-parameter-review\"": true,
     "cargo build": true
   }
 }

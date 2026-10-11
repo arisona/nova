@@ -96,7 +96,8 @@ impl PaletteColor {
 }
 
 /// Linear sRGB of a blackbody at `t` kelvin (1667 to 25000), scaled to full brightness.
-/// Its chromaticity follows Kim et al. (2002).
+/// Its chromaticity follows Kim et al. (2002), with the coefficients as published.
+#[allow(clippy::excessive_precision)]
 fn kelvin(t: f32) -> Vec3 {
     let x = if t <= 4000.0 {
         -0.266_123_9e9 / t.powi(3) - 0.234_358_9e6 / t.powi(2) + 0.877_695_6e3 / t + 0.179_910

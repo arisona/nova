@@ -79,11 +79,9 @@ pub struct Renderer {
     content: Vec<Box<dyn Content>>,
     selected_content_index: usize,
 
-    prev: VoxelImage,
     next: VoxelImage,
     output: VoxelImage,
 
-    elapsed_time: Instant,
     delta_time: Instant,
     tides: TideClock,
 }
@@ -94,18 +92,15 @@ impl Renderer {
             content: all_content(),
             selected_content_index: usize::MAX,
 
-            prev: VoxelImage::new(dim),
             next: VoxelImage::new(dim),
             output: VoxelImage::new(dim),
 
-            elapsed_time: Instant::now(),
             delta_time: Instant::now(),
             tides: TideClock::default(),
         }
     }
 
     pub fn render(&mut self, state: &mut RenderState) {
-        let mut elapsed = self.elapsed_time.elapsed().as_secs_f32();
         let delta = self
             .delta_time
             .elapsed()
@@ -126,10 +121,7 @@ impl Renderer {
         if selected_index != self.selected_content_index {
             self.selected_content_index = selected_index;
             state.set_reset(true);
-            self.prev.clear();
             self.next.clear();
-            self.elapsed_time = Instant::now();
-            elapsed = 0.0;
         }
 
         // Tides move the effective controls around the user's settings, for every module.
@@ -141,15 +133,7 @@ impl Renderer {
         state.void = tides::VOID.apply(state.void, seconds);
         state.tide_seconds = seconds;
 
-        std::mem::swap(&mut self.prev, &mut self.next);
-
-        self.content[self.selected_content_index].render(
-            state,
-            elapsed,
-            delta,
-            &self.prev,
-            &mut self.next,
-        );
+        self.content[self.selected_content_index].render(state, delta, &mut self.next);
 
         state.set_reset(false);
         self.output.copy_scaled_from(&self.next, state.brightness);

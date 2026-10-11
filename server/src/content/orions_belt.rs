@@ -1,4 +1,4 @@
-//! Orion's Belt: the unified content module.
+//! Orion's Belt: a single noise primitive across the whole Form range.
 //!
 //! One noise primitive covers the whole range. `form` sweeps through five fields that
 //! differ only in their per-axis frequencies, in this order:
@@ -182,14 +182,7 @@ impl Content for OrionsBelt {
         "Orion's Belt"
     }
 
-    fn render(
-        &mut self,
-        state: &RenderState,
-        _elapsed: f32,
-        delta: f32,
-        _prev: &VoxelImage,
-        next: &mut VoxelImage,
-    ) {
+    fn render(&mut self, state: &RenderState, delta: f32, next: &mut VoxelImage) {
         advance(&mut self.phase, state, delta);
         // Time terms stay in f64 so long installation runs keep their precision.
         let t = self.phase;
@@ -245,7 +238,7 @@ mod tests {
     /// for every palette to a PPM contact sheet.
     #[test]
     #[ignore = "writes a visual contact sheet for local bug-checking"]
-    fn flux_form_sweep_dump() {
+    fn orions_belt_form_sweep_dump() {
         let forms: Vec<f32> = (0..=8).map(|step| step as f32 / 8.0).collect();
         let dim = (5usize, 5usize, 10usize);
         let cell = 16usize; // pixels per voxel
@@ -253,7 +246,6 @@ mod tests {
         let width = forms.len() * (dim.0 * cell + gap) + gap;
         let height = PALETTES.len() * (dim.2 * cell + gap) + gap;
         let mut bitmap = vec![12u8; width * height * 3];
-        let previous = VoxelImage::new(dim);
         for (row_block, palette) in PALETTES.iter().enumerate() {
             for (col_block, form) in forms.iter().enumerate() {
                 let mut settings = crate::app_state::AppState::default();
@@ -263,10 +255,10 @@ mod tests {
                 settings.set_flow(1.0);
                 let state = RenderState::from(&settings);
                 let mut effect = OrionsBelt::new();
-                let mut image = previous.clone();
+                let mut image = VoxelImage::new(dim);
                 // advance a few frames so time-based structure is visible
-                for frame in 0..30 {
-                    effect.render(&state, frame as f32 * 0.04, 0.04, &previous, &mut image);
+                for _ in 0..30 {
+                    effect.render(&state, 0.04, &mut image);
                 }
                 // project the y=middle slice: x across, z up
                 let y = dim.1 / 2;
@@ -287,7 +279,7 @@ mod tests {
                 }
             }
         }
-        let path = std::env::temp_dir().join("nova-flux-sweep.ppm");
+        let path = std::env::temp_dir().join("nova-orions-belt-sweep.ppm");
         let mut bytes = format!("P6\n{width} {height}\n255\n").into_bytes();
         bytes.extend(bitmap);
         std::fs::write(&path, bytes).unwrap();
