@@ -15,6 +15,11 @@ pub const BANDS: [(f32, f32, &str); 6] = [
     (8000.0, f32::INFINITY, "> 8k"),
 ];
 
+/// Octave band centres, in Hz.
+pub const OCTAVES: [f32; 10] = [
+    31.5, 63.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+];
+
 pub struct Analysis {
     /// Integrated loudness (ITU-R BS.1770-4), in LUFS.
     pub loudness: f32,
@@ -26,6 +31,8 @@ pub struct Analysis {
     pub crest: f32,
     /// Share of the energy per band, in percent.
     pub bands: [f32; BANDS.len()],
+    /// Energy per octave band relative to the total, in dB: the spectral balance.
+    pub octaves: [f32; OCTAVES.len()],
     /// Energy of the side signal relative to the mid signal below 80 Hz, where subwoofers
     /// sum the channels, in dB.
     pub side_to_mid_bass: f32,
@@ -230,6 +237,18 @@ pub fn analyse(left: &[f32], right: &[f32], sample_rate: f32) -> Analysis {
             .sum();
         *band = (100.0 * energy / all.max(1e-30)) as f32;
     }
+    let mut octaves = [0.0; OCTAVES.len()];
+    for (octave, &centre) in octaves.iter_mut().zip(&OCTAVES) {
+        let (low, high) = (
+            centre / std::f32::consts::SQRT_2,
+            centre * std::f32::consts::SQRT_2,
+        );
+        let energy: f64 = (1..size / 2)
+            .filter(|&bin| (low..high).contains(&(bin as f32 * bin_width)))
+            .map(|bin| totals[0][bin])
+            .sum();
+        *octave = decibels(energy / all.max(1e-30));
+    }
     let bass = 1..=(80.0 / bin_width) as usize;
     let side_bass: f64 = bass.clone().map(|bin| totals[2][bin]).sum();
     let mid_bass: f64 = bass.map(|bin| totals[1][bin]).sum();
@@ -240,6 +259,7 @@ pub fn analyse(left: &[f32], right: &[f32], sample_rate: f32) -> Analysis {
         peak: decibels((peak as f64).powi(2)),
         crest: decibels((peak as f64).powi(2) / mean_square.max(1e-30)),
         bands,
+        octaves,
         side_to_mid_bass: decibels(side_bass / mid_bass.max(1e-30)),
         dc,
     }

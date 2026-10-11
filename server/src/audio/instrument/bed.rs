@@ -2,7 +2,8 @@
 //!
 //! The bed is an additive partial bank: every tone of the harmony is a set of partials, each
 //! with a slightly detuned twin it beats against, a slow random amplitude drift and a place
-//! in the stereo field (centred in the bass). Heat crossfades from cold to warm: cold is
+//! in the stereo field (centred in the bass). The root is a synth bass: centred, steadier,
+//! with its own spectrum and level. Heat crossfades from cold to warm: cold is
 //! thin and glassy (pure fundamentals, weak low harmonics, stretched upper partials, upper
 //! tones emphasized), warm is round (strong low harmonics, rolled-off highs, lower tones
 //! emphasized, wider beating and a gentle wow). Void keeps only the strongest share of
@@ -18,14 +19,23 @@ use crate::audio::dsp::{Drift, Rng, Rotor, Svf, coefficient, k_weight, lerp, smo
 const PARTIALS: usize = 8;
 
 /// Partial levels when cold and warm.
-const COLD: [f32; PARTIALS] = [1.0, 0.06, 0.03, 0.05, 0.12, 0.04, 0.10, 0.08];
+const COLD: [f32; PARTIALS] = [1.0, 0.06, 0.03, 0.05, 0.08, 0.03, 0.06, 0.04];
 const WARM: [f32; PARTIALS] = [1.0, 0.62, 0.42, 0.28, 0.16, 0.08, 0.04, 0.02];
 
-/// Level of the root relative to the palette's tones.
-const ROOT_LEVEL: f32 = 0.75;
+/// Partial levels of the bass (the root) when cold and warm: hollow and square-like when
+/// cold, full and saw-like when warm.
+const BASS_COLD: [f32; PARTIALS] = [1.0, 0.12, 0.38, 0.08, 0.2, 0.05, 0.1, 0.03];
+const BASS_WARM: [f32; PARTIALS] = [1.0, 0.6, 0.4, 0.28, 0.18, 0.11, 0.07, 0.04];
 
-/// K-weighted RMS level of the bed.
-const LEVEL: f32 = 0.11;
+/// The bass's harmonics roll off above this frequency when cold and warm.
+const BASS_ROLLOFF: [f32; 2] = [420.0, 300.0];
+
+/// K-weighted RMS levels of the bass and of the chord above it.
+const BASS_LEVEL: f32 = 0.06;
+const LEVEL: f32 = 0.08;
+
+/// Partials roll off above this frequency, like a gentle 12 dB per octave low-pass.
+const ROLLOFF: f32 = 2400.0;
 
 /// Seconds over which a new harmony replaces the old one.
 const CROSSFADE_SECONDS: f32 = 5.0;
@@ -92,12 +102,18 @@ impl Set {
     fn load(&mut self, harmony: &Harmony, rng: &mut Rng) {
         self.count = harmony.count;
         self.tones = harmony.tones;
-        for (tone, partials) in harmony.tones().iter().zip(&mut self.partials) {
+        for (tone_index, (tone, partials)) in
+            harmony.tones().iter().zip(&mut self.partials).enumerate()
+        {
             for (index, partial) in partials.iter_mut().enumerate() {
                 *partial = Partial::new(rng);
                 // The bass stays centred; partials spread wider the higher they are.
                 let frequency = tone.frequency * (index + 1) as f32;
-                let width = ((frequency - 160.0) / 400.0).clamp(0.0, 1.0);
+                let width = if tone_index == 0 {
+                    0.0
+                } else {
+                    ((frequency - 160.0) / 400.0).clamp(0.0, 1.0)
+                };
                 let angle =
                     (0.5 + 0.4 * width * rng.range(-1.0, 1.0)) * std::f32::consts::FRAC_PI_2;
                 partial.pan = [angle.cos(), angle.sin()];
@@ -123,7 +139,8 @@ pub struct Bed {
     rng: Rng,
     seconds: f32,
     wow: Drift,
-    normalization: f32,
+    /// Of the bass and of the chord.
+    normalization: [f32; 2],
     order: [u8; MAX_TONES * PARTIALS],
 }
 
@@ -140,7 +157,7 @@ impl Bed {
             wow: Drift::new(&mut rng),
             rng,
             seconds: 0.0,
-            normalization: 0.0,
+            normalization: [0.0; 2],
             order: std::array::from_fn(|index| index as u8),
         }
     }
@@ -188,7 +205,7 @@ impl Bed {
                     + 0.8 * (self.wow.advance(0.05 * block_seconds, &mut self.rng) - 0.5));
         let twin = 0.3 + 0.4 * warmth;
         // Tones above the root lean up when cold and down when warm.
-        let tilt = lerp(0.35, -0.25, warmth);
+        let tilt = lerp(0.15, -0.3, warmth);
         let depth = 0.45 + 0.35 * params.activity;
         let partial_rate = (0.02 + 0.2 * params.flow) * block_seconds;
         let tone_rate = (0.01 + 0.08 * params.flow) * block_seconds;
@@ -196,15 +213,18 @@ impl Bed {
         let keep = 1.0 - 0.9 * params.void;
         let masks = coefficient(0.6, self.sample_rate / BLOCK as f32);
 
-        let mut power = 0.0;
+        let bass_rolloff = lerp(BASS_ROLLOFF[0], BASS_ROLLOFF[1], warmth);
+        // Of the bass and of the chord.
+        let mut power = [0.0; 2];
         for set in &mut self.sets {
             if set.count == 0 {
                 continue;
             }
             for tone_index in 0..set.count {
                 let tone = set.tones[tone_index];
-                let tone_level = if tone_index == 0 {
-                    ROOT_LEVEL
+                let bass = tone_index == 0;
+                let tone_level = if bass {
+                    1.0
                 } else {
                     tone.level * (tone.frequency / 400.0).powf(tilt).clamp(0.4, 2.0)
                 };
@@ -217,6 +237,7 @@ impl Bed {
                 for (index, partial) in set.partials[tone_index].iter_mut().enumerate() {
                     let harmonic = (index + 1) as f32;
                     let frequency = tone.frequency * harmonic.powf(1.0 + stretch) * wow;
+                    let depth = if bass { 0.4 * depth } else { depth };
                     let motion = 1.0 - depth
                         + depth
                             * partial
@@ -228,14 +249,19 @@ impl Bed {
                     } else {
                         params.band_weight(frequency)
                     };
-                    let ceiling = ((top - frequency) / (0.2 * top)).clamp(0.0, 1.0);
+                    let (profile, rolloff) = if bass {
+                        (
+                            lerp(BASS_COLD[index], BASS_WARM[index], warmth),
+                            bass_rolloff,
+                        )
+                    } else {
+                        (lerp(COLD[index], WARM[index], warmth), ROLLOFF)
+                    };
+                    let ceiling = ((top - frequency) / (0.2 * top)).clamp(0.0, 1.0)
+                        / (1.0 + (frequency / rolloff).powi(4)).sqrt();
                     partial.frequency = frequency;
-                    partial.strength = tone_level
-                        * tone_motion
-                        * lerp(COLD[index], WARM[index], warmth)
-                        * motion
-                        * weight
-                        * ceiling;
+                    partial.strength =
+                        tone_level * tone_motion * profile * motion * weight * ceiling;
                 }
             }
 
@@ -266,21 +292,29 @@ impl Bed {
                 partial.mask += (target - partial.mask) * masks;
                 partial.level = partial.strength * partial.mask * set.level;
                 let weighted = partial.level * k_weight(partial.frequency);
-                power += 0.5
+                power[(tone_index > 0) as usize] += 0.5
                     * weighted
                     * weighted
                     * (1.0 + partial_twin(twin, partial.frequency).powi(2));
             }
         }
 
-        let target = (LEVEL / (power.sqrt() + 1e-6)).min(8.0);
-        self.normalization +=
-            (target - self.normalization) * coefficient(0.4, self.sample_rate / BLOCK as f32);
+        for ((normalization, power), level) in self
+            .normalization
+            .iter_mut()
+            .zip(power)
+            .zip([BASS_LEVEL, LEVEL])
+        {
+            let target = (level / (power.sqrt() + 1e-6)).min(8.0);
+            *normalization +=
+                (target - *normalization) * coefficient(0.4, self.sample_rate / BLOCK as f32);
+        }
 
         for set in &mut self.sets {
             for tone_index in 0..set.count {
+                let normalization = self.normalization[(tone_index > 0) as usize];
                 for partial in set.partials[tone_index].iter_mut() {
-                    let main = partial.level * self.normalization;
+                    let main = partial.level * normalization;
                     let targets = [main, main * partial_twin(twin, partial.frequency)];
                     let beat = partial.beat
                         * (0.4 + 1.2 * params.heat)
@@ -329,7 +363,7 @@ impl Bed {
     }
 }
 
-/// Noise through narrow resonators tuned to the harmony, folded into 800 Hz to 6.4 kHz:
+/// Noise through narrow resonators tuned to the harmony, folded into 500 Hz to 4 kHz:
 /// wind and breath, strongest when cold.
 pub struct Air {
     sample_rate: f32,
@@ -373,10 +407,10 @@ impl Air {
         // Resonators keep gliding from where they are; new ones start at their target.
         for (index, tone) in harmony.tones().iter().enumerate() {
             let mut frequency = tone.frequency;
-            while frequency < 800.0 {
+            while frequency < 500.0 {
                 frequency *= 2.0;
             }
-            while frequency >= 6400.0 {
+            while frequency >= 4000.0 {
                 frequency *= 0.5;
             }
             self.targets[index] = frequency;
@@ -391,12 +425,12 @@ impl Air {
         let block_seconds = BLOCK as f32 / self.sample_rate;
         let glide = coefficient(2.0, self.sample_rate / BLOCK as f32);
         let warmth = smooth(params.heat);
-        let q = lerp(28.0, 10.0, warmth);
+        let q = lerp(20.0, 10.0, warmth);
         // Narrower bands pass less noise: keep the power independent of Q.
         let normalization = (q / 10.0).sqrt();
         let gust_rate = (0.04 + 0.25 * params.flow) * block_seconds;
-        // Brighter when cold, darker when warm.
-        let tilt = lerp(0.3, -1.0, warmth);
+        // Even when cold, darker when warm.
+        let tilt = lerp(0.0, -1.0, warmth);
         for index in 0..self.count {
             self.frequencies[index] += (self.targets[index] - self.frequencies[index]) * glide;
             for resonator in &mut self.resonators[index] {
@@ -408,7 +442,7 @@ impl Air {
                 * (self.frequencies[index] / 1000.0).powf(tilt)
                 * normalization;
         }
-        let target = lerp(0.13, 0.025, warmth) * (0.8 + 0.5 * params.void);
+        let target = lerp(0.09, 0.025, warmth) * (0.8 + 0.5 * params.void);
         self.step = (target - self.level) / BLOCK as f32;
     }
 

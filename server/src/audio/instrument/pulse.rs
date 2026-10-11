@@ -13,7 +13,7 @@ use crate::audio::dsp::{Rng, Rotor, Svf, coefficient, euclidean, lerp, smooth, s
 const BAR: usize = 16;
 
 const THUMP_LEVEL: f32 = 0.24;
-const TICK_LEVEL: f32 = 0.2;
+const TICK_LEVEL: f32 = 0.15;
 const STAB_LEVEL: f32 = 0.3;
 
 /// Tempo range in beats per minute, over the Flow slider.
@@ -400,9 +400,9 @@ impl Tick {
         let warmth = smooth(heat);
         self.decay = lerp(0.010, 0.030, warmth);
         self.high
-            .set(lerp(7500.0, 3000.0, warmth), 0.7, self.sample_rate);
+            .set(lerp(5500.0, 2500.0, warmth), 0.7, self.sample_rate);
         self.ring.set(
-            lerp(9800.0, 4800.0, warmth),
+            lerp(7000.0, 4000.0, warmth),
             lerp(9.0, 2.0, warmth),
             self.sample_rate,
         );
@@ -467,7 +467,7 @@ impl Stab {
         let decay = lerp(0.14, 0.32, warmth);
         let tilt = lerp(1.4, 1.0, warmth);
         let damping = lerp(0.5, 1.2, warmth);
-        let top = (0.4 * self.sample_rate).min(12_000.0);
+        let top = (0.4 * self.sample_rate).min(5000.0);
         for (tone, frequency) in chord.iter().enumerate() {
             for partial in 0..STAB_PARTIALS {
                 let partial_frequency = frequency * (partial + 1) as f32;

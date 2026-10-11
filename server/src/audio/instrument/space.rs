@@ -3,7 +3,8 @@
 //! The dub delay is a tempo-synced ping-pong (a dotted eighth) with a band-pass, gentle
 //! saturation and tape flutter in its loop; warmer means more feedback and darker repeats.
 //! The reverb (see `reverb.rs`) has a long, modulated tail; its input is high-passed so the
-//! bass stays dry and clean. Void moves the sound away: less and darker dry signal above the bass, more reverb.
+//! bass stays dry and clean. Void moves the sound away: less and darker dry signal above
+//! the bass, more reverb.
 //! The master keeps everything below 120 Hz mono (subwoofers sum their channels), removes
 //! infrasound and limits peaks to about −1 dBFS with a short look-ahead.
 
@@ -17,7 +18,7 @@ use crate::audio::dsp::{DelayLine, OnePole, Svf, coefficient, lerp, smooth};
 const CEILING: f32 = 0.891;
 
 const REVERB_SECONDS: f32 = 8.0;
-const REVERB_DAMPING: f32 = 5000.0;
+const REVERB_DAMPING: f32 = 4000.0;
 
 /// The reverb keeps about the loudness of its input; at Void 0.5 it is about as loud.
 const REVERB_LEVEL: f32 = 1.55;
@@ -143,7 +144,7 @@ impl Space {
         let distance = params.void;
         self.dry_step = (lerp(1.0, 0.45, distance) - self.dry) / BLOCK as f32;
         self.wet_step = (lerp(0.35, 1.0, distance) * REVERB_LEVEL - self.wet) / BLOCK as f32;
-        let cutoff = 18_000.0 * (4000.0_f32 / 18_000.0).powf(distance);
+        let cutoff = 12_000.0 * (3000.0_f32 / 12_000.0).powf(distance);
         for filter in &mut self.damping {
             filter.set(cutoff, 0.6, self.sample_rate);
         }

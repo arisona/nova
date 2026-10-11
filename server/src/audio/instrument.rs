@@ -155,7 +155,7 @@ impl Harmony {
                 let distance = (hue - mean + 540.0).rem_euclid(360.0) - 180.0;
                 FIFTHS[(((distance / 40.0).round() as i32).clamp(-4, 4) + 4) as usize]
             };
-            let octave = (1 + (lightness * 3.2) as i32).clamp(1, 4);
+            let octave = (1 + (lightness * 3.2) as i32).clamp(1, 3);
             let mut frequency = root * ratio * 2.0_f32.powi(octave);
             // Colors that land on the same tone move up an octave rather than double it.
             for _ in 0..2 {

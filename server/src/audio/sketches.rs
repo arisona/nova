@@ -284,6 +284,21 @@ fn audio_sketches() {
     .unwrap();
     report.push_str("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
     let mut descriptions = String::new();
+    let octaves: Vec<String> = analysis::OCTAVES
+        .iter()
+        .map(|&centre| {
+            if centre >= 1000.0 {
+                format!("{:.0}k", centre / 1000.0)
+            } else {
+                format!("{centre:.0}")
+            }
+        })
+        .collect();
+    let mut balance = format!(
+        "| Scenario | {} |\n|{}\n",
+        octaves.join(" | "),
+        " --- |".repeat(octaves.len() + 1)
+    );
 
     for scenario in scenarios()
         .into_iter()
@@ -341,6 +356,12 @@ fn audio_sketches() {
                 .join(" / "),
         )
         .unwrap();
+        let levels: Vec<String> = analysis
+            .octaves
+            .iter()
+            .map(|level| format!("{level:.0}"))
+            .collect();
+        writeln!(balance, "| {} | {} |", scenario.name, levels.join(" | ")).unwrap();
         writeln!(
             descriptions,
             "- **{}** ({:.0} s): {}",
@@ -352,6 +373,11 @@ fn audio_sketches() {
             scenario.name, analysis.loudness, analysis.peak, analysis.side_to_mid_bass, analysis.dc
         );
     }
+    report.push_str(
+        "\n## Spectral balance\n\nEnergy per octave band relative to the total, in dB; \
+         columns are the band centres in Hz.\n\n",
+    );
+    report.push_str(&balance);
     report.push_str("\n## Scenarios\n\n");
     report.push_str(&descriptions);
     std::fs::write(directory.join("report.md"), report).unwrap();

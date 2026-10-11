@@ -57,7 +57,7 @@ Use one universal control set for all content modules. Keep this order consisten
 
 Audio is experimental: an instrument for drone and ambient sound, shared across all content modules, with its own character rather than one sound per module. Its design, mapping and open questions are in the [audio concept](doc/audio_concept.md). CPAL drives an independent sample-rate stream on the server machine; browsers only control it.
 
-- **Layers**: a drone bed of additive partials in just intonation, slowly beating against detuned twins; air (noise through narrow resonators tuned to the bed); a pulse of tuned sub thumps, ticks and chord stabs on a 16th-note grid; a tempo-synced dub delay and a long modulated reverb.
+- **Layers**: a drone bed of additive partials in just intonation, slowly beating against detuned twins, over a synth bass on the root; air (noise through narrow resonators tuned to the bed); a pulse of tuned sub thumps, ticks and chord stabs on a 16th-note grid; a tempo-synced dub delay and a long modulated reverb.
 - **Palette** sets the tonal world: the colors' mean hue picks the root, each color adds a tone by its hue distance, lightness and chroma. A palette change crossfades to the new tones.
 - **Heat** goes from cold (thin, glassy, bright air, straight rhythm) to warm (round, low harmonics, swing, saturated thumps, more dub feedback), keeping the pitches and the loudness.
 - **Flow** sets how fast the bed evolves, with a nonzero minimum, and the tempo (64 to 124 BPM) from the slider setting without its tide, so the tempo does not wobble. At Flow 0 the pulse rests and the drone keeps breathing.
