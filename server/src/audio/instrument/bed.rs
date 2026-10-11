@@ -6,7 +6,11 @@
 //! with its own spectrum and level. Heat crossfades from cold to warm: cold is
 //! thin and glassy (pure fundamentals, weak low harmonics, stretched upper partials, upper
 //! tones emphasized), warm is round (strong low harmonics, rolled-off highs, lower tones
-//! emphasized, wider beating and a gentle wow). Void keeps only the strongest share of
+//! emphasized, wider beating and a gentle wow). Warmth also keeps the chord from sounding
+//! like an organ: breath (narrow-band noise modulating each tone's amplitude, which spreads
+//! its partials into breathy bands), a slowly drifting brightness per tone, slightly detuned
+//! upper partials, deeper movement, and tones that fade back now and then. Void keeps only
+//! the strongest share of
 //! partials, ranked like Void by rank in the visuals; the root's fundamental always stays. A
 //! K-weighted level estimate keeps the loudness constant whatever Heat, Void or the palette
 //! do.
@@ -40,6 +44,17 @@ const ROLLOFF: f32 = 2400.0;
 /// Seconds over which a new harmony replaces the old one.
 const CROSSFADE_SECONDS: f32 = 5.0;
 
+/// Depth of the breath when cold and warm, and its bandwidth in Hz.
+const BREATH: [f32; 2] = [0.06, 0.3];
+const BREATH_HZ: f32 = 40.0;
+
+/// Largest detuning of the chord's upper partials when warm, in cents.
+const DETUNE_CENTS: f32 = 8.0;
+
+/// Range of the drifting brightness of the chord tones when warm, in harmonics: partials
+/// above it fade.
+const SWEEP: [f32; 2] = [1.5, 6.0];
+
 #[derive(Clone, Copy)]
 struct Partial {
     oscillators: [Rotor; 2],
@@ -48,6 +63,8 @@ struct Partial {
     pan: [f32; 2],
     drift: Drift,
     drift_rate: f32,
+    /// Detuning when warm, from −1 to 1 of `DETUNE_CENTS`.
+    detune: f32,
     gains: [f32; 2],
     steps: [f32; 2],
     mask: f32,
@@ -69,6 +86,7 @@ impl Partial {
             pan: [std::f32::consts::FRAC_1_SQRT_2; 2],
             drift: Drift::new(rng),
             drift_rate: rng.range(0.5, 1.5),
+            detune: rng.range(-1.0, 1.0),
             gains: [0.0; 2],
             steps: [0.0; 2],
             mask: 1.0,
@@ -85,16 +103,24 @@ struct Set {
     count: usize,
     partials: [[Partial; PARTIALS]; MAX_TONES],
     tone_drifts: [Drift; MAX_TONES],
+    sweeps: [Drift; MAX_TONES],
+    /// Fourth-order Butterworth low-pass per tone, which turns noise into the breath.
+    breaths: [[Svf; 2]; MAX_TONES],
     level: f32,
 }
 
 impl Set {
-    fn new(rng: &mut Rng) -> Self {
+    fn new(sample_rate: f32, rng: &mut Rng) -> Self {
         Self {
             tones: [Tone::default(); MAX_TONES],
             count: 0,
             partials: std::array::from_fn(|_| std::array::from_fn(|_| Partial::new(rng))),
             tone_drifts: std::array::from_fn(|_| Drift::new(rng)),
+            sweeps: std::array::from_fn(|_| Drift::new(rng)),
+            breaths: [[
+                Svf::new(BREATH_HZ, 0.541, sample_rate),
+                Svf::new(BREATH_HZ, 1.307, sample_rate),
+            ]; MAX_TONES],
             level: 0.0,
         }
     }
@@ -142,11 +168,18 @@ pub struct Bed {
     /// Of the bass and of the chord.
     normalization: [f32; 2],
     order: [u8; MAX_TONES * PARTIALS],
+    breath: f32,
+    breath_step: f32,
+    /// Scales the low-passed noise to an RMS of 1.
+    breath_scale: f32,
 }
 
 impl Bed {
     pub fn new(sample_rate: f32, harmony: &Harmony, mut rng: Rng) -> Self {
-        let mut sets = [Set::new(&mut rng), Set::new(&mut rng)];
+        let mut sets = [
+            Set::new(sample_rate, &mut rng),
+            Set::new(sample_rate, &mut rng),
+        ];
         sets[0].load(harmony, &mut rng);
         sets[0].level = 1.0;
         Self {
@@ -159,6 +192,11 @@ impl Bed {
             seconds: 0.0,
             normalization: [0.0; 2],
             order: std::array::from_fn(|index| index as u8),
+            breath: 0.0,
+            breath_step: 0.0,
+            // Uniform noise has a variance of 1/3; the low-pass passes 1.026 × BREATH_HZ of
+            // its bandwidth of half the sample rate.
+            breath_scale: (3.0 * sample_rate / (2.0 * 1.026 * BREATH_HZ)).sqrt(),
         }
     }
 
@@ -206,9 +244,13 @@ impl Bed {
         let twin = 0.3 + 0.4 * warmth;
         // Tones above the root lean up when cold and down when warm.
         let tilt = lerp(0.15, -0.3, warmth);
-        let depth = 0.45 + 0.35 * params.activity;
-        let partial_rate = (0.02 + 0.2 * params.flow) * block_seconds;
+        let depth = (0.45 + 0.35 * params.activity + 0.15 * warmth).min(0.95);
+        let partial_rate = (0.02 + 0.2 * params.flow) * (1.0 + warmth) * block_seconds;
         let tone_rate = (0.01 + 0.08 * params.flow) * block_seconds;
+        let sweep_rate = (0.01 + 0.06 * params.flow) * block_seconds;
+        // Chord tones dip lower when warm.
+        let tone_floor = lerp(0.6, 0.3, warmth);
+        self.breath_step = (lerp(BREATH[0], BREATH[1], warmth) - self.breath) / BLOCK as f32;
         let top = (0.42 * self.sample_rate).min(14_000.0);
         let keep = 1.0 - 0.9 * params.void;
         let masks = coefficient(0.6, self.sample_rate / BLOCK as f32);
@@ -228,15 +270,30 @@ impl Bed {
                 } else {
                     tone.level * (tone.frequency / 400.0).powf(tilt).clamp(0.4, 2.0)
                 };
-                let tone_motion = 0.6
-                    + 0.4
+                let tone_motion = tone_floor
+                    + (1.0 - tone_floor)
                         * set.tone_drifts[tone_index].advance(
                             tone_rate * set.partials[tone_index][0].drift_rate,
                             &mut self.rng,
                         );
+                let sweep = lerp(
+                    SWEEP[0],
+                    SWEEP[1],
+                    set.sweeps[tone_index].advance(sweep_rate, &mut self.rng),
+                );
                 for (index, partial) in set.partials[tone_index].iter_mut().enumerate() {
                     let harmonic = (index + 1) as f32;
-                    let frequency = tone.frequency * harmonic.powf(1.0 + stretch) * wow;
+                    let detune = if bass || index == 0 {
+                        1.0
+                    } else {
+                        2.0_f32.powf(DETUNE_CENTS * warmth * partial.detune / 1200.0)
+                    };
+                    let frequency = tone.frequency * harmonic.powf(1.0 + stretch) * wow * detune;
+                    let brightness = if bass {
+                        1.0
+                    } else {
+                        lerp(1.0, 1.0 / (1.0 + (harmonic / sweep).powi(4)).sqrt(), warmth)
+                    };
                     let depth = if bass { 0.4 * depth } else { depth };
                     let motion = 1.0 - depth
                         + depth
@@ -261,7 +318,7 @@ impl Bed {
                         / (1.0 + (frequency / rolloff).powi(4)).sqrt();
                     partial.frequency = frequency;
                     partial.strength =
-                        tone_level * tone_motion * profile * motion * weight * ceiling;
+                        tone_level * tone_motion * profile * brightness * motion * weight * ceiling;
                 }
             }
 
@@ -343,9 +400,11 @@ impl Bed {
 
     #[inline]
     pub fn next(&mut self) -> [f32; 2] {
+        self.breath += self.breath_step;
         let mut output = [0.0; 2];
         for set in &mut self.sets {
-            for partials in set.partials[..set.count].iter_mut() {
+            for (tone_index, partials) in set.partials[..set.count].iter_mut().enumerate() {
+                let mut tone = [0.0; 2];
                 for partial in partials.iter_mut() {
                     if partial.gains[0] <= 0.0 && partial.steps[0] <= 0.0 {
                         continue;
@@ -354,9 +413,22 @@ impl Bed {
                         + partial.oscillators[1].next() * partial.gains[1];
                     partial.gains[0] = (partial.gains[0] + partial.steps[0]).max(0.0);
                     partial.gains[1] = (partial.gains[1] + partial.steps[1]).max(0.0);
-                    output[0] += sample * partial.pan[0];
-                    output[1] += sample * partial.pan[1];
+                    tone[0] += sample * partial.pan[0];
+                    tone[1] += sample * partial.pan[1];
                 }
+                // The bass stays steady; chord tones breathe.
+                let breath = if tone_index == 0 {
+                    1.0
+                } else {
+                    let noise = set.breaths[tone_index]
+                        .iter_mut()
+                        .fold(self.rng.range(-1.0, 1.0), |noise, filter| {
+                            filter.lowpass(noise)
+                        });
+                    (1.0 + self.breath * self.breath_scale * noise).max(0.0)
+                };
+                output[0] += tone[0] * breath;
+                output[1] += tone[1] * breath;
             }
         }
         output
@@ -458,5 +530,30 @@ impl Air {
             }
         }
         output.map(|sample| sample * self.level)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn breath_noise_has_unit_rms() {
+        let rate = 48_000.0;
+        let harmony = Harmony::from_palette(&crate::palettes::PALETTES[0]);
+        let mut bed = Bed::new(rate, &harmony, Rng::new(1));
+        let mut sum = 0.0;
+        let frames = rate as usize * 20;
+        for _ in 0..frames {
+            let noise = bed.sets[0].breaths[1]
+                .iter_mut()
+                .fold(bed.rng.range(-1.0, 1.0), |noise, filter| {
+                    filter.lowpass(noise)
+                });
+            let scaled = noise * bed.breath_scale;
+            sum += scaled * scaled;
+        }
+        let rms = (sum / frames as f32).sqrt();
+        assert!((rms - 1.0).abs() < 0.1, "{rms}");
     }
 }

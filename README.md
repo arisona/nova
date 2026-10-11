@@ -59,7 +59,7 @@ Audio is experimental: an instrument for drone and ambient sound, shared across 
 
 - **Layers**: a drone bed of additive partials in just intonation, slowly beating against detuned twins, over a synth bass on the root; air (noise through narrow resonators tuned to the bed); a pulse of tuned sub thumps, ticks and chord stabs on a 16th-note grid; a tempo-synced dub delay and a long modulated reverb.
 - **Palette** sets the tonal world: the colors' mean hue picks the root, each color adds a tone by its hue distance, lightness and chroma. A palette change crossfades to the new tones.
-- **Heat** goes from cold (thin, glassy, bright air, straight rhythm) to warm (round, low harmonics, swing, saturated thumps, more dub feedback), keeping the pitches and the loudness.
+- **Heat** goes from cold (thin, glassy, bright air, straight rhythm) to warm (round, low harmonics, breathing and drifting chord tones, swing, saturated thumps, more dub feedback), keeping the pitches and the loudness.
 - **Flow** sets how fast the bed evolves, with a nonzero minimum, and the tempo (64 to 124 BPM) from the slider setting without its tide, so the tempo does not wobble. At Flow 0 the pulse rests and the drone keeps breathing.
 - **Form** goes from ambient to rhythmic: pure drone at low Form, then thumps, ticks and stabs growing denser. Euclidean patterns spread the pulses evenly; patterns change only at bar boundaries.
 - **Void** keeps only the strongest share of partials at constant loudness and moves the sound away (less and darker dry signal, more reverb). It never silences the sound.
