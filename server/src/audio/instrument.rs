@@ -401,6 +401,7 @@ impl Instrument {
         }
 
         let params = self.params;
+        self.bed.set_bass_accent(self.pulse.bass_accent());
         self.bed.update_block(&params);
         self.air.update_block(&params);
         self.pulse.update_block(&params);
@@ -413,9 +414,11 @@ impl Instrument {
         }
         self.position = (self.position + 1) % BLOCK;
 
-        let bed = self.bed.next();
-        let air = self.air.next();
         let pulse = self.pulse.next();
+        // The drone follows the pulse: chord, air and reverb dip with each thump.
+        let duck = 1.0 - pulse.duck;
+        let bed = self.bed.next(duck);
+        let air = self.air.next().map(|sample| sample * duck);
         let mixed = self.space.process(bed, air, pulse);
 
         let ramp = 1.0 / (0.02 * self.sample_rate);
@@ -436,6 +439,12 @@ impl Instrument {
     #[cfg(test)]
     pub fn pulse_counts(&self) -> [u64; 3] {
         self.pulse.counts()
+    }
+
+    /// How far the drone dips now, from 0 to 1.
+    #[cfg(test)]
+    pub fn duck(&self) -> f32 {
+        self.pulse.duck()
     }
 
     /// Current tempo in beats per minute.

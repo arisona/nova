@@ -396,3 +396,102 @@ fn audio_sketches() {
     std::fs::write(directory.join("report.md"), report).unwrap();
     println!("Wrote {}", directory.display());
 }
+
+/// Averages over all thumps of a minute at Form 0.8 (a thump on every beat), dry at Void 0:
+/// the drone's gain from the instrument, and the rendered level of the chord band (300 to
+/// 1500 Hz) relative to its highest point, in 20 ms steps after the thump. `NOVA_HEAT` sets
+/// Heat (0.5), `NOVA_FLOW` Flow (0.5).
+#[test]
+#[ignore = "prints how the drone dips with the thumps"]
+fn audio_ducking_profile() {
+    use crate::audio::dsp::Svf;
+    let setting = |name: &str, default: f32| {
+        std::env::var(name)
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(default)
+    };
+    let mut state = AppState::default();
+    state.set_volume(1.0);
+    state.set_palette("Belize Ripple");
+    state.set_form(0.8);
+    state.set_void(0.0);
+    state.set_heat(setting("NOVA_HEAT", 0.5));
+    state.set_flow(setting("NOVA_FLOW", 0.5));
+    let feed = Arc::new(AudioFeed::new(&state));
+    let mut renderer = Renderer::new(state.dim());
+    renderer.feed_audio(FeedPublisher::new(Arc::clone(&feed)));
+    let mut instrument = Instrument::new(RATE, 7, Rhythm::Euclidean);
+    let mut high = [Svf::new(300.0, 0.541, RATE), Svf::new(300.0, 1.307, RATE)];
+    let mut low = [Svf::new(1500.0, 0.541, RATE), Svf::new(1500.0, 1.307, RATE)];
+
+    const STEP: usize = 960; // 20 ms
+    const STEPS: usize = 50;
+    let (mut gains, mut powers, mut counts) = ([0.0_f64; STEPS], [0.0_f64; STEPS], [0_u32; STEPS]);
+    let (mut since, mut thumps, mut window, mut gain_sum) = (usize::MAX, 0, 0.0_f64, 0.0_f64);
+    let per_frame = (RATE * FRAME_SECONDS) as usize;
+    for frame in 0..(60.0 / FRAME_SECONDS) as usize {
+        renderer.render_step(&mut RenderState::from(&state), FRAME_SECONDS);
+        instrument.set_features(feed.features());
+        instrument.set_controls(feed.controls());
+        for _ in 0..per_frame {
+            let [left, right] = instrument.next_frame();
+            let count = instrument.pulse_counts()[0];
+            if count > thumps {
+                thumps = count;
+                since = 0;
+                window = 0.0;
+                gain_sum = 0.0;
+            }
+            let mid = 0.5 * (left + right);
+            let high = high
+                .iter_mut()
+                .fold(mid, |value, filter| filter.highpass(value));
+            let value = low
+                .iter_mut()
+                .fold(high, |value, filter| filter.lowpass(value));
+            if since == usize::MAX {
+                continue;
+            }
+            window += (value as f64).powi(2);
+            gain_sum += (1.0 - instrument.duck()) as f64;
+            since += 1;
+            // Skip the first 5 s, while the sound settles.
+            if since.is_multiple_of(STEP)
+                && since / STEP <= STEPS
+                && frame as f32 * FRAME_SECONDS > 5.0
+            {
+                let index = since / STEP - 1;
+                powers[index] += window / STEP as f64;
+                gains[index] += gain_sum / STEP as f64;
+                counts[index] += 1;
+                window = 0.0;
+                gain_sum = 0.0;
+            }
+        }
+    }
+    let rows: Vec<(usize, f64, f64)> = (0..STEPS)
+        .filter(|&index| counts[index] > counts[0] / 2)
+        .map(|index| {
+            let count = counts[index] as f64;
+            (index, gains[index] / count, powers[index] / count)
+        })
+        .collect();
+    let loudest = rows.iter().fold(0.0_f64, |max, row| max.max(row.2));
+    println!(
+        "Heat {}, Flow {}, {:.0} BPM, {} thumps",
+        state.heat(),
+        state.flow(),
+        instrument.tempo(),
+        counts[0]
+    );
+    println!("  ms after thump | drone gain dB | chord band dB");
+    for (index, gain, power) in rows {
+        println!(
+            "  {:>14} | {:>13.1} | {:>13.1}",
+            (index + 1) * 20,
+            20.0 * gain.max(1e-6).log10(),
+            10.0 * (power / loudest).log10()
+        );
+    }
+}

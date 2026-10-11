@@ -61,6 +61,10 @@ const GLIDE_SECONDS: f32 = 8.0;
 /// Seconds a chord tone takes to fade out before it changes its octave, and to fade back in.
 const VOICE_SECONDS: f32 = 6.0;
 
+/// The bass's accent on thumps at full coupling (see `pulse.rs`): added level, and added
+/// level of the top harmonic, rising from the fundamental, like an opening filter.
+const BASS_ACCENT: [f32; 2] = [0.8, 2.4];
+
 /// Chord tones change their octave within this range, in Hz.
 const VOICE_RANGE: [f32; 2] = [120.0, 1600.0];
 
@@ -194,6 +198,7 @@ pub struct Bed {
     order: [u8; MAX_TONES * PARTIALS],
     breath: f32,
     breath_step: f32,
+    bass_accent: f32,
     /// Scales the low-passed noise to an RMS of 1.
     breath_scale: f32,
 }
@@ -218,6 +223,7 @@ impl Bed {
             order: std::array::from_fn(|index| index as u8),
             breath: 0.0,
             breath_step: 0.0,
+            bass_accent: 0.0,
             // Uniform noise has a variance of 1/3; the low-pass passes 1.026 × BREATH_HZ of
             // its bandwidth of half the sample rate.
             breath_scale: (3.0 * sample_rate / (2.0 * 1.026 * BREATH_HZ)).sqrt(),
@@ -237,6 +243,11 @@ impl Bed {
     pub fn set_bass(&mut self, frequency: f32) {
         let set = &mut self.sets[self.current];
         set.glide = [set.tones[0].frequency, frequency, 0.0];
+    }
+
+    /// The bass's accent, from the pulse.
+    pub fn set_bass_accent(&mut self, accent: f32) {
+        self.bass_accent = accent;
     }
 
     /// Moves the next chord tone of the current harmony to another octave: it fades out,
@@ -444,8 +455,14 @@ impl Bed {
         for set in &mut self.sets {
             for tone_index in 0..set.count {
                 let normalization = self.normalization[(tone_index > 0) as usize];
-                for partial in set.partials[tone_index].iter_mut() {
-                    let main = partial.level * normalization;
+                for (index, partial) in set.partials[tone_index].iter_mut().enumerate() {
+                    let accent = if tone_index == 0 {
+                        let top = index as f32 / (PARTIALS - 1) as f32;
+                        1.0 + self.bass_accent * (BASS_ACCENT[0] + BASS_ACCENT[1] * top)
+                    } else {
+                        1.0
+                    };
+                    let main = partial.level * normalization * accent;
                     let targets = [main, main * partial_twin(twin, partial.frequency)];
                     let beat = partial.beat
                         * (0.4 + 1.2 * params.heat)
@@ -473,7 +490,8 @@ impl Bed {
     }
 
     #[inline]
-    pub fn next(&mut self) -> [f32; 2] {
+    /// `chord` scales the chord tones; the bass is left alone.
+    pub fn next(&mut self, chord: f32) -> [f32; 2] {
         self.breath += self.breath_step;
         let mut output = [0.0; 2];
         for set in &mut self.sets {
@@ -491,7 +509,7 @@ impl Bed {
                     tone[1] += sample * partial.pan[1];
                 }
                 // The bass stays steady; chord tones breathe.
-                let breath = if tone_index == 0 {
+                let gain = if tone_index == 0 {
                     1.0
                 } else {
                     let noise = set.breaths[tone_index]
@@ -499,10 +517,10 @@ impl Bed {
                         .fold(self.rng.range(-1.0, 1.0), |noise, filter| {
                             filter.lowpass(noise)
                         });
-                    (1.0 + self.breath * self.breath_scale * noise).max(0.0)
+                    (1.0 + self.breath * self.breath_scale * noise).max(0.0) * chord
                 };
-                output[0] += tone[0] * breath;
-                output[1] += tone[1] * breath;
+                output[0] += tone[0] * gain;
+                output[1] += tone[1] * gain;
             }
         }
         output
@@ -626,7 +644,7 @@ mod tests {
             if frame % BLOCK == 0 {
                 bed.update_block(&params);
             }
-            let [left, right] = bed.next();
+            let [left, right] = bed.next(1.0);
             assert!(left.is_finite() && right.is_finite());
         }
     }

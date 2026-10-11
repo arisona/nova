@@ -5,6 +5,9 @@
 //! rhythm never feels random; visual activity shapes the dynamics, not where steps fall.
 //! A sudden rise in visual activity may add one stab on the next off-beat. Cold is straight,
 //! short and bright; warm swings, with softer, longer thumps and darker stabs.
+//!
+//! The drone follows the thumps (`COUPLING`): the chord, the air and the reverb dip and
+//! swell back, and the synth bass gets a short accent, so bass and thump fuse into one.
 
 use super::{BLOCK, Harmony, Params, Rhythm};
 use crate::audio::dsp::{Rng, Rotor, Svf, coefficient, euclidean, lerp, smooth, smoothstep};
@@ -27,6 +30,26 @@ const GHOST: f32 = 0.2;
 const DROP: f32 = 0.12;
 const LOOSE_SWING: f32 = 0.025;
 
+/// How strongly the drone follows the pulse: 0 leaves it untouched, 1 pumps like dub.
+/// Form scales it in from the first thumps.
+const COUPLING: f32 = 0.5;
+
+/// Deepest dip of the chord, air and reverb at full coupling, as a fraction: at 1, the
+/// coupling is the depth of the dip.
+const DUCK: f32 = 1.0;
+
+/// Shape of the dip when cold and warm: where the recovery starts and ends, as fractions of
+/// the gap between thumps. [0.0, 0.5] recovers at once and is back halfway through the gap
+/// (tight micro-pumping); [0.3, 1.0] stays down for 30% of the gap and is back just as the
+/// next thump comes (low and slow); an end above 1 never quite comes back.
+const DUCK_SHAPE: [[f32; 2]; 2] = [[0.0, 0.4], [0.15, 0.85]];
+
+/// Seconds the dip takes to reach its depth.
+const DUCK_ATTACK: f32 = 0.008;
+
+/// Release of the bass accent in seconds, when cold and warm.
+const BASS_ACCENT_RELEASE: [f32; 2] = [0.12, 0.22];
+
 /// Seconds between stabs added by visual onsets.
 const ACCENT_COOLDOWN: f32 = 8.0;
 
@@ -39,6 +62,8 @@ pub struct PulseOut {
     pub dry: [f32; 2],
     pub delay_send: f32,
     pub reverb_send: [f32; 2],
+    /// How far the drone dips now, from 0 (not at all) to 1 (silent).
+    pub duck: f32,
 }
 
 /// Pulses per voice and swing, fixed for a bar.
@@ -70,6 +95,16 @@ pub struct Pulse {
     next_stab: usize,
     accent: bool,
     cooldown: f32,
+    duck: Duck,
+    bass_accent: Envelope,
+    /// Coupling scaled in by Form, and the releases for the current tempo and Heat.
+    coupling: f32,
+    /// Seconds between thumps, and the dip's shape for the current Heat.
+    duck_gap: f32,
+    duck_shape: [f32; 2],
+    bass_accent_release: f32,
+    bass_accent_value: f32,
+    duck_value: f32,
     seconds: f32,
     counts: [u64; 3],
     rng: Rng,
@@ -97,6 +132,14 @@ impl Pulse {
             next_stab: 0,
             accent: false,
             cooldown: ACCENT_COOLDOWN,
+            duck: Duck::default(),
+            bass_accent: Envelope::default(),
+            coupling: 0.0,
+            duck_gap: 1.0,
+            duck_shape: DUCK_SHAPE[0],
+            bass_accent_release: 0.1,
+            bass_accent_value: 0.0,
+            duck_value: 0.0,
             seconds: 0.0,
             counts: [0; 3],
             rng,
@@ -145,6 +188,17 @@ impl Pulse {
         self.tempo
     }
 
+    /// How far the drone dips now (see `PulseOut::duck`).
+    #[cfg(test)]
+    pub fn duck(&self) -> f32 {
+        self.duck_value
+    }
+
+    /// The synth bass's accent now, from 0 to `COUPLING`.
+    pub fn bass_accent(&self) -> f32 {
+        self.bass_accent_value
+    }
+
     #[cfg(test)]
     pub fn counts(&self) -> [u64; 3] {
         self.counts
@@ -168,6 +222,12 @@ impl Pulse {
         let target = lerp(SLOWEST, FASTEST, params.flow_setting);
         let change = (target - self.tempo) * coefficient(2.5, 1.0 / block_seconds);
         self.tempo += change.clamp(-8.0 * block_seconds, 8.0 * block_seconds);
+        let warmth = smooth(params.heat);
+        self.coupling = COUPLING * smoothstep(0.2, 0.6, params.form);
+        // Thumps spread evenly over a bar of 16 sixteenths.
+        self.duck_gap = 240.0 / (self.tempo * self.patterns.thumps.max(1) as f32);
+        self.duck_shape = [0, 1].map(|end| lerp(DUCK_SHAPE[0][end], DUCK_SHAPE[1][end], warmth));
+        self.bass_accent_release = lerp(BASS_ACCENT_RELEASE[0], BASS_ACCENT_RELEASE[1], warmth);
         for stab in &mut self.stabs {
             stab.normalize();
         }
@@ -231,6 +291,8 @@ impl Pulse {
         if euclidean(patterns.thumps, BAR, 0, bar_step) {
             let velocity = if bar_step == 0 { 1.0 } else { 0.82 };
             self.thump.trigger(velocity, self.root, params.heat);
+            self.duck.trigger(velocity);
+            self.bass_accent.trigger(velocity);
             self.counts[0] += 1;
         }
         let tick = euclidean(
@@ -293,6 +355,13 @@ impl Pulse {
         let thump = self.thump.next() * THUMP_LEVEL;
         let tick = self.tick.next(noise).map(|sample| sample * TICK_LEVEL);
         let stab = (self.stabs[0].next() + self.stabs[1].next()) * STAB_LEVEL;
+        let step = 1.0 / self.sample_rate;
+        // Never below silence, however deep `DUCK` and `COUPLING` go.
+        let duck =
+            (self.duck.next(step, self.duck_gap, self.duck_shape) * DUCK * self.coupling).min(1.0);
+        self.duck_value = duck;
+        self.bass_accent_value =
+            self.bass_accent.next(0.004, self.bass_accent_release, step) * self.coupling;
         let level = self.level;
         PulseOut {
             dry: [
@@ -304,7 +373,50 @@ impl Pulse {
                 (0.3 * tick[0] + 0.25 * stab) * level,
                 (0.3 * tick[1] + 0.25 * stab) * level,
             ],
+            duck,
         }
+    }
+}
+
+/// The drone's dip after a thump, from 0 to 1: it reaches its depth within `DUCK_ATTACK`,
+/// holds, then recovers along an S-curve between two points of the gap to the next thump. A
+/// thump during a dip only deepens it, so the drone never jumps up.
+#[derive(Clone, Copy)]
+struct Duck {
+    start: f32,
+    peak: f32,
+    age: f32,
+    value: f32,
+}
+
+impl Default for Duck {
+    fn default() -> Self {
+        Self {
+            start: 0.0,
+            peak: 0.0,
+            age: 1e9,
+            value: 0.0,
+        }
+    }
+}
+
+impl Duck {
+    fn trigger(&mut self, velocity: f32) {
+        self.start = self.value;
+        self.peak = self.value.max(velocity);
+        self.age = 0.0;
+    }
+
+    /// `gap` is the time between thumps, `shape` the points of the gap, from 0 to 1 or more,
+    /// where the recovery starts and ends.
+    #[inline]
+    fn next(&mut self, step: f32, gap: f32, shape: [f32; 2]) -> f32 {
+        self.age += step;
+        let attack = smooth(self.age / DUCK_ATTACK);
+        let back = shape[1].max(shape[0] + 1e-3);
+        let release = 1.0 - smoothstep(shape[0], back, self.age / gap);
+        self.value = lerp(self.start, self.peak, attack) * release;
+        self.value
     }
 }
 
@@ -545,20 +657,90 @@ mod tests {
     use crate::audio::features::Features;
     use crate::palettes::PALETTES;
 
-    fn ticks(looseness: f32, seed: u64) -> u64 {
-        let rate = 8000.0;
-        let harmony = Harmony::from_palette(&PALETTES[0]);
-        let mut pulse = Pulse::new(rate, Rhythm::Euclidean, &harmony, Rng::new(seed));
-        let params = Params {
+    fn params(form: f32, looseness: f32) -> Params {
+        Params {
             heat: 0.5,
             flow: 0.5,
-            form: 0.7,
+            form,
             void: 0.5,
             flow_setting: 0.5,
             activity: 0.0,
             looseness,
             layers: Features::default().layers,
-        };
+        }
+    }
+
+    #[test]
+    fn dip_holds_recovers_with_the_gap_and_only_deepens() {
+        let step = 0.001;
+        let mut duck = Duck::default();
+        assert_eq!(duck.next(step, 1.0, [0.3, 1.0]), 0.0);
+        duck.trigger(1.0);
+        let mut values = Vec::new();
+        for _ in 0..1000 {
+            values.push(duck.next(step, 1.0, [0.3, 1.0]));
+        }
+        assert!(values[20] > 0.99 && values[299] > 0.99, "holds");
+        assert!(values[650] > 0.3 && values[650] < 0.7, "halfway back");
+        assert!(values[999] < 0.001, "back at the next thump");
+
+        // A slow shape is still low at the next thump; the new one only deepens it.
+        let mut duck = Duck::default();
+        duck.trigger(1.0);
+        for _ in 0..500 {
+            duck.next(step, 0.5, [0.2, 2.0]);
+        }
+        let mut previous = duck.value;
+        assert!(previous > 0.5);
+        duck.trigger(0.82);
+        for _ in 0..20 {
+            let value = duck.next(step, 0.5, [0.2, 2.0]);
+            assert!(value >= previous - 1e-6, "{value} after {previous}");
+            previous = value;
+        }
+    }
+
+    #[test]
+    fn drone_dips_and_bass_accents_with_thumps() {
+        let rate = 8000.0;
+        let harmony = Harmony::from_palette(&PALETTES[0]);
+        for (form, coupled) in [(0.1, false), (0.8, true)] {
+            let mut pulse = Pulse::new(rate, Rhythm::Euclidean, &harmony, Rng::new(1));
+            let params = params(form, 0.0);
+            let (mut deepest, mut accent, mut released) = (0.0_f32, 0.0_f32, 0);
+            let frames = rate as usize * 20;
+            for frame in 0..frames {
+                if frame % BLOCK == 0 {
+                    pulse.update_block(&params);
+                }
+                let duck = pulse.next().duck;
+                deepest = deepest.max(duck);
+                accent = accent.max(pulse.bass_accent());
+                released += (duck < 0.5 * (DUCK * COUPLING).min(1.0)) as usize;
+            }
+            if coupled {
+                // The first thump of a bar has full velocity; the envelope peaks just below it.
+                let dip = (DUCK * COUPLING).min(1.0);
+                assert!(
+                    (0.9 * dip..=dip).contains(&deepest),
+                    "dip {deepest} of {dip}"
+                );
+                assert!(
+                    (0.9 * COUPLING..=COUPLING).contains(&accent),
+                    "accent {accent}"
+                );
+                assert!(released > frames / 5, "swells back between thumps");
+            } else {
+                assert_eq!((deepest, accent), (0.0, 0.0), "untouched without thumps");
+            }
+        }
+    }
+
+    fn ticks(looseness: f32, seed: u64) -> u64 {
+        let rate = 8000.0;
+        let harmony = Harmony::from_palette(&PALETTES[0]);
+        let mut pulse = Pulse::new(rate, Rhythm::Euclidean, &harmony, Rng::new(seed));
+        let params = params(0.7, looseness);
         for frame in 0..(rate as usize * 40) {
             if frame % BLOCK == 0 {
                 pulse.update_block(&params);
