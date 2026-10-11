@@ -107,7 +107,12 @@ impl Renderer {
             .as_secs_f32()
             .min(MAX_FRAME_DELTA_SECONDS);
         self.delta_time = Instant::now();
+        self.render_step(state, delta);
+    }
 
+    /// Renders one frame `delta` seconds after the previous one; offline renderings call
+    /// this directly with a fixed step.
+    pub fn render_step(&mut self, state: &mut RenderState, delta: f32) {
         // A calibration test pattern replaces content; content and tides pause meanwhile.
         if state.calibration_pattern != Pattern::Off {
             state
@@ -141,5 +146,11 @@ impl Renderer {
 
     pub fn image(&self) -> &VoxelImage {
         &self.output
+    }
+
+    /// The content as rendered, before Brightness.
+    #[cfg_attr(not(test), allow(dead_code))] // used by the audio sketches until they go live
+    pub fn content_image(&self) -> &VoxelImage {
+        &self.next
     }
 }

@@ -13,6 +13,7 @@ Run `cargo run --release` in `server`. The first run creates `nova_settings.json
 - [Development](doc/development.md): building, hardware output, settings, adding content, troubleshooting
 - [Raspberry Pi setup](doc/raspberry_pi_setup.md): installing and running on the display
 - [Hardware protocol](doc/nova_protocol.md): packets, timing, and module addressing
+- [Audio concept](doc/audio_concept.md): the instrument meant to replace the synth, and its offline sketches
 
 ## The display
 
@@ -54,7 +55,7 @@ Use one universal control set for all content modules. Keep this order consisten
 
 ## Audio
 
-Audio is experimental. The sound is shared across all content modules, not triggered by individual voxels or visual events. CPAL drives an independent sample-rate stream on the server machine; browsers only control it. FunDSP supplies band-limited triangle/pulse oscillators, faint noise and a resonant Simper state-variable low-pass per voice. Rounded envelopes, subtle pulse-width movement, pitch gestures and a quiet filtered stereo echo keep the sound spacious. Resonance is bounded below self-oscillation; fixed mix headroom, DC removal and soft peak protection precede the smoothed Volume gain. Volume uses a squared gain curve for finer low-level adjustment.
+Audio is experimental. An instrument for drone and ambient sound that is to replace the synth below is being sketched offline: see the [audio concept](doc/audio_concept.md). The sound is shared across all content modules, not triggered by individual voxels or visual events. CPAL drives an independent sample-rate stream on the server machine; browsers only control it. FunDSP supplies band-limited triangle/pulse oscillators, faint noise and a resonant Simper state-variable low-pass per voice. Rounded envelopes, subtle pulse-width movement, pitch gestures and a quiet filtered stereo echo keep the sound spacious. Resonance is bounded below self-oscillation; fixed mix headroom, DC removal and soft peak protection precede the smoothed Volume gain. Volume uses a squared gain curve for finer low-level adjustment.
 
 - **Palette**: the selected palette's position in the list chooses a circular harmonic palette with pentatonic intervals. New pitch centres wait for existing voices to finish; sounding notes are not abruptly retuned.
 - **Heat** adds pulse harmonics, filter openness and modest resonance, not more events or higher master gain. Perceived loudness may still vary with timbre.

@@ -1,0 +1,428 @@
+//! The drone bed and the air above it.
+//!
+//! The bed is an additive partial bank: every tone of the harmony is a set of partials, each
+//! with a slightly detuned twin it beats against, a slow random amplitude drift and a place
+//! in the stereo field (centred in the bass). Heat crossfades from cold to warm: cold is
+//! thin and glassy (pure fundamentals, weak low harmonics, stretched upper partials, upper
+//! tones emphasized), warm is round (strong low harmonics, rolled-off highs, lower tones
+//! emphasized, wider beating and a gentle wow). Void keeps only the strongest share of
+//! partials, ranked like Void by rank in the visuals; the root's fundamental always stays. A
+//! K-weighted level estimate keeps the loudness constant whatever Heat, Void or the palette
+//! do.
+//!
+//! The air is noise through narrow resonators tuned to the harmony, strongest when cold.
+
+use super::{BLOCK, Harmony, MAX_TONES, Params, Tone};
+use crate::audio::dsp::{Drift, Rng, Rotor, Svf, coefficient, k_weight, lerp, smooth, smoothstep};
+
+const PARTIALS: usize = 8;
+
+/// Partial levels when cold and warm.
+const COLD: [f32; PARTIALS] = [1.0, 0.06, 0.03, 0.05, 0.12, 0.04, 0.10, 0.08];
+const WARM: [f32; PARTIALS] = [1.0, 0.62, 0.42, 0.28, 0.16, 0.08, 0.04, 0.02];
+
+/// Level of the root relative to the palette's tones.
+const ROOT_LEVEL: f32 = 0.75;
+
+/// K-weighted RMS level of the bed.
+const LEVEL: f32 = 0.11;
+
+/// Seconds over which a new harmony replaces the old one.
+const CROSSFADE_SECONDS: f32 = 5.0;
+
+#[derive(Clone, Copy)]
+struct Partial {
+    oscillators: [Rotor; 2],
+    /// Offset of the twin in Hz, before scaling by Heat and frequency.
+    beat: f32,
+    pan: [f32; 2],
+    drift: Drift,
+    drift_rate: f32,
+    gains: [f32; 2],
+    steps: [f32; 2],
+    mask: f32,
+    frequency: f32,
+    /// Level before Void, for ranking.
+    strength: f32,
+    /// Level after Void and the crossfade, before loudness normalization.
+    level: f32,
+}
+
+impl Partial {
+    fn new(rng: &mut Rng) -> Self {
+        Self {
+            oscillators: [
+                Rotor::new(rng.range(0.0, std::f32::consts::TAU)),
+                Rotor::new(rng.range(0.0, std::f32::consts::TAU)),
+            ],
+            beat: rng.range(0.03, 0.22) * if rng.unit() < 0.5 { -1.0 } else { 1.0 },
+            pan: [std::f32::consts::FRAC_1_SQRT_2; 2],
+            drift: Drift::new(rng),
+            drift_rate: rng.range(0.5, 1.5),
+            gains: [0.0; 2],
+            steps: [0.0; 2],
+            mask: 1.0,
+            frequency: 0.0,
+            strength: 0.0,
+            level: 0.0,
+        }
+    }
+}
+
+/// The partials of one harmony; two sets crossfade when the palette changes.
+struct Set {
+    tones: [Tone; MAX_TONES],
+    count: usize,
+    partials: [[Partial; PARTIALS]; MAX_TONES],
+    tone_drifts: [Drift; MAX_TONES],
+    level: f32,
+}
+
+impl Set {
+    fn new(rng: &mut Rng) -> Self {
+        Self {
+            tones: [Tone::default(); MAX_TONES],
+            count: 0,
+            partials: std::array::from_fn(|_| std::array::from_fn(|_| Partial::new(rng))),
+            tone_drifts: std::array::from_fn(|_| Drift::new(rng)),
+            level: 0.0,
+        }
+    }
+
+    fn load(&mut self, harmony: &Harmony, rng: &mut Rng) {
+        self.count = harmony.count;
+        self.tones = harmony.tones;
+        for (tone, partials) in harmony.tones().iter().zip(&mut self.partials) {
+            for (index, partial) in partials.iter_mut().enumerate() {
+                *partial = Partial::new(rng);
+                // The bass stays centred; partials spread wider the higher they are.
+                let frequency = tone.frequency * (index + 1) as f32;
+                let width = ((frequency - 160.0) / 400.0).clamp(0.0, 1.0);
+                let angle =
+                    (0.5 + 0.4 * width * rng.range(-1.0, 1.0)) * std::f32::consts::FRAC_PI_2;
+                partial.pan = [angle.cos(), angle.sin()];
+            }
+        }
+    }
+}
+
+/// Level of a partial's twin: the bass beats only gently, so the drone keeps its floor.
+fn partial_twin(twin: f32, frequency: f32) -> f32 {
+    if frequency < 150.0 {
+        twin.min(0.3)
+    } else {
+        twin
+    }
+}
+
+pub struct Bed {
+    sample_rate: f32,
+    sets: [Set; 2],
+    current: usize,
+    fade: f32,
+    rng: Rng,
+    seconds: f32,
+    wow: Drift,
+    normalization: f32,
+    order: [u8; MAX_TONES * PARTIALS],
+}
+
+impl Bed {
+    pub fn new(sample_rate: f32, harmony: &Harmony, mut rng: Rng) -> Self {
+        let mut sets = [Set::new(&mut rng), Set::new(&mut rng)];
+        sets[0].load(harmony, &mut rng);
+        sets[0].level = 1.0;
+        Self {
+            sample_rate,
+            sets,
+            current: 0,
+            fade: 1.0,
+            wow: Drift::new(&mut rng),
+            rng,
+            seconds: 0.0,
+            normalization: 0.0,
+            order: std::array::from_fn(|index| index as u8),
+        }
+    }
+
+    /// Switches to a harmony at once, without a crossfade.
+    pub fn load(&mut self, harmony: &Harmony) {
+        self.sets[0].load(harmony, &mut self.rng);
+        self.sets[0].level = 1.0;
+        self.sets[1].count = 0;
+        self.current = 0;
+        self.fade = 1.0;
+    }
+
+    pub fn fading(&self) -> bool {
+        self.fade < 1.0
+    }
+
+    /// Crossfades to a new harmony.
+    pub fn change(&mut self, harmony: &Harmony) {
+        let next = 1 - self.current;
+        self.sets[next].load(harmony, &mut self.rng);
+        self.sets[next].level = 0.0;
+        self.current = next;
+        self.fade = 0.0;
+    }
+
+    pub fn update_block(&mut self, params: &Params) {
+        let block_seconds = BLOCK as f32 / self.sample_rate;
+        self.seconds += block_seconds;
+        if self.fade < 1.0 {
+            self.fade = (self.fade + block_seconds / CROSSFADE_SECONDS).min(1.0);
+            self.sets[self.current].level = smooth(self.fade);
+            self.sets[1 - self.current].level = 1.0 - smooth(self.fade);
+            if self.fade >= 1.0 {
+                self.sets[1 - self.current].count = 0;
+            }
+        }
+
+        let warmth = smooth(params.heat);
+        let stretch = 0.035 * (1.0 - 2.0 * params.heat).max(0.0);
+        let wow_depth = 0.0012 * warmth;
+        let wow = 1.0
+            + wow_depth
+                * (0.6 * (std::f32::consts::TAU * 0.11 * self.seconds).sin()
+                    + 0.8 * (self.wow.advance(0.05 * block_seconds, &mut self.rng) - 0.5));
+        let twin = 0.3 + 0.4 * warmth;
+        // Tones above the root lean up when cold and down when warm.
+        let tilt = lerp(0.35, -0.25, warmth);
+        let depth = 0.45 + 0.35 * params.activity;
+        let partial_rate = (0.02 + 0.2 * params.flow) * block_seconds;
+        let tone_rate = (0.01 + 0.08 * params.flow) * block_seconds;
+        let top = (0.42 * self.sample_rate).min(14_000.0);
+        let keep = 1.0 - 0.9 * params.void;
+        let masks = coefficient(0.6, self.sample_rate / BLOCK as f32);
+
+        let mut power = 0.0;
+        for set in &mut self.sets {
+            if set.count == 0 {
+                continue;
+            }
+            for tone_index in 0..set.count {
+                let tone = set.tones[tone_index];
+                let tone_level = if tone_index == 0 {
+                    ROOT_LEVEL
+                } else {
+                    tone.level * (tone.frequency / 400.0).powf(tilt).clamp(0.4, 2.0)
+                };
+                let tone_motion = 0.6
+                    + 0.4
+                        * set.tone_drifts[tone_index].advance(
+                            tone_rate * set.partials[tone_index][0].drift_rate,
+                            &mut self.rng,
+                        );
+                for (index, partial) in set.partials[tone_index].iter_mut().enumerate() {
+                    let harmonic = (index + 1) as f32;
+                    let frequency = tone.frequency * harmonic.powf(1.0 + stretch) * wow;
+                    let motion = 1.0 - depth
+                        + depth
+                            * partial
+                                .drift
+                                .advance(partial_rate * partial.drift_rate, &mut self.rng);
+                    let anchor = tone_index == 0 && index == 0;
+                    let weight = if anchor {
+                        1.0
+                    } else {
+                        params.band_weight(frequency)
+                    };
+                    let ceiling = ((top - frequency) / (0.2 * top)).clamp(0.0, 1.0);
+                    partial.frequency = frequency;
+                    partial.strength = tone_level
+                        * tone_motion
+                        * lerp(COLD[index], WARM[index], warmth)
+                        * motion
+                        * weight
+                        * ceiling;
+                }
+            }
+
+            // Void by rank: only the strongest share keeps sounding.
+            let total = set.count * PARTIALS;
+            let order = &mut self.order[..total];
+            for (position, slot) in order.iter_mut().enumerate() {
+                *slot = position as u8;
+            }
+            let strength = |slot: u8| {
+                set.partials[slot as usize / PARTIALS][slot as usize % PARTIALS].strength
+            };
+            order.sort_unstable_by(|a, b| strength(*b).total_cmp(&strength(*a)));
+            let audible = order
+                .iter()
+                .filter(|&&slot| strength(slot) > 1e-4)
+                .count()
+                .max(1);
+            for (rank, &slot) in order.iter().enumerate() {
+                let (tone_index, index) = (slot as usize / PARTIALS, slot as usize % PARTIALS);
+                let partial = &mut set.partials[tone_index][index];
+                let position = (rank as f32 + 0.5) / audible as f32;
+                let target = if tone_index == 0 && index == 0 {
+                    1.0
+                } else {
+                    1.0 - smoothstep(keep - 0.06, keep + 0.06, position)
+                };
+                partial.mask += (target - partial.mask) * masks;
+                partial.level = partial.strength * partial.mask * set.level;
+                let weighted = partial.level * k_weight(partial.frequency);
+                power += 0.5
+                    * weighted
+                    * weighted
+                    * (1.0 + partial_twin(twin, partial.frequency).powi(2));
+            }
+        }
+
+        let target = (LEVEL / (power.sqrt() + 1e-6)).min(8.0);
+        self.normalization +=
+            (target - self.normalization) * coefficient(0.4, self.sample_rate / BLOCK as f32);
+
+        for set in &mut self.sets {
+            for tone_index in 0..set.count {
+                for partial in set.partials[tone_index].iter_mut() {
+                    let main = partial.level * self.normalization;
+                    let targets = [main, main * partial_twin(twin, partial.frequency)];
+                    let beat = partial.beat
+                        * (0.4 + 1.2 * params.heat)
+                        * (1.0 + partial.frequency / 1500.0).min(4.0);
+                    let beat = if partial.frequency < 150.0 {
+                        beat.clamp(-0.12, 0.12)
+                    } else {
+                        beat
+                    };
+                    partial.oscillators[0].set_frequency(partial.frequency, self.sample_rate);
+                    partial.oscillators[1]
+                        .set_frequency(partial.frequency + beat, self.sample_rate);
+                    for ((oscillator, step), (target, gain)) in partial
+                        .oscillators
+                        .iter_mut()
+                        .zip(&mut partial.steps)
+                        .zip(targets.iter().zip(&partial.gains))
+                    {
+                        oscillator.normalize();
+                        *step = (target - gain) / BLOCK as f32;
+                    }
+                }
+            }
+        }
+    }
+
+    #[inline]
+    pub fn next(&mut self) -> [f32; 2] {
+        let mut output = [0.0; 2];
+        for set in &mut self.sets {
+            for partials in set.partials[..set.count].iter_mut() {
+                for partial in partials.iter_mut() {
+                    if partial.gains[0] <= 0.0 && partial.steps[0] <= 0.0 {
+                        continue;
+                    }
+                    let sample = partial.oscillators[0].next() * partial.gains[0]
+                        + partial.oscillators[1].next() * partial.gains[1];
+                    partial.gains[0] = (partial.gains[0] + partial.steps[0]).max(0.0);
+                    partial.gains[1] = (partial.gains[1] + partial.steps[1]).max(0.0);
+                    output[0] += sample * partial.pan[0];
+                    output[1] += sample * partial.pan[1];
+                }
+            }
+        }
+        output
+    }
+}
+
+/// Noise through narrow resonators tuned to the harmony, folded into 800 Hz to 6.4 kHz:
+/// wind and breath, strongest when cold.
+pub struct Air {
+    sample_rate: f32,
+    resonators: [[Svf; 2]; MAX_TONES],
+    frequencies: [f32; MAX_TONES],
+    targets: [f32; MAX_TONES],
+    drifts: [Drift; MAX_TONES],
+    gains: [f32; MAX_TONES],
+    count: usize,
+    level: f32,
+    step: f32,
+    rng: Rng,
+}
+
+impl Air {
+    pub fn new(sample_rate: f32, harmony: &Harmony, mut rng: Rng) -> Self {
+        let mut air = Self {
+            sample_rate,
+            resonators: [[Svf::default(); 2]; MAX_TONES],
+            frequencies: [1000.0; MAX_TONES],
+            targets: [1000.0; MAX_TONES],
+            drifts: std::array::from_fn(|_| Drift::new(&mut rng)),
+            gains: [0.0; MAX_TONES],
+            count: 0,
+            level: 0.0,
+            step: 0.0,
+            rng,
+        };
+        air.change(harmony);
+        air.frequencies = air.targets;
+        air
+    }
+
+    /// Switches to a harmony at once, without gliding.
+    pub fn load(&mut self, harmony: &Harmony) {
+        self.count = 0;
+        self.change(harmony);
+    }
+
+    pub fn change(&mut self, harmony: &Harmony) {
+        // Resonators keep gliding from where they are; new ones start at their target.
+        for (index, tone) in harmony.tones().iter().enumerate() {
+            let mut frequency = tone.frequency;
+            while frequency < 800.0 {
+                frequency *= 2.0;
+            }
+            while frequency >= 6400.0 {
+                frequency *= 0.5;
+            }
+            self.targets[index] = frequency;
+            if index >= self.count {
+                self.frequencies[index] = frequency;
+            }
+        }
+        self.count = harmony.count;
+    }
+
+    pub fn update_block(&mut self, params: &Params) {
+        let block_seconds = BLOCK as f32 / self.sample_rate;
+        let glide = coefficient(2.0, self.sample_rate / BLOCK as f32);
+        let warmth = smooth(params.heat);
+        let q = lerp(28.0, 10.0, warmth);
+        // Narrower bands pass less noise: keep the power independent of Q.
+        let normalization = (q / 10.0).sqrt();
+        let gust_rate = (0.04 + 0.25 * params.flow) * block_seconds;
+        // Brighter when cold, darker when warm.
+        let tilt = lerp(0.3, -1.0, warmth);
+        for index in 0..self.count {
+            self.frequencies[index] += (self.targets[index] - self.frequencies[index]) * glide;
+            for resonator in &mut self.resonators[index] {
+                resonator.set(self.frequencies[index], q, self.sample_rate);
+            }
+            let gust =
+                self.drifts[index].advance(gust_rate * (1.0 + 0.3 * index as f32), &mut self.rng);
+            self.gains[index] = (0.25 + 0.75 * gust * gust)
+                * (self.frequencies[index] / 1000.0).powf(tilt)
+                * normalization;
+        }
+        let target = lerp(0.13, 0.025, warmth) * (0.8 + 0.5 * params.void);
+        self.step = (target - self.level) / BLOCK as f32;
+    }
+
+    #[inline]
+    pub fn next(&mut self) -> [f32; 2] {
+        self.level += self.step;
+        let noise = [self.rng.range(-1.0, 1.0), self.rng.range(-1.0, 1.0)];
+        let mut output = [0.0; 2];
+        for index in 0..self.count {
+            for channel in 0..2 {
+                output[channel] +=
+                    self.resonators[index][channel].bandpass(noise[channel]) * self.gains[index];
+            }
+        }
+        output.map(|sample| sample * self.level)
+    }
+}

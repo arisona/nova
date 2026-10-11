@@ -72,6 +72,20 @@ impl PaletteColor {
         }
     }
 
+    /// Lightness, chroma and hue in degrees, for sound. Kelvin and hex colors are
+    /// converted; whites have (nearly) no chroma.
+    #[cfg_attr(not(test), allow(dead_code))] // used by the audio sketches until they go live
+    pub fn oklch(&self) -> (f32, f32, f32) {
+        match self.spec {
+            Spec::Oklch(l, c, h) => (l, c, h),
+            _ => {
+                let linear = self.linear();
+                let color = Oklch::from_color_unclamped(LinSrgb::new(linear.x, linear.y, linear.z));
+                (color.l, color.chroma, color.hue.into_positive_degrees())
+            }
+        }
+    }
+
     /// sRGB in [0, 1].
     pub fn color(&self) -> Vec3 {
         let linear = self.linear().clamp(Vec3::ZERO, Vec3::ONE);
