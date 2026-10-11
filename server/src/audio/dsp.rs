@@ -175,35 +175,46 @@ impl Drift {
     }
 }
 
-/// A delay line with fractional, linearly interpolated reads.
+/// A delay line with whole and fractional (linearly interpolated) reads. Its length is a
+/// power of two, so positions wrap with a mask.
 pub struct DelayLine {
     buffer: Vec<f32>,
+    mask: usize,
     position: usize,
 }
 
 impl DelayLine {
     pub fn new(max_seconds: f32, sample_rate: f32) -> Self {
+        let length = ((max_seconds * sample_rate) as usize + 2).next_power_of_two();
         Self {
-            buffer: vec![0.0; (max_seconds * sample_rate) as usize + 2],
+            buffer: vec![0.0; length],
+            mask: length - 1,
             position: 0,
         }
     }
 
-    /// The sample written `delay` samples ago (at least 1, at most the length).
+    /// The sample written `delay` writes ago, from 1 (the latest) to the length. Read
+    /// before writing, it delays by `delay` samples.
+    #[inline]
+    pub fn tap(&self, delay: usize) -> f32 {
+        let delay = delay.clamp(1, self.mask + 1);
+        self.buffer[(self.position + 1).wrapping_sub(delay) & self.mask]
+    }
+
+    /// Like `tap`, between samples.
     #[inline]
     pub fn read(&self, delay: f32) -> f32 {
-        let length = self.buffer.len();
-        let delay = delay.clamp(1.0, (length - 2) as f32);
+        let delay = delay.clamp(1.0, self.mask as f32);
         let whole = delay as usize;
         let fraction = delay - whole as f32;
-        let a = self.buffer[(self.position + length - whole) % length];
-        let b = self.buffer[(self.position + length - whole - 1) % length];
+        let a = self.buffer[(self.position + 1).wrapping_sub(whole) & self.mask];
+        let b = self.buffer[self.position.wrapping_sub(whole) & self.mask];
         a + (b - a) * fraction
     }
 
     #[inline]
     pub fn write(&mut self, value: f32) {
-        self.position = (self.position + 1) % self.buffer.len();
+        self.position = (self.position + 1) & self.mask;
         self.buffer[self.position] = value;
     }
 }
@@ -249,6 +260,18 @@ mod tests {
         }
         assert!((999..=1001).contains(&crossings), "{crossings}");
         assert!((peak - 1.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn delay_lines_delay_by_whole_and_fractional_samples() {
+        let mut line = DelayLine::new(0.001, 1000.0);
+        for value in 1..=5 {
+            line.write(value as f32);
+        }
+        assert_eq!(line.tap(1), 5.0);
+        assert_eq!(line.tap(3), 3.0);
+        assert_eq!(line.read(2.5), 3.5);
+        assert_eq!(line.tap(0), 5.0, "delays below one sample read the latest");
     }
 
     #[test]

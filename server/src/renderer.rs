@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use crate::app_state::AppState;
+use crate::audio::FeedPublisher;
 use crate::calibration::Pattern;
 use crate::content::{Content, all_content};
 use crate::tides::{self, TideClock};
@@ -84,6 +85,8 @@ pub struct Renderer {
 
     delta_time: Instant,
     tides: TideClock,
+
+    audio: Option<FeedPublisher>,
 }
 
 impl Renderer {
@@ -97,7 +100,14 @@ impl Renderer {
 
             delta_time: Instant::now(),
             tides: TideClock::default(),
+
+            audio: None,
         }
+    }
+
+    /// Lets the sound follow the effective controls and the content of every frame.
+    pub fn feed_audio(&mut self, publisher: FeedPublisher) {
+        self.audio = Some(publisher);
     }
 
     pub fn render(&mut self, state: &mut RenderState) {
@@ -130,6 +140,7 @@ impl Renderer {
         }
 
         // Tides move the effective controls around the user's settings, for every module.
+        let flow_setting = state.flow;
         self.tides.advance(delta, state.flow);
         let seconds = self.tides.seconds();
         state.heat = tides::HEAT.apply(state.heat, seconds);
@@ -142,15 +153,12 @@ impl Renderer {
 
         state.set_reset(false);
         self.output.copy_scaled_from(&self.next, state.brightness);
+        if let Some(audio) = &mut self.audio {
+            audio.publish(state, flow_setting, &self.next, delta);
+        }
     }
 
     pub fn image(&self) -> &VoxelImage {
         &self.output
-    }
-
-    /// The content as rendered, before Brightness.
-    #[cfg_attr(not(test), allow(dead_code))] // used by the audio sketches until they go live
-    pub fn content_image(&self) -> &VoxelImage {
-        &self.next
     }
 }

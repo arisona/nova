@@ -9,13 +9,14 @@
 mod analysis;
 
 use std::fmt::Write as _;
+use std::io::Write as _;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use fundsp::prelude32::Wave;
+use std::sync::Arc;
 
-use super::features::FeatureExtractor;
-use super::instrument::{Controls, Instrument, Rhythm};
+use super::feed::{AudioFeed, FeedPublisher};
+use super::instrument::{Instrument, Rhythm};
 use crate::app_state::AppState;
 use crate::content::all_content_names;
 use crate::palettes::PALETTES;
@@ -195,8 +196,10 @@ struct Rendering {
 fn render(scenario: &Scenario) -> Rendering {
     let mut state = AppState::default();
     assert!(state.set_selected_content(&scenario.content));
+    state.set_volume(1.0);
+    let feed = Arc::new(AudioFeed::new(&state));
     let mut renderer = Renderer::new(state.dim());
-    let mut extractor = FeatureExtractor::default();
+    renderer.feed_audio(FeedPublisher::new(Arc::clone(&feed)));
     let mut instrument = Instrument::new(RATE, 7, scenario.rhythm);
     let frames = (scenario.seconds / FRAME_SECONDS).round() as usize;
     let per_frame = (RATE * FRAME_SECONDS) as usize;
@@ -211,19 +214,11 @@ fn render(scenario: &Scenario) -> Rendering {
         (scenario.set)(frame as f32 / (frames - 1).max(1) as f32, &mut state);
         let mut render_state = RenderState::from(&state);
         renderer.render_step(&mut render_state, FRAME_SECONDS);
-        let features = extractor.extract(renderer.content_image());
+        let features = feed.features();
         rendering.activity.0 += features.activity / frames as f32;
         rendering.activity.1 = rendering.activity.1.max(features.activity);
         instrument.set_features(features);
-        instrument.set_controls(Controls {
-            volume: 1.0,
-            palette: render_state.palette(),
-            heat: render_state.heat(),
-            flow: render_state.flow(),
-            form: render_state.form(),
-            void: render_state.void(),
-            flow_setting: state.flow(),
-        });
+        instrument.set_controls(feed.controls());
         let started = Instant::now();
         for _ in 0..per_frame {
             let [left, right] = instrument.next_frame();
@@ -236,10 +231,32 @@ fn render(scenario: &Scenario) -> Rendering {
     rendering
 }
 
+/// Writes a stereo WAV file of 32-bit floats.
 fn save_wav(left: &[f32], right: &[f32], path: &Path) -> std::io::Result<()> {
-    let mut wave = Wave::from_samples(RATE as f64, left);
-    wave.push_channel(right);
-    wave.save_wav32(path)
+    let frames = left.len().min(right.len()) as u32;
+    let data = frames * 8;
+    let mut file = std::io::BufWriter::new(std::fs::File::create(path)?);
+    file.write_all(b"RIFF")?;
+    file.write_all(&(4 + 26 + 12 + 8 + data).to_le_bytes())?;
+    file.write_all(b"WAVEfmt ")?;
+    file.write_all(&18_u32.to_le_bytes())?;
+    file.write_all(&3_u16.to_le_bytes())?; // IEEE float
+    file.write_all(&2_u16.to_le_bytes())?;
+    file.write_all(&(RATE as u32).to_le_bytes())?;
+    file.write_all(&(RATE as u32 * 8).to_le_bytes())?;
+    file.write_all(&8_u16.to_le_bytes())?;
+    file.write_all(&32_u16.to_le_bytes())?;
+    file.write_all(&0_u16.to_le_bytes())?;
+    file.write_all(b"fact")?;
+    file.write_all(&4_u32.to_le_bytes())?;
+    file.write_all(&frames.to_le_bytes())?;
+    file.write_all(b"data")?;
+    file.write_all(&data.to_le_bytes())?;
+    for (left, right) in left.iter().zip(right) {
+        file.write_all(&left.to_le_bytes())?;
+        file.write_all(&right.to_le_bytes())?;
+    }
+    file.flush()
 }
 
 #[test]

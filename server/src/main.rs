@@ -50,7 +50,7 @@ fn main() {
         }
     );
 
-    let _audio = if start_audio {
+    let audio = if start_audio {
         audio::AudioService::start(Arc::clone(&state))
             .map_err(|error| {
                 log::error!("Cannot start audio service: {error}");
@@ -68,7 +68,10 @@ fn main() {
 
     web_server::start(Arc::clone(&state));
 
-    let renderer = renderer::Renderer::new(state.lock().unwrap().dim());
+    let mut renderer = renderer::Renderer::new(state.lock().unwrap().dim());
+    if let Some(audio) = &audio {
+        renderer.feed_audio(audio::FeedPublisher::new(audio.feed()));
+    }
     if run_simulator {
         simulator::run(Arc::clone(&state), renderer);
     } else {

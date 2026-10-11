@@ -2,24 +2,25 @@
 //!
 //! The dub delay is a tempo-synced ping-pong (a dotted eighth) with a band-pass, gentle
 //! saturation and tape flutter in its loop; warmer means more feedback and darker repeats.
-//! The reverb is a long, modulated FDN; its input is high-passed so the bass stays dry and
-//! clean. Void moves the sound away: less and darker dry signal above the bass, more reverb.
+//! The reverb (see `reverb.rs`) has a long, modulated tail; its input is high-passed so the
+//! bass stays dry and clean. Void moves the sound away: less and darker dry signal above the bass, more reverb.
 //! The master keeps everything below 120 Hz mono (subwoofers sum their channels), removes
 //! infrasound and limits peaks to about −1 dBFS with a short look-ahead.
 
-use fundsp::prelude32::{AudioUnit, limiter_stereo, lowpole_hz, reverb2_stereo};
-
+use super::limiter::Limiter;
 use super::pulse::PulseOut;
+use super::reverb::Reverb;
 use super::{BLOCK, Params};
 use crate::audio::dsp::{DelayLine, OnePole, Svf, coefficient, lerp, smooth};
 
-/// The limiter holds peaks at about 0.91 of its input scale; scaling by this keeps them
-/// at about −1 dBFS.
-const CEILING: f32 = 0.98;
+/// Largest sample value: −1 dBFS.
+const CEILING: f32 = 0.891;
 
-/// The reverb's steady-state gain is about −5 dB; at Void 0.5 it sits about 9 dB below
-/// the dry signal.
-const REVERB_LEVEL: f32 = 1.0;
+const REVERB_SECONDS: f32 = 8.0;
+const REVERB_DAMPING: f32 = 5000.0;
+
+/// The reverb keeps about the loudness of its input; at Void 0.5 it is about as loud.
+const REVERB_LEVEL: f32 = 1.55;
 const ECHO_LEVEL: f32 = 0.6;
 
 struct DubDelay {
@@ -95,7 +96,7 @@ impl DubDelay {
 pub struct Space {
     sample_rate: f32,
     dub: DubDelay,
-    reverb: Box<dyn AudioUnit>,
+    reverb: Reverb,
     /// Fourth-order Butterworth high-pass per channel, so the bass stays out of the reverb.
     reverb_input: [[Svf; 2]; 2],
     split: [Svf; 2],
@@ -103,7 +104,7 @@ pub struct Space {
     /// Fourth-order Butterworth high-pass for the side signal.
     side: [Svf; 2],
     infrasonic: [Svf; 2],
-    limiter: Box<dyn AudioUnit>,
+    limiter: Limiter,
     dry: f32,
     dry_step: f32,
     wet: f32,
@@ -112,13 +113,9 @@ pub struct Space {
 
 impl Space {
     pub fn new(sample_rate: f32) -> Self {
-        let mut reverb: Box<dyn AudioUnit> =
-            Box::new(reverb2_stereo(28.0, 8.0, 0.9, 0.6, lowpole_hz(5000.0)));
-        let mut limiter: Box<dyn AudioUnit> = Box::new(limiter_stereo(0.003, 0.25));
-        for unit in [&mut reverb, &mut limiter] {
-            unit.set_sample_rate(sample_rate as f64);
-            unit.allocate();
-        }
+        let mut reverb = Reverb::new(sample_rate);
+        reverb.set_decay(REVERB_SECONDS);
+        reverb.set_damping(REVERB_DAMPING);
         Self {
             sample_rate,
             dub: DubDelay::new(sample_rate),
@@ -134,7 +131,7 @@ impl Space {
                 Svf::new(120.0, 1.307, sample_rate),
             ],
             infrasonic: [Svf::new(18.0, 0.707, sample_rate); 2],
-            limiter,
+            limiter: Limiter::new(sample_rate, CEILING, 0.003, 0.25),
             dry: 1.0,
             dry_step: 0.0,
             wet: REVERB_LEVEL,
@@ -151,6 +148,7 @@ impl Space {
             filter.set(cutoff, 0.6, self.sample_rate);
         }
         self.dub.update_block(tempo, params.heat);
+        self.reverb.update_block();
     }
 
     #[inline]
@@ -169,8 +167,7 @@ impl Space {
                 .iter_mut()
                 .fold(input, |input, filter| filter.highpass(input));
         }
-        let mut wet = [0.0; 2];
-        self.reverb.tick(&send, &mut wet);
+        let wet = self.reverb.process(send);
 
         let mut output = [0.0; 2];
         for channel in 0..2 {
@@ -191,10 +188,8 @@ impl Space {
         let stereo = [mid + side, mid - side];
         let mut input = [0.0; 2];
         for channel in 0..2 {
-            input[channel] = self.infrasonic[channel].highpass(stereo[channel]) / CEILING;
+            input[channel] = self.infrasonic[channel].highpass(stereo[channel]);
         }
-        let mut limited = [0.0; 2];
-        self.limiter.tick(&input, &mut limited);
-        limited.map(|sample| sample * CEILING)
+        self.limiter.process(input)
     }
 }

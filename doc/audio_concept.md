@@ -1,6 +1,6 @@
 # Audio concept: Nova as an instrument
 
-Status: work in progress. The live synthesizer described in the [README](../README.md#audio) is still the three-voice synth; the instrument below exists as offline sketches (see [Sketches](#sketches)) until it replaces it.
+Status: work in progress. The instrument is live (it replaced the three-voice synth) and ready for tuning; the [README](../README.md#audio) summarizes what it does. This document keeps the reasoning, the open questions and the offline [sketches](#sketches).
 
 ## Aim
 
@@ -59,7 +59,7 @@ Image features change dynamics and accents, not where the steps fall. Variants 1
 
 ## Constraints
 
-The existing audio rules stay: the audio callback does not lock, allocate, log or touch files; controls are smoothed inside the instrument; Volume is applied last with a click-free ramp; everything must run comfortably on a Raspberry Pi 4 next to the renderer. Changes to the README's rules that the instrument needs when it goes live: Void is shared with audio, and sound is loosely coupled to the image through features rather than independent of it.
+The audio callback does not lock, allocate, log or touch files; controls are smoothed inside the instrument; Volume is applied last with a click-free ramp; everything must run comfortably on a Raspberry Pi 4 next to the renderer. Void is shared with audio, and sound is loosely coupled to the image through features. The live instrument plays the Euclidean rhythm (`RHYTHM` in `audio/output.rs`); the sketches compare both.
 
 ## Sketches
 
@@ -67,7 +67,7 @@ The existing audio rules stay: the audio callback does not lock, allocate, log o
 
 Scenarios: Heat, Form (in both rhythm variants), Void and Flow sweeps, every palette in turn, four corners (cold and warm, ambient and rhythmic), and every content module with all controls at 0.5. For each it writes a 32-bit float stereo WAV at 48 kHz and a spectrogram (PPM, 20 Hz to 20 kHz on a logarithmic axis), and `report.md` lists the integrated loudness (ITU-R BS.1770) and loudness range, sample peak, crest factor, the share of energy per frequency band, the side-to-mid ratio below 80 Hz (the mono check for the subwoofer), how much faster than real time the instrument rendered, the visual activity, and how many steps each pulse voice played.
 
-The first sketches measure about −19 LUFS for the drone and −18 LUFS with the pulse, peaks below −3 dBFS, and side signal more than 40 dB below the mid signal under 80 Hz. They render about 30 times faster than real time on a desktop CPU; the reverb takes about half of that, so it is the first candidate for a lighter replacement if the Raspberry Pi needs it.
+The first sketches measure about −19 LUFS for the drone and −18 LUFS with the pulse, peaks below −3 dBFS, and side signal more than 40 dB below the mid signal under 80 Hz. On an Apple M2 they render about 50 times faster than real time in release builds and 3 times in debug builds. The reverb and the limiter are our own: an earlier FunDSP reverb, built from generic combinators, ran at 0.3 times real time in debug builds and made the stream drop out.
 
 The measurements catch technical problems; they say nothing about whether it sounds good. Listening on the target system decides. Questions for listening:
 
@@ -81,7 +81,7 @@ The measurements catch technical problems; they say nothing about whether it sou
 
 ## Plan
 
-1. Offline harness and first sketches: bed, air and space; pulse in Euclidean and polymeter variants. _(current)_
-2. Listen, choose and tune; then the grain layer and module hints.
-3. Go live: the renderer publishes features and effective controls to the audio thread, the instrument replaces the three-voice synth, and the README is updated.
+1. Offline harness and first sketches: bed, air and space; pulse in Euclidean and polymeter variants. _(done)_
+2. Go live: the renderer publishes features and effective controls to the audio thread, and the instrument replaces the three-voice synth. _(done)_
+3. Listen, choose and tune; then the grain layer and module hints. _(current)_
 4. Profile on the Raspberry Pi with visuals active, and listen on the target system in different rooms.

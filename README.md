@@ -2,7 +2,7 @@
 
 Rust-based procedural content generation for the Nova voxel display, with a desktop simulator and a React control interface.
 
-Six content modules explore the low-resolution volume: **Orion's Belt** with a single noise primitive, and **Andromeda**, **Betelgeuse**, **Oort Cloud**, **Pleiades** and **Tannhäuser Gate**, which reinterpret the content of the former Java version. Independent **Brightness** and **Volume** control visual and audio output; **Palette**, **Heat**, **Flow**, and **Form** shape both, and **Void** shapes the visuals. A restrained three-voice synthesizer adds early-computer-inspired tones and occasional rapid chord arpeggios.
+Six content modules explore the low-resolution volume: **Orion's Belt** with a single noise primitive, and **Andromeda**, **Betelgeuse**, **Oort Cloud**, **Pleiades** and **Tannhäuser Gate**, which reinterpret the content of the former Java version. Independent **Brightness** and **Volume** control visual and audio output; **Palette**, **Heat**, **Flow**, **Form** and **Void** shape both. An instrument for drone and ambient sound moves between cold and warm, ambient and rhythmic, loosely following the content.
 
 This README is the canonical project guidance for both human contributors and coding agents. Follow the control semantics and design constraints below when changing the project.
 
@@ -13,7 +13,7 @@ Run `cargo run --release` in `server`. The first run creates `nova_settings.json
 - [Development](doc/development.md): building, hardware output, settings, adding content, troubleshooting
 - [Raspberry Pi setup](doc/raspberry_pi_setup.md): installing and running on the display
 - [Hardware protocol](doc/nova_protocol.md): packets, timing, and module addressing
-- [Audio concept](doc/audio_concept.md): the instrument meant to replace the synth, and its offline sketches
+- [Audio concept](doc/audio_concept.md): the sound instrument, its mapping and offline sketches
 
 ## The display
 
@@ -36,12 +36,12 @@ Use one universal control set for all content modules. Keep this order consisten
 | Control                       | Meaning and implementation contract                                                                                                                                                                                   |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Brightness** (`brightness`) | Global visual output level. Apply once in the renderer, after content generation; never feed the scaled output back into content.                                                                                     |
-| **Volume** (`volume`)         | Independent audio output level, after the complete synth/effects mix. Zero mutes, with a short click-preventing ramp; musical time continues.                                                                         |
+| **Volume** (`volume`)         | Independent audio output level, after the complete instrument mix. Zero mutes, with a short click-preventing ramp; musical time continues.                                                                            |
 | **Palette** (`palette`)       | One of the curated palettes, by name. In the web app, a tap selects the next one, wrapping around.                                                                                                                    |
 | **Heat** (`heat`)             | Gray at 0, the palette as published at 0.5, up to twice its saturation at 1, preserving hue. Does not change occupancy, motion speed, or Form. Single-color modules use it to pick their color instead (see Content). |
 | **Flow** (`flow`)             | Evolution rate. Zero freezes the visual composition but retains slow audio evolution; changing the value must not jump either timeline.                                                                               |
 | **Form** (`form`)             | Structure, from horizontal layers through columns, blobs and patches to per-voxel grain. Also sets how many palette colors show at once.                                                                              |
-| **Void** (`void`)             | Fraction of the volume left dark. Lit voxels keep the same brightness at any value. Visual only.                                                                                                                      |
+| **Void** (`void`)             | Fraction of the volume left dark. Lit voxels keep the same brightness at any value. In sound, thins the spectrum and adds distance, never silence.                                                                    |
 
 ### Design principles
 
@@ -51,20 +51,23 @@ Use one universal control set for all content modules. Keep this order consisten
 - The web app shows icons without text labels, so users discover the controls by exploring. `SHOW_LABELS` in `webapp/src/ControlRow.tsx` turns labels on; screen readers always get them.
 - Content and Palette are chosen the same way: a strip as wide as the sliders shows the current choice, its name fades in briefly, and a tap selects the next one, wrapping around. The content strip sits below Brightness and Volume and shows the module's spectral signature: lines like a star's emission spectrum, placed by a hash of the module's name and drawn in the selected palette's colors (`webapp/src/ContentSignature.tsx`), so every module, including new ones, gets its own. Hide the content strip when fewer than two modules are enabled. A sole enabled module is automatically selected.
 - Keep dependencies minimal in both the web app and Rust server; prefer existing capabilities for small changes.
-- Audio shares Palette, Heat, Flow, and Form, with independent Volume. Keep Brightness out of synthesis and Volume out of visual rendering.
+- Audio shares Palette, Heat, Flow, Form and Void, with independent Volume. Keep Brightness out of synthesis and Volume out of visual rendering.
 
 ## Audio
 
-Audio is experimental. An instrument for drone and ambient sound that is to replace the synth below is being sketched offline: see the [audio concept](doc/audio_concept.md). The sound is shared across all content modules, not triggered by individual voxels or visual events. CPAL drives an independent sample-rate stream on the server machine; browsers only control it. FunDSP supplies band-limited triangle/pulse oscillators, faint noise and a resonant Simper state-variable low-pass per voice. Rounded envelopes, subtle pulse-width movement, pitch gestures and a quiet filtered stereo echo keep the sound spacious. Resonance is bounded below self-oscillation; fixed mix headroom, DC removal and soft peak protection precede the smoothed Volume gain. Volume uses a squared gain curve for finer low-level adjustment.
+Audio is experimental: an instrument for drone and ambient sound, shared across all content modules, with its own character rather than one sound per module. Its design, mapping and open questions are in the [audio concept](doc/audio_concept.md). CPAL drives an independent sample-rate stream on the server machine; browsers only control it.
 
-- **Palette**: the selected palette's position in the list chooses a circular harmonic palette with pentatonic intervals. New pitch centres wait for existing voices to finish; sounding notes are not abruptly retuned.
-- **Heat** adds pulse harmonics, filter openness and modest resonance, not more events or higher master gain. Perceived loudness may still vary with timbre.
-- **Flow** changes note-event pace with a nonzero minimum. At zero, notes still appear and filters evolve slowly. Existing envelopes are timed in seconds and are never retimed by Flow changes.
-- **Form** adds overlap, motif activity and occasional rapid arpeggios within a single voice. At most three voices and one arpeggiated voice sound at once; busy voices finish rather than being cut off. Arpeggio steps are 25-60 ms, independent of Flow, under one continuous envelope.
+- **Layers**: a drone bed of additive partials in just intonation, slowly beating against detuned twins; air (noise through narrow resonators tuned to the bed); a pulse of tuned sub thumps, ticks and chord stabs on a 16th-note grid; a tempo-synced dub delay and a long modulated reverb.
+- **Palette** sets the tonal world: the colors' mean hue picks the root, each color adds a tone by its hue distance, lightness and chroma. A palette change crossfades to the new tones.
+- **Heat** goes from cold (thin, glassy, bright air, straight rhythm) to warm (round, low harmonics, swing, saturated thumps, more dub feedback), keeping the pitches and the loudness.
+- **Flow** sets how fast the bed evolves, with a nonzero minimum, and the tempo (64 to 124 BPM) from the slider setting without its tide, so the tempo does not wobble. At Flow 0 the pulse rests and the drone keeps breathing.
+- **Form** goes from ambient to rhythmic: pure drone at low Form, then thumps, ticks and stabs growing denser. Euclidean patterns spread the pulses evenly; patterns change only at bar boundaries.
+- **Void** keeps only the strongest share of partials at constant loudness and moves the sound away (less and darker dry signal, more reverb). It never silences the sound.
+- **The image** shapes the sound loosely: the renderer publishes the effective controls (after the tides) and features of the content before Brightness. The light in the ten voxel layers weights ten frequency bands, low at the bottom; visual activity animates the bed and the pulse dynamics, and a sudden rise may add one stab on an off-beat. Features are smoothed over seconds; nothing is triggered voxel by voxel.
 
-The audio callback must not lock application state, allocate, log or access files. Controls are published by the audio service and smoothed inside the synth. Output uses the OS default device and its sample rate, with mono downmix when needed. Audio is off unless `audio` is set in the settings file. Missing/disconnected devices are reported separately from display status and retried without stopping visuals. A recovered stream fades in from silence. First startup and restored defaults use Volume zero; saved nonzero Volume resumes on subsequent launches. Begin listening with low speaker/system volume.
+The audio callback must not lock application state, allocate, log or access files: the renderer and the audio service publish to a lock-free feed (`audio/feed.rs`), and the instrument smooths everything it reads. Below 120 Hz the output is mono (subwoofers sum their channels); an infrasonic high-pass and a look-ahead limiter at about −1 dBFS precede the smoothed Volume gain, which uses a squared curve for finer low-level adjustment. Output uses the OS default device and its sample rate, with mono downmix when needed. Audio is off unless `audio` is set in the settings file. Missing/disconnected devices are reported separately from display status and retried without stopping visuals. Dropouts (buffer underruns) are counted and logged but do not restart the stream. A new or recovered stream fades in from silence. First startup and restored defaults use Volume zero; saved nonzero Volume resumes on subsequent launches. The sound is designed for full-range speakers with a subwoofer; begin listening with low speaker/system volume.
 
-`server/src/audio.rs` is the module entry point; sound constants and device-independent tests live in `server/src/audio/synth.rs`, and native output lives in `server/src/audio/output.rs`. Keep FunDSP's optional file-decoding and FFT features disabled. Numerical tests do not establish sound quality: tune at installation listening levels and profile with visuals active on the actual Raspberry Pi.
+`server/src/audio.rs` is the module entry point. The instrument lives in `audio/instrument.rs` (harmony, controls) and `audio/instrument/` (bed and air, pulse, space and master, reverb, limiter), with DSP helpers in `audio/dsp.rs`, image features in `audio/features.rs` and native output in `audio/output.rs`. Offline sketches with measurements (`audio/sketches.rs`) render the instrument driven by the real content; see [Development](doc/development.md#audio-output). The DSP is plain code without audio dependencies; keep it free of heavily generic abstractions, which can run hundreds of times slower in debug builds and make the stream drop out. The reverb's channel and diffusion-step counts trade quality for cost. Numerical tests do not establish sound quality: tune at installation listening levels and profile with visuals active on the actual Raspberry Pi.
 
 ## Content
 
@@ -98,7 +101,7 @@ The Java version (branch `nova_final_java_version`) had 27 content classes. They
 
 ## Tides
 
-Tides are slow, subtle variation brought in by the system rather than the user, defined in `server/src/tides.rs`. Each tide is a smooth, bounded swell of two sines with golden-ratio periods, so it never loops exactly and needs no state; sound can later compute identical values.
+Tides are slow, subtle variation brought in by the system rather than the user, defined in `server/src/tides.rs`. Each tide is a smooth, bounded swell of two sines with golden-ratio periods, so it never loops exactly and needs no state. Sound receives the effective controls, so it breathes with the light.
 
 - Global tides, applied by the renderer to every content module: Heat (37 s, ±0.08), Flow (23 s, ±0.10), Form (53 s, ±0.06) and Void (29 s, ±0.08). The swing tapers to nothing at 0 and 1, so both extremes stay exact; in particular Flow 0 stays 0.
 - Content modules can run their own tides on the same clock (`RenderState::tide_seconds`). Orion's Belt stretches its structures vertically, varies how many colors show at once, and swings which colors dominate.

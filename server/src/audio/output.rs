@@ -6,74 +6,103 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use cpal::{
-    FromSample, SizedSample, Stream, StreamConfig,
+    ErrorKind, FromSample, SizedSample, Stream, StreamConfig,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 
-use super::{AudioControls, Synth};
+use super::feed::AudioFeed;
+use super::instrument::{Instrument, Rhythm};
 use crate::app_state::{AppState, Status};
-use crate::palettes::PALETTES;
 
-/// The selected palette's position in the list, which sets the pitch centre.
-fn palette_tone(state: &AppState) -> f32 {
-    state.palette_index() as f32 / PALETTES.len() as f32
+/// The rhythm the live instrument plays; the sketches compare both.
+const RHYTHM: Rhythm = Rhythm::Euclidean;
+
+/// Seconds between reports of dropouts in the log.
+const DROPOUT_REPORT_SECONDS: u64 = 10;
+
+/// Whether the stream must be rebuilt after an error. Dropouts, a reroute to a new default
+/// device and refused real-time scheduling leave it running.
+fn is_fatal(kind: ErrorKind) -> bool {
+    !matches!(
+        kind,
+        ErrorKind::Xrun | ErrorKind::DeviceChanged | ErrorKind::RealtimeDenied
+    )
 }
 
+/// What the stream's error callback hands to the service thread. Dropouts are reported on
+/// the real-time thread, so they only count.
 #[derive(Default)]
-struct SharedControls {
-    values: [AtomicU32; 5],
+struct Faults {
+    dropouts: AtomicU32,
+    /// Set when the stream must be rebuilt.
+    fatal: AtomicBool,
+    /// The latest error other than a dropout, for the log.
+    latest: Mutex<Option<cpal::Error>>,
 }
 
-impl SharedControls {
-    fn publish(&self, state: &AppState) {
-        for (slot, value) in self.values.iter().zip([
-            state.volume(),
-            palette_tone(state),
-            state.heat(),
-            state.flow(),
-            state.form(),
-        ]) {
-            slot.store(value.to_bits(), Ordering::Relaxed);
+impl Faults {
+    fn report(&self, error: cpal::Error) {
+        let kind = error.kind();
+        if kind == ErrorKind::Xrun {
+            self.dropouts.fetch_add(1, Ordering::Relaxed);
+            return;
         }
-    }
-
-    fn snapshot(&self) -> AudioControls {
-        let values = self
-            .values
-            .each_ref()
-            .map(|value| f32::from_bits(value.load(Ordering::Relaxed)));
-        AudioControls {
-            volume: values[0],
-            tone: values[1],
-            heat: values[2],
-            flow: values[3],
-            form: values[4],
+        if let Ok(mut latest) = self.latest.try_lock() {
+            latest.get_or_insert(error);
+        }
+        if is_fatal(kind) {
+            self.fatal.store(true, Ordering::Relaxed);
         }
     }
 }
 
 pub struct AudioService {
+    feed: Arc<AudioFeed>,
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl AudioService {
     pub fn start(state: Arc<Mutex<AppState>>) -> std::io::Result<Self> {
+        let feed = Arc::new(AudioFeed::new(&state.lock().unwrap()));
+        let thread_feed = Arc::clone(&feed);
         let stop = Arc::new(AtomicBool::new(false));
         let thread_stop = Arc::clone(&stop);
         let thread = thread::Builder::new()
             .name("nova-audio".into())
             .spawn(move || {
-                let controls = Arc::new(SharedControls::default());
-                let fault = Arc::new(AtomicBool::new(false));
+                let faults = Arc::new(Faults::default());
                 let mut stream = None;
                 let mut retry_at = Instant::now();
+                let mut dropouts_at = Instant::now();
                 let mut audio_status = Status::Unknown;
                 while !thread_stop.load(Ordering::Relaxed) {
                     if let Ok(state) = state.lock() {
-                        controls.publish(&state);
+                        thread_feed.set_volume(state.volume());
                     }
-                    if fault.swap(false, Ordering::Relaxed) {
+                    let latest = faults
+                        .latest
+                        .lock()
+                        .ok()
+                        .and_then(|mut latest| latest.take());
+                    if let Some(error) = latest {
+                        if is_fatal(error.kind()) {
+                            log::warn!("Audio error: {error}");
+                        } else {
+                            log::info!("Audio: {error}");
+                        }
+                    }
+                    if dropouts_at.elapsed() >= Duration::from_secs(DROPOUT_REPORT_SECONDS) {
+                        dropouts_at = Instant::now();
+                        let dropouts = faults.dropouts.swap(0, Ordering::Relaxed);
+                        if dropouts > 0 {
+                            log::warn!(
+                                "Audio dropped out {dropouts} times in {DROPOUT_REPORT_SECONDS} s; \
+                                 the instrument may be too slow for this machine"
+                            );
+                        }
+                    }
+                    if faults.fatal.swap(false, Ordering::Relaxed) {
                         stream = None;
                         retry_at = Instant::now() + Duration::from_secs(2);
                         audio_status =
@@ -81,7 +110,7 @@ impl AudioService {
                         log::warn!("Audio stream interrupted; retrying output device");
                     }
                     if stream.is_none() && Instant::now() >= retry_at {
-                        match open_stream(Arc::clone(&controls), Arc::clone(&fault)) {
+                        match open_stream(Arc::clone(&thread_feed), Arc::clone(&faults)) {
                             Ok(opened) => {
                                 stream = Some(opened);
                                 audio_status = Status::Ok("Audio ready".into());
@@ -108,9 +137,15 @@ impl AudioService {
                 }
             })?;
         Ok(Self {
+            feed,
             stop,
             thread: Some(thread),
         })
+    }
+
+    /// What the renderer publishes to.
+    pub fn feed(&self) -> Arc<AudioFeed> {
+        Arc::clone(&self.feed)
     }
 }
 
@@ -124,7 +159,7 @@ impl Drop for AudioService {
     }
 }
 
-fn open_stream(controls: Arc<SharedControls>, fault: Arc<AtomicBool>) -> Result<Stream, String> {
+fn open_stream(feed: Arc<AudioFeed>, faults: Arc<Faults>) -> Result<Stream, String> {
     let device = cpal::default_host()
         .default_output_device()
         .ok_or("No output device")?;
@@ -139,17 +174,17 @@ fn open_stream(controls: Arc<SharedControls>, fault: Arc<AtomicBool>) -> Result<
         config.buffer_size = cpal::BufferSize::Fixed(512_u32.clamp(*min, *max));
     }
     match supported.sample_format() {
-        cpal::SampleFormat::F32 => build_stream::<f32>(&device, &config, controls, fault),
-        cpal::SampleFormat::F64 => build_stream::<f64>(&device, &config, controls, fault),
-        cpal::SampleFormat::I8 => build_stream::<i8>(&device, &config, controls, fault),
-        cpal::SampleFormat::I16 => build_stream::<i16>(&device, &config, controls, fault),
-        cpal::SampleFormat::I24 => build_stream::<cpal::I24>(&device, &config, controls, fault),
-        cpal::SampleFormat::I32 => build_stream::<i32>(&device, &config, controls, fault),
-        cpal::SampleFormat::I64 => build_stream::<i64>(&device, &config, controls, fault),
-        cpal::SampleFormat::U8 => build_stream::<u8>(&device, &config, controls, fault),
-        cpal::SampleFormat::U16 => build_stream::<u16>(&device, &config, controls, fault),
-        cpal::SampleFormat::U32 => build_stream::<u32>(&device, &config, controls, fault),
-        cpal::SampleFormat::U64 => build_stream::<u64>(&device, &config, controls, fault),
+        cpal::SampleFormat::F32 => build_stream::<f32>(&device, &config, feed, faults),
+        cpal::SampleFormat::F64 => build_stream::<f64>(&device, &config, feed, faults),
+        cpal::SampleFormat::I8 => build_stream::<i8>(&device, &config, feed, faults),
+        cpal::SampleFormat::I16 => build_stream::<i16>(&device, &config, feed, faults),
+        cpal::SampleFormat::I24 => build_stream::<cpal::I24>(&device, &config, feed, faults),
+        cpal::SampleFormat::I32 => build_stream::<i32>(&device, &config, feed, faults),
+        cpal::SampleFormat::I64 => build_stream::<i64>(&device, &config, feed, faults),
+        cpal::SampleFormat::U8 => build_stream::<u8>(&device, &config, feed, faults),
+        cpal::SampleFormat::U16 => build_stream::<u16>(&device, &config, feed, faults),
+        cpal::SampleFormat::U32 => build_stream::<u32>(&device, &config, feed, faults),
+        cpal::SampleFormat::U64 => build_stream::<u64>(&device, &config, feed, faults),
         format => Err(format!("Unsupported sample format: {format}")),
     }
 }
@@ -169,23 +204,22 @@ fn write_frame<Sample: SizedSample + FromSample<f32>>(output: &mut [Sample], fra
 fn build_stream<Sample: SizedSample + FromSample<f32>>(
     device: &cpal::Device,
     config: &StreamConfig,
-    controls: Arc<SharedControls>,
-    fault: Arc<AtomicBool>,
+    feed: Arc<AudioFeed>,
+    faults: Arc<Faults>,
 ) -> Result<Stream, String> {
-    let mut synth = Synth::new(config.sample_rate as f32, rand::random());
+    let mut instrument = Instrument::new(config.sample_rate as f32, rand::random(), RHYTHM);
     let channels = config.channels as usize;
     let stream = device
         .build_output_stream(
             *config,
             move |output: &mut [Sample], _| {
-                synth.set_controls(controls.snapshot());
+                instrument.set_controls(feed.controls());
+                instrument.set_features(feed.features());
                 for frame in output.chunks_mut(channels) {
-                    write_frame(frame, synth.next_frame());
+                    write_frame(frame, instrument.next_frame());
                 }
             },
-            move |_| {
-                fault.store(true, Ordering::Relaxed);
-            },
+            move |error| faults.report(error),
             Some(Duration::from_secs(2)),
         )
         .map_err(|error| error.to_string())?;
@@ -214,39 +248,32 @@ mod tests {
     }
 
     #[test]
-    fn control_snapshot_preserves_order_and_mute() {
-        let shared = SharedControls::default();
-        let mut state = AppState::default();
-        state.set_volume(0.4);
-        state.set_palette(PALETTES[2].name);
-        state.set_heat(0.3);
-        state.set_flow(0.5);
-        state.set_form(0.6);
-        shared.publish(&state);
-        let controls = shared.snapshot();
-        assert_eq!(
-            [
-                controls.volume,
-                controls.tone,
-                controls.heat,
-                controls.flow,
-                controls.form
-            ],
-            [0.4, 2.0 / PALETTES.len() as f32, 0.3, 0.5, 0.6]
-        );
-        state.set_volume(0.0);
-        shared.publish(&state);
-        assert_eq!(shared.snapshot().volume, 0.0);
+    fn only_errors_that_break_the_stream_rebuild_it() {
+        let faults = Faults::default();
+        faults.report(ErrorKind::Xrun.into());
+        faults.report(ErrorKind::Xrun.into());
+        faults.report(ErrorKind::DeviceChanged.into());
+        assert_eq!(faults.dropouts.load(Ordering::Relaxed), 2);
+        assert!(!faults.fatal.load(Ordering::Relaxed));
+        let latest = faults
+            .latest
+            .lock()
+            .unwrap()
+            .take()
+            .map(|error| error.kind());
+        assert_eq!(latest, Some(ErrorKind::DeviceChanged));
+        faults.report(ErrorKind::DeviceNotAvailable.into());
+        assert!(faults.fatal.load(Ordering::Relaxed));
     }
 
     #[test]
     #[ignore = "requires an available native audio output device; remains muted"]
     fn native_audio_output_smoke() {
-        let controls = Arc::new(SharedControls::default());
-        let fault = Arc::new(AtomicBool::new(false));
-        let stream = open_stream(controls, Arc::clone(&fault)).unwrap();
+        let feed = Arc::new(AudioFeed::new(&AppState::default()));
+        let faults = Arc::new(Faults::default());
+        let stream = open_stream(feed, Arc::clone(&faults)).unwrap();
         thread::park_timeout(Duration::from_millis(500));
-        assert!(!fault.load(Ordering::Relaxed));
+        assert!(!faults.fatal.load(Ordering::Relaxed));
         drop(stream);
     }
 }

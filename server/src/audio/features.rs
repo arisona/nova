@@ -9,12 +9,15 @@ use crate::voxel_image::VoxelImage;
 /// Horizontal layers of a module, bottom to top.
 pub const LAYERS: usize = 10;
 
+/// Activity is measured per display frame, whatever the render rate.
+const FRAME_SECONDS: f32 = 0.04;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Features {
     /// Share of the light in each layer, bottom first; sums to 1 (even when dark).
     pub layers: [f32; LAYERS],
-    /// Relative change of the light since the previous frame: 0 when still, around 0.01 to
-    /// 0.1 for slow motion, more for fast or flickering content.
+    /// Relative change of the light per display frame (40 ms): 0 when still, around 0.01
+    /// to 0.1 for slow motion, more for fast or flickering content.
     pub activity: f32,
 }
 
@@ -33,7 +36,8 @@ pub struct FeatureExtractor {
 }
 
 impl FeatureExtractor {
-    pub fn extract(&mut self, image: &VoxelImage) -> Features {
+    /// `delta` is the time since the previous frame, in seconds.
+    pub fn extract(&mut self, image: &VoxelImage, delta: f32) -> Features {
         let (dx, dy, dz) = image.dim();
         let fresh = self.previous.len() != dx * dy * dz;
         if fresh {
@@ -66,7 +70,11 @@ impl FeatureExtractor {
         let reference = total.max(0.02 * (dx * dy * dz) as f32);
         Features {
             layers,
-            activity: if fresh { 0.0 } else { change / reference },
+            activity: if fresh {
+                0.0
+            } else {
+                change / reference * FRAME_SECONDS / delta.max(0.005)
+            },
         }
     }
 }
@@ -80,17 +88,17 @@ mod tests {
     fn layers_follow_the_light_and_activity_its_change() {
         let mut image = VoxelImage::new((5, 5, 10));
         let mut extractor = FeatureExtractor::default();
-        assert_eq!(extractor.extract(&image), Features::default());
+        assert_eq!(extractor.extract(&image, 0.04), Features::default());
         for x in 0..5 {
             for y in 0..5 {
                 image.set(x, y, 0, Vec3::ONE);
             }
         }
-        let bottom = extractor.extract(&image);
+        let bottom = extractor.extract(&image, 0.04);
         assert!((bottom.layers[0] - 1.0).abs() < 1e-6);
-        assert_eq!(extractor.extract(&image).activity, 0.0);
+        assert_eq!(extractor.extract(&image, 0.04).activity, 0.0);
         image.set(2, 2, 9, Vec3::ONE);
-        let moved = extractor.extract(&image);
+        let moved = extractor.extract(&image, 0.04);
         assert!(moved.layers[9] > 0.0 && moved.activity > 0.0);
         assert!((moved.layers.iter().sum::<f32>() - 1.0).abs() < 1e-5);
     }

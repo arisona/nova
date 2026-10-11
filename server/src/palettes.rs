@@ -74,7 +74,6 @@ impl PaletteColor {
 
     /// Lightness, chroma and hue in degrees, for sound. Kelvin and hex colors are
     /// converted; whites have (nearly) no chroma.
-    #[cfg_attr(not(test), allow(dead_code))] // used by the audio sketches until they go live
     pub fn oklch(&self) -> (f32, f32, f32) {
         match self.spec {
             Spec::Oklch(l, c, h) => (l, c, h),

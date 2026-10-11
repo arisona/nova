@@ -1,10 +1,11 @@
 //! The instrument: drone bed, air, pulse and space (see `doc/audio_concept.md`).
 //!
-//! Work in progress: the sketches render it offline, driven by the real content, until it
-//! replaces the live synth. Like the synth, it allocates only on construction.
+//! It plays from the audio feed in the audio callback, so it allocates only on construction.
 
 mod bed;
+mod limiter;
 mod pulse;
+mod reverb;
 mod space;
 
 use super::dsp::{Rng, coefficient, smoothstep};
@@ -57,6 +58,7 @@ impl Controls {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rhythm {
     Euclidean,
+    #[cfg_attr(not(test), allow(dead_code))] // compared in the sketches
     Polymeter,
 }
 

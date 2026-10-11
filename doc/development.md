@@ -22,7 +22,7 @@ server/src/
 ├── tides.rs         # Slow system-driven variation
 ├── palettes.rs      # Curated palettes
 ├── calibration.rs   # Display calibration and test patterns
-├── audio.rs         # Audio service; synth and output in audio/, plus the instrument and its sketches
+├── audio.rs         # Audio service; instrument, feed, output and sketches in audio/
 ├── nova.rs          # Hardware driver loop and protocol
 ├── ethernet.rs      # pcap packet I/O
 └── simulator.rs     # Desktop simulator window
@@ -91,19 +91,11 @@ Audio tests, from the repository root:
 
 ```sh
 cargo test --manifest-path server/Cargo.toml audio
-cargo test --manifest-path server/Cargo.toml audio_listening_previews -- --ignored --nocapture
+cargo test --release --manifest-path server/Cargo.toml audio_sketches -- --ignored --nocapture
 cargo test --manifest-path server/Cargo.toml native_audio_output_smoke -- --ignored --nocapture
 ```
 
-The preview test writes three unnormalized 30-second WAV files (`slow`, `bleeps`, `arpeggios`) to `nova-audio` in the OS temporary directory and needs no device. The smoke test needs an output device and stays muted.
-
-The instrument that is to replace the synth renders offline, driven by the real content modules (see [Audio concept](audio_concept.md#sketches)):
-
-```sh
-cargo test --release --manifest-path server/Cargo.toml audio_sketches -- --ignored --nocapture
-```
-
-It writes WAV files, spectrograms and `report.md` to `nova-audio-sketches` in the OS temporary directory, or to `NOVA_AUDIO_DIR`; `NOVA_SKETCH=void` renders only scenarios whose name contains `void`.
+The sketches render the instrument offline, driven by the real content modules, and need no device (see [Audio concept](audio_concept.md#sketches)). They write WAV files, spectrograms and `report.md` to `nova-audio-sketches` in the OS temporary directory, or to `NOVA_AUDIO_DIR`; `NOVA_SKETCH=void` renders only scenarios whose name contains `void`. The smoke test needs an output device and stays muted.
 
 ## Adding content
 
