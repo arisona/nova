@@ -405,45 +405,45 @@
 </g>
 <g transform="translate(502,1876)">
 <rect width="150" height="174" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
-<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#FBA02D"/>
-<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Amber</text>
-<text x="10" y="129" font-size="12" fill="#55524B">L 0.78 · C 0.160 · h 66</text>
-<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#FBA02D</text>
-<text x="10" y="163" font-size="11" fill="#8A867C">Pantone Radiant Yellow</text>
-</g>
-<g transform="translate(666,1876)">
-<rect width="150" height="174" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
 <path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#E93F29"/>
 <text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Vermilion</text>
 <text x="10" y="129" font-size="12" fill="#55524B">L 0.62 · C 0.210 · h 31</text>
 <text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#E93F29</text>
 <text x="10" y="163" font-size="11" fill="#8A867C">Pantone Cherry Tomato</text>
 </g>
+<g transform="translate(666,1876)">
+<rect width="150" height="174" rx="6" fill="#FFFFFF" stroke="#DCD9D0"/>
+<path d="M0 6 a6 6 0 0 1 6 -6 h138 a6 6 0 0 1 6 6 v86 h-150 z" fill="#7C1117"/>
+<text x="10" y="112" font-size="13" font-weight="700" fill="#1C1B19">Lacquer</text>
+<text x="10" y="129" font-size="12" fill="#55524B">L 0.38 · C 0.140 · h 25</text>
+<text x="10" y="146" font-size="12" fill="#55524B" font-family="Menlo, Consolas, monospace">#7C1117</text>
+<text x="10" y="163" font-size="11" fill="#8A867C"></text>
+</g>
 <rect x="331" y="2064" width="492" height="34" rx="6" fill="#000000"/>
-<circle cx="341.2" cy="2081" r="8.6" fill="#FB9658"/><circle cx="341.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="361.8" cy="2081" r="8.6" fill="#FFB36B"/><circle cx="361.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="341.2" cy="2081" r="8.6" fill="#D68450"/><circle cx="341.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="361.8" cy="2081" r="8.6" fill="#F9B169"/><circle cx="361.8" cy="2081" r="8.6" fill="url(#voxel)"/>
 <circle cx="382.2" cy="2081" r="8.6" fill="#FFB86D"/><circle cx="382.2" cy="2081" r="8.6" fill="url(#voxel)"/>
 <circle cx="402.8" cy="2081" r="8.6" fill="#FFB86D"/><circle cx="402.8" cy="2081" r="8.6" fill="url(#voxel)"/>
 <circle cx="423.2" cy="2081" r="8.6" fill="#FFB86D"/><circle cx="423.2" cy="2081" r="8.6" fill="url(#voxel)"/>
 <circle cx="443.8" cy="2081" r="8.6" fill="#FFB86D"/><circle cx="443.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="464.2" cy="2081" r="8.6" fill="#FFB76B"/><circle cx="464.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="484.8" cy="2081" r="8.6" fill="#FEB05C"/><circle cx="484.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="505.2" cy="2081" r="8.6" fill="#FCA746"/><circle cx="505.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="525.8" cy="2081" r="8.6" fill="#FBA131"/><circle cx="525.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="546.2" cy="2081" r="8.6" fill="#FBA02D"/><circle cx="546.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="566.8" cy="2081" r="8.6" fill="#FBA02D"/><circle cx="566.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="587.2" cy="2081" r="8.6" fill="#FBA02D"/><circle cx="587.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="607.8" cy="2081" r="8.6" fill="#FBA02D"/><circle cx="607.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="628.2" cy="2081" r="8.6" fill="#FB9C2D"/><circle cx="628.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="648.8" cy="2081" r="8.6" fill="#F7852C"/><circle cx="648.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="669.2" cy="2081" r="8.6" fill="#F0632B"/><circle cx="669.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="689.8" cy="2081" r="8.6" fill="#EA4529"/><circle cx="689.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="710.2" cy="2081" r="8.6" fill="#E93F29"/><circle cx="710.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="730.8" cy="2081" r="8.6" fill="#E93F29"/><circle cx="730.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="751.2" cy="2081" r="8.6" fill="#E93F29"/><circle cx="751.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="771.8" cy="2081" r="8.6" fill="#E93F29"/><circle cx="771.8" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="792.2" cy="2081" r="8.6" fill="#EB462C"/><circle cx="792.2" cy="2081" r="8.6" fill="url(#voxel)"/>
-<circle cx="812.8" cy="2081" r="8.6" fill="#F36B3F"/><circle cx="812.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="464.2" cy="2081" r="8.6" fill="#FFB36B"/><circle cx="464.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="484.8" cy="2081" r="8.6" fill="#FB9658"/><circle cx="484.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="505.2" cy="2081" r="8.6" fill="#F36B3F"/><circle cx="505.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="525.8" cy="2081" r="8.6" fill="#EB462C"/><circle cx="525.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="546.2" cy="2081" r="8.6" fill="#E93F29"/><circle cx="546.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="566.8" cy="2081" r="8.6" fill="#E93F29"/><circle cx="566.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="587.2" cy="2081" r="8.6" fill="#E93F29"/><circle cx="587.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="607.8" cy="2081" r="8.6" fill="#E93F29"/><circle cx="607.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="628.2" cy="2081" r="8.6" fill="#E43D28"/><circle cx="628.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="648.8" cy="2081" r="8.6" fill="#C63123"/><circle cx="648.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="669.2" cy="2081" r="8.6" fill="#9D201D"/><circle cx="669.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="689.8" cy="2081" r="8.6" fill="#811318"/><circle cx="689.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="710.2" cy="2081" r="8.6" fill="#7C1117"/><circle cx="710.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="730.8" cy="2081" r="8.6" fill="#7C1117"/><circle cx="730.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="751.2" cy="2081" r="8.6" fill="#7C1117"/><circle cx="751.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="771.8" cy="2081" r="8.6" fill="#7C1117"/><circle cx="771.8" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="792.2" cy="2081" r="8.6" fill="#821B1A"/><circle cx="792.2" cy="2081" r="8.6" fill="url(#voxel)"/>
+<circle cx="812.8" cy="2081" r="8.6" fill="#A64A31"/><circle cx="812.8" cy="2081" r="8.6" fill="url(#voxel)"/>
 <text x="48" y="2160" font-size="13" font-weight="600" fill="#9A968C">09</text>
 <text x="48" y="2186" font-size="21" font-weight="700" fill="#1C1B19">Texas Sun Burn</text>
 <g transform="translate(338,2126)">

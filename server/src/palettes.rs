@@ -201,16 +201,12 @@ const DUSK: PaletteColor = PaletteColor::after(
 
 // Shenzhen Lantern Flicker
 const PAPER_LANTERN: PaletteColor = PaletteColor::new("Paper Lantern", Spec::Kelvin(3000.0));
-const AMBER: PaletteColor = PaletteColor::after(
-    "Amber",
-    Spec::Oklch(0.78, 0.160, 66.0),
-    "Pantone Radiant Yellow",
-);
 const VERMILION: PaletteColor = PaletteColor::after(
     "Vermilion",
     Spec::Oklch(0.62, 0.210, 31.0),
     "Pantone Cherry Tomato",
 );
+const LACQUER: PaletteColor = PaletteColor::new("Lacquer", Spec::Oklch(0.38, 0.140, 25.0));
 
 // Texas Sun Burn
 const BLUEJAY: PaletteColor =
@@ -293,7 +289,7 @@ pub const PALETTES: &[Palette] = &[
     },
     Palette {
         name: "Shenzhen Lantern Flicker",
-        colors: &[PAPER_LANTERN, AMBER, VERMILION],
+        colors: &[PAPER_LANTERN, VERMILION, LACQUER],
     },
     Palette {
         name: "Texas Sun Burn",
