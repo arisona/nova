@@ -161,6 +161,19 @@ fn scenarios() -> Vec<Scenario> {
                 state.set_flow(0.55);
             },
         ),
+        scenario(
+            "11_harmonic_motion",
+            "Belize Ripple, Heat 0.6, Form 0.3, Flow 0.6 for 10 minutes: the bass moves about \
+             every minute, a chord tone changes its octave halfway",
+            600.0,
+            Euclidean,
+            |_, state| {
+                state.set_palette("Belize Ripple");
+                state.set_heat(0.6);
+                state.set_form(0.3);
+                state.set_flow(0.6);
+            },
+        ),
     ];
     for (index, content) in all_content_names().into_iter().enumerate() {
         let slug: String = content
@@ -174,7 +187,7 @@ fn scenarios() -> Vec<Scenario> {
             })
             .collect();
         scenarios.push(Scenario {
-            name: format!("{:02}_module_{slug}", 11 + index),
+            name: format!("{:02}_module_{slug}", 12 + index),
             description: format!("{content} with every control at 0.5"),
             content,
             seconds: 45.0,

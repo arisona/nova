@@ -8,7 +8,7 @@ mod pulse;
 mod reverb;
 mod space;
 
-use super::dsp::{Rng, coefficient, smoothstep};
+use super::dsp::{Rng, coefficient, lerp, smoothstep};
 use super::features::{Features, LAYERS};
 use crate::palettes::{MAX_COLORS, PALETTES, Palette};
 
@@ -112,6 +112,28 @@ struct Harmony {
     count: usize,
 }
 
+/// Seconds per section of the harmony at Flow 0 and 1. The bass moves at every boundary,
+/// one chord tone changes its octave halfway.
+const SECTION_SECONDS: [f32; 2] = [120.0, 30.0];
+
+/// Bass notes away from home, as ratios to the root, by preference. Only the palette's own
+/// pitch classes are used, so the chord above stays consonant; palettes whose tones are all
+/// octaves of the root use `BASS_FALLBACK`.
+const BASS_PREFERENCE: [f32; 8] = [
+    3.0 / 2.0,
+    4.0 / 3.0,
+    5.0 / 4.0,
+    5.0 / 3.0,
+    6.0 / 5.0,
+    8.0 / 5.0,
+    9.0 / 8.0,
+    7.0 / 4.0,
+];
+
+/// Bass notes away from home for palettes without pitch classes of their own: the fourth
+/// and the fifth, which give the chord above a suspended color.
+const BASS_FALLBACK: [f32; 2] = [4.0 / 3.0, 3.0 / 2.0];
+
 /// Just ratios by steps on the circle of fifths from the root, from −4 to 4.
 const FIFTHS: [f32; 9] = [
     8.0 / 5.0,
@@ -182,6 +204,53 @@ impl Harmony {
     fn root(&self) -> f32 {
         self.tones[0].frequency
     }
+
+    /// The bass at `step` of the progression: home (the root) at even steps, otherwise the
+    /// palette's pitch classes in turn by `BASS_PREFERENCE`, as close to the root as
+    /// possible and at least 30 Hz.
+    fn bass(&self, step: usize) -> f32 {
+        let root = self.root();
+        let mut away = [0.0; BASS_PREFERENCE.len()];
+        let mut count = 0;
+        for &ratio in &BASS_PREFERENCE {
+            let used = self.tones()[1..].iter().any(|tone| {
+                let mut class = tone.frequency / root;
+                while class >= 2.0 - 1e-3 {
+                    class *= 0.5;
+                }
+                (class / ratio - 1.0).abs() < 1e-3
+            });
+            if used {
+                away[count] = ratio;
+                count += 1;
+            }
+        }
+        if count == 0 {
+            away[..BASS_FALLBACK.len()].copy_from_slice(&BASS_FALLBACK);
+            count = BASS_FALLBACK.len();
+        }
+        if step.is_multiple_of(2) {
+            return root;
+        }
+        let ratio = away[(step / 2) % count];
+        let mut frequency = root
+            * if ratio > std::f32::consts::SQRT_2 {
+                0.5 * ratio
+            } else {
+                ratio
+            };
+        while frequency < 30.0 {
+            frequency *= 2.0;
+        }
+        frequency
+    }
+
+    /// This harmony over another bass.
+    fn with_bass(&self, frequency: f32) -> Self {
+        let mut harmony = *self;
+        harmony.tones[0].frequency = frequency;
+        harmony
+    }
 }
 
 pub struct Instrument {
@@ -193,6 +262,10 @@ pub struct Instrument {
     activity_slow: f32,
     activity_fast: f32,
     palette: usize,
+    harmony: Harmony,
+    /// Sections of the harmony so far, and steps of the bass progression.
+    section: f64,
+    step: usize,
     bed: bed::Bed,
     air: bed::Air,
     pulse: pulse::Pulse,
@@ -234,6 +307,9 @@ impl Instrument {
             activity_slow: 0.0,
             activity_fast: 0.0,
             palette: 0,
+            harmony,
+            section: 0.0,
+            step: 0,
             bed: bed::Bed::new(sample_rate, &harmony, Rng::new(rng.next_u64())),
             air: bed::Air::new(sample_rate, &harmony, Rng::new(rng.next_u64())),
             pulse: pulse::Pulse::new(sample_rate, rhythm, &harmony, Rng::new(rng.next_u64())),
@@ -263,10 +339,10 @@ impl Instrument {
             self.primed = true;
             self.params.layers = self.features.layers;
             self.palette = self.target.palette;
-            let harmony = Harmony::from_palette(&PALETTES[self.palette]);
-            self.bed.load(&harmony);
-            self.air.load(&harmony);
-            self.pulse.adopt(&harmony);
+            self.harmony = Harmony::from_palette(&PALETTES[self.palette]);
+            self.bed.load(&self.harmony);
+            self.air.load(&self.harmony);
+            self.pulse.adopt(&self.harmony);
             1.0
         };
         let params = &mut self.params;
@@ -290,10 +366,26 @@ impl Instrument {
 
         if self.target.palette != self.palette && !self.bed.fading() {
             self.palette = self.target.palette;
-            let harmony = Harmony::from_palette(&PALETTES[self.palette]);
-            self.bed.change(&harmony);
+            self.harmony = Harmony::from_palette(&PALETTES[self.palette]);
+            self.section = 0.0;
+            self.step = 0;
+            self.bed.change(&self.harmony);
+            self.air.change(&self.harmony);
+            self.pulse.change(&self.harmony);
+        }
+
+        // Sections of the harmony: the bass moves at every boundary, the voicing halfway.
+        let before = self.section;
+        let seconds = lerp(SECTION_SECONDS[0], SECTION_SECONDS[1], self.params.flow);
+        self.section += (BLOCK as f32 / self.sample_rate / seconds) as f64;
+        if self.section.floor() > before.floor() {
+            self.step += 1;
+            let harmony = self.harmony.with_bass(self.harmony.bass(self.step));
+            self.bed.set_bass(harmony.root());
             self.air.change(&harmony);
             self.pulse.change(&harmony);
+        } else if (self.section - 0.5).floor() > (before - 0.5).floor() {
+            self.bed.move_voice();
         }
 
         let params = self.params;
@@ -388,6 +480,58 @@ mod tests {
                         .chain([2.0].iter())
                         .any(|just| (just - octaves).abs() < 1e-4 || (octaves - 1.0).abs() < 1e-4),
                     "{}: {ratio}",
+                    palette.name
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn bass_alternates_home_and_the_palettes_pitch_classes() {
+        for palette in PALETTES {
+            let harmony = Harmony::from_palette(palette);
+            let root = harmony.root();
+            for step in 0..12 {
+                let bass = harmony.bass(step);
+                if step % 2 == 0 {
+                    assert_eq!(bass, root);
+                    continue;
+                }
+                assert!((30.0..90.0).contains(&bass), "{}: {bass}", palette.name);
+                let mut class = bass / root;
+                while class < 1.0 - 1e-3 {
+                    class *= 2.0;
+                }
+                while class >= 2.0 - 1e-3 {
+                    class *= 0.5;
+                }
+                assert!(
+                    (class - 1.0).abs() > 1e-3,
+                    "{}: the bass must move",
+                    palette.name
+                );
+                let classes: Vec<f32> = harmony.tones()[1..]
+                    .iter()
+                    .map(|tone| {
+                        let mut tone_class = tone.frequency / root;
+                        while tone_class >= 2.0 - 1e-3 {
+                            tone_class *= 0.5;
+                        }
+                        tone_class
+                    })
+                    .collect();
+                let own = classes
+                    .iter()
+                    .any(|tone_class| (tone_class / class - 1.0).abs() < 1e-3);
+                let only_octaves = classes
+                    .iter()
+                    .all(|tone_class| (tone_class - 1.0).abs() < 1e-3);
+                let fallback = BASS_FALLBACK
+                    .iter()
+                    .any(|ratio| (ratio / class - 1.0).abs() < 1e-3);
+                assert!(
+                    own || (only_octaves && fallback),
+                    "{}: {class}",
                     palette.name
                 );
             }

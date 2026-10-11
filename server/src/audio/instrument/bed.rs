@@ -55,6 +55,15 @@ const DETUNE_CENTS: f32 = 8.0;
 /// above it fade.
 const SWEEP: [f32; 2] = [1.5, 6.0];
 
+/// Seconds the bass takes to glide to a new note.
+const GLIDE_SECONDS: f32 = 8.0;
+
+/// Seconds a chord tone takes to fade out before it changes its octave, and to fade back in.
+const VOICE_SECONDS: f32 = 6.0;
+
+/// Chord tones change their octave within this range, in Hz.
+const VOICE_RANGE: [f32; 2] = [120.0, 1600.0];
+
 #[derive(Clone, Copy)]
 struct Partial {
     oscillators: [Rotor; 2],
@@ -106,6 +115,13 @@ struct Set {
     sweeps: [Drift; MAX_TONES],
     /// Fourth-order Butterworth low-pass per tone, which turns noise into the breath.
     breaths: [[Svf; 2]; MAX_TONES],
+    /// The bass's glide: from, to, and progress from 0 to 1.
+    glide: [f32; 3],
+    /// Octave of each tone, as a factor of its frequency in the harmony.
+    octaves: [f32; MAX_TONES],
+    /// The chord tone changing its octave, with its progress from 0 to 2: out, then in.
+    voice: Option<(usize, f32)>,
+    next_voice: usize,
     level: f32,
 }
 
@@ -121,6 +137,10 @@ impl Set {
                 Svf::new(BREATH_HZ, 0.541, sample_rate),
                 Svf::new(BREATH_HZ, 1.307, sample_rate),
             ]; MAX_TONES],
+            glide: [0.0, 0.0, 1.0],
+            octaves: [1.0; MAX_TONES],
+            voice: None,
+            next_voice: 1,
             level: 0.0,
         }
     }
@@ -128,6 +148,10 @@ impl Set {
     fn load(&mut self, harmony: &Harmony, rng: &mut Rng) {
         self.count = harmony.count;
         self.tones = harmony.tones;
+        self.glide = [harmony.root(), harmony.root(), 1.0];
+        self.octaves = [1.0; MAX_TONES];
+        self.voice = None;
+        self.next_voice = 1;
         for (tone_index, (tone, partials)) in
             harmony.tones().iter().zip(&mut self.partials).enumerate()
         {
@@ -209,6 +233,29 @@ impl Bed {
         self.fade = 1.0;
     }
 
+    /// Glides the bass of the current harmony to `frequency`.
+    pub fn set_bass(&mut self, frequency: f32) {
+        let set = &mut self.sets[self.current];
+        set.glide = [set.tones[0].frequency, frequency, 0.0];
+    }
+
+    /// Moves the next chord tone of the current harmony to another octave: it fades out,
+    /// changes its octave and fades back in.
+    pub fn move_voice(&mut self) {
+        let set = &mut self.sets[self.current];
+        if set.count < 2 || set.voice.is_some() {
+            return;
+        }
+        let index = set.next_voice.min(set.count - 1);
+        set.next_voice = if index + 1 < set.count { index + 1 } else { 1 };
+        set.voice = Some((index, 0.0));
+    }
+
+    #[cfg(test)]
+    fn bass(&self) -> f32 {
+        self.sets[self.current].tones[0].frequency
+    }
+
     pub fn fading(&self) -> bool {
         self.fade < 1.0
     }
@@ -262,14 +309,41 @@ impl Bed {
             if set.count == 0 {
                 continue;
             }
+            let [from, to, progress] = &mut set.glide;
+            if *progress < 1.0 {
+                *progress = (*progress + block_seconds / GLIDE_SECONDS).min(1.0);
+                set.tones[0].frequency = *from * (*to / *from).powf(smooth(*progress));
+            }
+            let mut voice = (usize::MAX, 1.0);
+            if let Some((index, progress)) = &mut set.voice {
+                let before = *progress;
+                *progress += block_seconds / VOICE_SECONDS;
+                if before < 1.0 && *progress >= 1.0 {
+                    // Silent now: change the octave, towards the middle of the range.
+                    let frequency = set.tones[*index].frequency * set.octaves[*index];
+                    let down = frequency * 0.5 >= VOICE_RANGE[0]
+                        && (frequency > 400.0 || frequency * 2.0 > VOICE_RANGE[1]);
+                    set.octaves[*index] *= if down { 0.5 } else { 2.0 };
+                }
+                let level = if *progress < 1.0 {
+                    1.0 - smooth(*progress)
+                } else {
+                    smooth(*progress - 1.0)
+                };
+                voice = (*index, level);
+                if *progress >= 2.0 {
+                    set.voice = None;
+                }
+            }
             for tone_index in 0..set.count {
-                let tone = set.tones[tone_index];
+                let mut tone = set.tones[tone_index];
+                tone.frequency *= set.octaves[tone_index];
                 let bass = tone_index == 0;
                 let tone_level = if bass {
                     1.0
                 } else {
                     tone.level * (tone.frequency / 400.0).powf(tilt).clamp(0.4, 2.0)
-                };
+                } * if tone_index == voice.0 { voice.1 } else { 1.0 };
                 let tone_motion = tone_floor
                     + (1.0 - tone_floor)
                         * set.tone_drifts[tone_index].advance(
@@ -536,6 +610,49 @@ impl Air {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn render(bed: &mut Bed, seconds: f32, rate: f32) {
+        let params = Params {
+            heat: 0.8,
+            flow: 0.5,
+            form: 0.0,
+            void: 0.5,
+            flow_setting: 0.5,
+            activity: 0.0,
+            layers: crate::audio::features::Features::default().layers,
+        };
+        for frame in 0..(seconds * rate) as usize {
+            if frame % BLOCK == 0 {
+                bed.update_block(&params);
+            }
+            let [left, right] = bed.next();
+            assert!(left.is_finite() && right.is_finite());
+        }
+    }
+
+    #[test]
+    fn bass_glides_and_chord_tones_change_octave() {
+        let rate = 16_000.0;
+        let harmony = Harmony::from_palette(&crate::palettes::PALETTES[3]);
+        let mut bed = Bed::new(rate, &harmony, Rng::new(2));
+        render(&mut bed, 0.5, rate);
+        let target = harmony.root() * 0.75;
+        bed.set_bass(target);
+        render(&mut bed, 4.0, rate);
+        let halfway = bed.bass();
+        assert!(halfway < harmony.root() && halfway > target, "{halfway}");
+        render(&mut bed, 4.5, rate);
+        assert_eq!(bed.bass(), target);
+
+        bed.move_voice();
+        render(&mut bed, 13.0, rate);
+        let set = &bed.sets[bed.current];
+        assert!(set.voice.is_none());
+        let octave = set.octaves[1];
+        assert!(octave == 0.5 || octave == 2.0, "{octave}");
+        let frequency = set.tones[1].frequency * octave;
+        assert!((VOICE_RANGE[0]..=VOICE_RANGE[1] * 2.0).contains(&frequency));
+    }
 
     #[test]
     fn breath_noise_has_unit_rms() {
