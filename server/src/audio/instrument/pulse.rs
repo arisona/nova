@@ -17,8 +17,15 @@ const TICK_LEVEL: f32 = 0.15;
 const STAB_LEVEL: f32 = 0.3;
 
 /// Tempo range in beats per minute, over the Flow slider.
-const SLOWEST: f32 = 64.0;
-const FASTEST: f32 = 124.0;
+const SLOWEST: f32 = 80.0;
+const FASTEST: f32 = 110.0;
+
+/// When the rhythm loosens (see `tides::LOOSENESS`): the chance of a quiet ghost tick on an
+/// empty step and of leaving out a tick off the beat, and extra swing. Thumps and stabs
+/// stay exact.
+const GHOST: f32 = 0.2;
+const DROP: f32 = 0.12;
+const LOOSE_SWING: f32 = 0.025;
 
 /// Seconds between stabs added by visual onsets.
 const ACCENT_COOLDOWN: f32 = 8.0;
@@ -193,7 +200,7 @@ impl Pulse {
             } else {
                 0
             },
-            swing: lerp(0.5, 0.57, smooth(params.heat)),
+            swing: lerp(0.5, 0.57, smooth(params.heat)) + LOOSE_SWING * params.looseness,
         };
     }
 
@@ -226,14 +233,25 @@ impl Pulse {
             self.thump.trigger(velocity, self.root, params.heat);
             self.counts[0] += 1;
         }
-        if euclidean(
+        let tick = euclidean(
             patterns.ticks,
             tick_steps,
             tick_rotation,
             (step % tick_steps as u64) as usize,
-        ) {
+        );
+        // Loose: a few ticks off the beat drop out, a few empty steps get a ghost tick.
+        let loose = params.looseness;
+        let tick = if tick {
+            (bar_step.is_multiple_of(4) || self.rng.unit() >= DROP * loose).then_some(1.0)
+        } else if patterns.ticks > 0 && loose > 0.0 && self.rng.unit() < GHOST * loose {
+            Some(0.4)
+        } else {
+            None
+        };
+        if let Some(scale) = tick {
             let breath = 0.85 + 0.15 * (std::f32::consts::TAU * self.seconds / 11.0).sin();
-            let velocity = if even { 0.8 } else { 0.55 } * (0.75 + 0.5 * params.activity) * breath;
+            let velocity =
+                if even { 0.8 } else { 0.55 } * (0.75 + 0.5 * params.activity) * breath * scale;
             let pan = if even { -0.35 } else { 0.35 } + self.rng.range(-0.1, 0.1);
             self.tick.trigger(velocity, pan, params.heat);
             self.counts[1] += 1;
@@ -517,5 +535,49 @@ impl Stab {
             self.active = false;
         }
         sum * attack * self.gain.max(0.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::Harmony;
+    use super::*;
+    use crate::audio::features::Features;
+    use crate::palettes::PALETTES;
+
+    fn ticks(looseness: f32, seed: u64) -> u64 {
+        let rate = 8000.0;
+        let harmony = Harmony::from_palette(&PALETTES[0]);
+        let mut pulse = Pulse::new(rate, Rhythm::Euclidean, &harmony, Rng::new(seed));
+        let params = Params {
+            heat: 0.5,
+            flow: 0.5,
+            form: 0.7,
+            void: 0.5,
+            flow_setting: 0.5,
+            activity: 0.0,
+            looseness,
+            layers: Features::default().layers,
+        };
+        for frame in 0..(rate as usize * 40) {
+            if frame % BLOCK == 0 {
+                pulse.update_block(&params);
+            }
+            pulse.next();
+        }
+        pulse.counts()[1]
+    }
+
+    #[test]
+    fn rhythm_is_exact_unless_the_tide_loosens_it() {
+        let strict = ticks(0.0, 1);
+        assert!(strict > 50, "{strict}");
+        assert_eq!(strict, ticks(0.0, 2), "no chance involved while strict");
+        let loose = [ticks(1.0, 1), ticks(1.0, 2)];
+        assert!(
+            loose.iter().all(|&count| count != strict),
+            "{strict} vs {loose:?}"
+        );
+        assert!(loose[0] != loose[1]);
     }
 }

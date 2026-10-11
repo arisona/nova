@@ -2,7 +2,7 @@
 //! image features from the renderer. Lock-free, so the audio callback can read it; values
 //! may come from different frames, which the instrument's smoothing hides.
 
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 use super::features::{FeatureExtractor, Features, LAYERS};
 use super::instrument::Controls;
@@ -35,6 +35,7 @@ pub struct AudioFeed {
     form: Float,
     void: Float,
     flow_setting: Float,
+    tide_seconds: AtomicU64,
     activity: Float,
     layers: [Float; LAYERS],
 }
@@ -52,6 +53,7 @@ impl AudioFeed {
             form: Float::new(state.form()),
             void: Float::new(state.void()),
             flow_setting: Float::new(state.flow()),
+            tide_seconds: AtomicU64::new(0.0_f64.to_bits()),
             activity: Float::new(0.0),
             layers: layers.map(Float::new),
         }
@@ -61,7 +63,8 @@ impl AudioFeed {
         self.volume.set(volume);
     }
 
-    /// Publishes the effective controls (after the tides) and the Flow slider setting.
+    /// Publishes the effective controls (after the tides), the Flow slider setting and the
+    /// tide clock.
     fn set_controls(&self, state: &RenderState, flow_setting: f32) {
         self.palette.store(state.palette(), Ordering::Relaxed);
         self.heat.set(state.heat());
@@ -69,6 +72,8 @@ impl AudioFeed {
         self.form.set(state.form());
         self.void.set(state.void());
         self.flow_setting.set(flow_setting);
+        self.tide_seconds
+            .store(state.tide_seconds().to_bits(), Ordering::Relaxed);
     }
 
     fn set_features(&self, features: &Features) {
@@ -87,6 +92,7 @@ impl AudioFeed {
             form: self.form.get(),
             void: self.void.get(),
             flow_setting: self.flow_setting.get(),
+            tide_seconds: f64::from_bits(self.tide_seconds.load(Ordering::Relaxed)),
         }
     }
 
@@ -153,6 +159,7 @@ mod tests {
                 form: 0.6,
                 void: 0.7,
                 flow_setting: 0.5,
+                tide_seconds: 0.0,
             }
         );
         feed.set_volume(0.0);
@@ -165,6 +172,11 @@ mod tests {
         }
         let controls = feed.controls();
         assert_eq!(controls.flow_setting, 0.5);
+        assert!(
+            (controls.tide_seconds - 4.0).abs() < 1e-4,
+            "{}",
+            controls.tide_seconds
+        );
         assert_ne!(controls.heat, 0.3, "the tides move the effective controls");
         let features = feed.features();
         assert!((features.layers.iter().sum::<f32>() - 1.0).abs() < 1e-4);

@@ -2,7 +2,7 @@
 //!
 //! A tide is a smooth, bounded swell: two sines whose periods are a golden ratio apart,
 //! so they never line up exactly and the result feels irregular rather than looping.
-//! It needs no state, so light and (later) sound can compute identical values.
+//! It needs no state, so light and sound compute identical values from the same clock.
 //!
 //! ```text
 //! tide(t) = ½·(sin(2π·t/P + φ₁) + sin(2π·t/(1.618·P) + φ₂))    ∈ [−1, 1]
@@ -62,6 +62,10 @@ pub const HEAT: Tide = Tide::new(37.0, 0.08, [0.0, 1.9]);
 pub const FLOW: Tide = Tide::new(23.0, 0.10, [2.1, 4.4]);
 pub const FORM: Tide = Tide::new(53.0, 0.06, [4.2, 0.7]);
 pub const VOID: Tide = Tide::new(29.0, 0.08, [1.1, 3.3]);
+
+// Audio tides, which the instrument computes from the same clock.
+/// How loose the rhythm is: strict while negative, loosening while positive.
+pub const LOOSENESS: Tide = Tide::new(43.0, 1.0, [3.0, 5.2]);
 
 /// The tide clock.
 #[derive(Default)]

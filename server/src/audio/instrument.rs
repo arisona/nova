@@ -11,6 +11,7 @@ mod space;
 use super::dsp::{Rng, coefficient, lerp, smoothstep};
 use super::features::{Features, LAYERS};
 use crate::palettes::{MAX_COLORS, PALETTES, Palette};
+use crate::tides;
 
 /// Samples between control updates.
 const BLOCK: usize = 32;
@@ -30,6 +31,8 @@ pub struct Controls {
     pub void: f32,
     /// The Flow slider without its tide, for the tempo, so the tempo does not wobble.
     pub flow_setting: f32,
+    /// The tide clock, for the audio tides.
+    pub tide_seconds: f64,
 }
 
 impl Controls {
@@ -49,6 +52,11 @@ impl Controls {
             form: level(self.form),
             void: level(self.void),
             flow_setting: level(self.flow_setting),
+            tide_seconds: if self.tide_seconds.is_finite() {
+                self.tide_seconds
+            } else {
+                0.0
+            },
         }
     }
 }
@@ -72,6 +80,8 @@ struct Params {
     flow_setting: f32,
     /// Visual activity, mapped to [0, 1].
     activity: f32,
+    /// How loose the rhythm is, from 0 (strict) to 1, from `tides::LOOSENESS`.
+    looseness: f32,
     /// Share of the light per layer, bottom first.
     layers: [f32; LAYERS],
 }
@@ -290,6 +300,7 @@ impl Instrument {
             void: 0.5,
             flow_setting: 0.5,
             activity: 0.0,
+            looseness: 0.0,
             layers: Features::default().layers,
         };
         Self {
@@ -360,6 +371,7 @@ impl Instrument {
         self.activity_slow += (activity - self.activity_slow) * coefficient(2.0, block_rate);
         self.activity_fast += (activity - self.activity_fast) * coefficient(0.15, block_rate);
         params.activity = 1.0 - (-self.activity_slow / 0.06).exp();
+        params.looseness = tides::LOOSENESS.offset(self.target.tide_seconds).max(0.0);
         if self.activity_fast > 1.8 * self.activity_slow + 0.03 {
             self.pulse.request_accent();
         }
@@ -449,6 +461,7 @@ mod tests {
             form: 0.5,
             void: 0.5,
             flow_setting: 0.5,
+            tide_seconds: 0.0,
         }
     }
 
@@ -553,6 +566,7 @@ mod tests {
                     form: rng.unit().round(),
                     void: rng.unit().round(),
                     flow_setting: 1.0,
+                    tide_seconds: rng.range(0.0, 1000.0) as f64,
                 });
                 let mut layers = [0.0; LAYERS];
                 layers[rng.below(LAYERS)] = 1.0;
@@ -595,6 +609,7 @@ mod tests {
             form: 2.0,
             void: f32::NEG_INFINITY,
             flow_setting: f32::NAN,
+            tide_seconds: f64::NAN,
         });
         instrument.set_features(Features {
             layers: [f32::NAN; LAYERS],
@@ -645,7 +660,7 @@ mod tests {
             assert!((instrument.tempo() - previous).abs() < 1.0);
             previous = instrument.tempo();
         }
-        assert!(slow < 66.0 && previous > 120.0, "{slow} → {previous}");
+        assert!(slow < 82.0 && previous > 108.0, "{slow} → {previous}");
     }
 
     #[test]

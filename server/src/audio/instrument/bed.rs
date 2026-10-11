@@ -619,6 +619,7 @@ mod tests {
             void: 0.5,
             flow_setting: 0.5,
             activity: 0.0,
+            looseness: 0.0,
             layers: crate::audio::features::Features::default().layers,
         };
         for frame in 0..(seconds * rate) as usize {
