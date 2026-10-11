@@ -381,6 +381,7 @@ impl Instrument {
             self.harmony = Harmony::from_palette(&PALETTES[self.palette]);
             self.section = 0.0;
             self.step = 0;
+            self.pulse.set_away(false);
             self.bed.change(&self.harmony);
             self.air.change(&self.harmony);
             self.pulse.change(&self.harmony);
@@ -392,6 +393,7 @@ impl Instrument {
         self.section += (BLOCK as f32 / self.sample_rate / seconds) as f64;
         if self.section.floor() > before.floor() {
             self.step += 1;
+            self.pulse.set_away(!self.step.is_multiple_of(2));
             let harmony = self.harmony.with_bass(self.harmony.bass(self.step));
             self.bed.set_bass(harmony.root());
             self.air.change(&harmony);
@@ -402,6 +404,7 @@ impl Instrument {
 
         let params = self.params;
         self.bed.set_bass_accent(self.pulse.bass_accent());
+        self.bed.set_chord_gate(self.pulse.chord_gate());
         self.bed.update_block(&params);
         self.air.update_block(&params);
         self.pulse.update_block(&params);
@@ -415,10 +418,10 @@ impl Instrument {
         self.position = (self.position + 1) % BLOCK;
 
         let pulse = self.pulse.next();
-        // The drone follows the pulse: chord, air and reverb dip with each thump.
-        let duck = 1.0 - pulse.duck;
-        let bed = self.bed.next(duck);
-        let air = self.air.next().map(|sample| sample * duck);
+        // The drone follows the pulse: chord, air and reverb dip with each thump and with
+        // the chord gate.
+        let bed = self.bed.next(pulse.drone);
+        let air = self.air.next().map(|sample| sample * pulse.drone);
         let mixed = self.space.process(bed, air, pulse);
 
         let ramp = 1.0 / (0.02 * self.sample_rate);

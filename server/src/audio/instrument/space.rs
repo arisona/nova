@@ -176,7 +176,7 @@ impl Space {
                 bed[channel] + air[channel] + pulse.dry[channel] + ECHO_LEVEL * echoes[channel];
             let low = self.split[channel].lowpass(dry);
             let high = self.damping[channel].lowpass(dry - low) * self.dry;
-            output[channel] = low + high + wet[channel] * self.wet * (1.0 - pulse.duck);
+            output[channel] = low + high + wet[channel] * self.wet * pulse.drone;
         }
 
         let mid = 0.5 * (output[0] + output[1]);

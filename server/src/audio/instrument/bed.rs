@@ -199,6 +199,7 @@ pub struct Bed {
     breath: f32,
     breath_step: f32,
     bass_accent: f32,
+    chord_gate: f32,
     /// Scales the low-passed noise to an RMS of 1.
     breath_scale: f32,
 }
@@ -224,6 +225,7 @@ impl Bed {
             breath: 0.0,
             breath_step: 0.0,
             bass_accent: 0.0,
+            chord_gate: 0.0,
             // Uniform noise has a variance of 1/3; the low-pass passes 1.026 × BREATH_HZ of
             // its bandwidth of half the sample rate.
             breath_scale: (3.0 * sample_rate / (2.0 * 1.026 * BREATH_HZ)).sqrt(),
@@ -248,6 +250,12 @@ impl Bed {
     /// The bass's accent, from the pulse.
     pub fn set_bass_accent(&mut self, accent: f32) {
         self.bass_accent = accent;
+    }
+
+    /// How far the chord gate dips the drone, from the pulse; the chord's upper partials dip
+    /// further, like a filter (the pulse dips the whole drone).
+    pub fn set_chord_gate(&mut self, gate: f32) {
+        self.chord_gate = gate;
     }
 
     /// Moves the next chord tone of the current harmony to another octave: it fades out,
@@ -456,11 +464,11 @@ impl Bed {
             for tone_index in 0..set.count {
                 let normalization = self.normalization[(tone_index > 0) as usize];
                 for (index, partial) in set.partials[tone_index].iter_mut().enumerate() {
+                    let top = index as f32 / (PARTIALS - 1) as f32;
                     let accent = if tone_index == 0 {
-                        let top = index as f32 / (PARTIALS - 1) as f32;
                         1.0 + self.bass_accent * (BASS_ACCENT[0] + BASS_ACCENT[1] * top)
                     } else {
-                        1.0
+                        1.0 - self.chord_gate * lerp(0.6, 1.0, warmth) * top
                     };
                     let main = partial.level * normalization * accent;
                     let targets = [main, main * partial_twin(twin, partial.frequency)];

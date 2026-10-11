@@ -7,7 +7,11 @@
 //! short and bright; warm swings, with softer, longer thumps and darker stabs.
 //!
 //! The drone follows the thumps (`COUPLING`): the chord, the air and the reverb dip and
-//! swell back, and the synth bass gets a short accent, so bass and thump fuse into one.
+//! swell back, and the synth bass gets a short accent, so bass and thump fuse into one. A
+//! chord gate on the grid lets the drone pulse by itself: on closed steps of a Euclidean
+//! pattern the chord, the air and the reverb dip, and the chord's upper partials more, like
+//! a filter; hard and short when cold, rounder and darker when warm. The gate plays while
+//! the bass is away from home and fades out when it returns: tension and release.
 
 use super::{BLOCK, Harmony, Params, Rhythm};
 use crate::audio::dsp::{Rng, Rotor, Svf, coefficient, euclidean, lerp, smooth, smoothstep};
@@ -47,6 +51,29 @@ const DUCK_SHAPE: [[f32; 2]; 2] = [[0.0, 0.4], [0.15, 0.85]];
 /// Seconds the dip takes to reach its depth.
 const DUCK_ATTACK: f32 = 0.008;
 
+/// How far the drone dips on the closed steps of the chord gate at full Form; 0 keeps it
+/// steady. Form scales it in from 0.25 to 0.7.
+const CHORD_GATE: f32 = 0.5;
+
+/// Length of a gate step in 16ths: 1 chops on 16ths, 2 on 8ths.
+const CHORD_GATE_GRID: usize = 1;
+
+/// Share of open steps at Form 0.25 and from Form 0.7: few closed steps, then choppier.
+const CHORD_GATE_OPEN: [f32; 2] = [0.875, 0.5625];
+
+/// Ramp of the chord gate in seconds, and the share of an open step it stays open, when
+/// cold and warm: a hard trance gate, or a rounder one.
+const CHORD_GATE_RAMP: [f32; 2] = [0.004, 0.012];
+const CHORD_GATE_DUTY: [f32; 2] = [0.5, 0.65];
+
+/// Share of the gate's dip that is volume, when cold and warm; the rest is brightness (see
+/// `bed.rs`), so the warm gate is more filter than volume.
+const CHORD_GATE_VOLUME: [f32; 2] = [1.0, 0.7];
+
+/// Whether the chord gate plays only while the bass is away from home, fading in and out
+/// over a bar; otherwise it always plays.
+const CHORD_GATE_AWAY_ONLY: bool = true;
+
 /// Release of the bass accent in seconds, when cold and warm.
 const BASS_ACCENT_RELEASE: [f32; 2] = [0.12, 0.22];
 
@@ -62,8 +89,8 @@ pub struct PulseOut {
     pub dry: [f32; 2],
     pub delay_send: f32,
     pub reverb_send: [f32; 2],
-    /// How far the drone dips now, from 0 (not at all) to 1 (silent).
-    pub duck: f32,
+    /// Gain for the drone (chord, air and reverb), with the dip and the chord gate.
+    pub drone: f32,
 }
 
 /// Pulses per voice and swing, fixed for a bar.
@@ -72,6 +99,8 @@ struct Patterns {
     thumps: usize,
     ticks: usize,
     stabs: usize,
+    /// Open steps of the chord gate, of `BAR / CHORD_GATE_GRID`.
+    chord_gate: usize,
     swing: f32,
 }
 
@@ -105,6 +134,19 @@ pub struct Pulse {
     bass_accent_release: f32,
     bass_accent_value: f32,
     duck_value: f32,
+    /// Whether the chord gate is open on the current step, its openness from 0 to 1, how
+    /// deep it dips, its ramp coefficient and duty.
+    chord_open: bool,
+    /// The 16th within the bar now.
+    bar_step: usize,
+    chord_value: f32,
+    chord_depth: f32,
+    chord_volume: f32,
+    /// Whether the bass is away from home, and the gate's fade with it, from 0 to 1.
+    chord_away: bool,
+    chord_section: f32,
+    chord_ramp: f32,
+    chord_duty: f32,
     seconds: f32,
     counts: [u64; 3],
     rng: Rng,
@@ -140,6 +182,15 @@ impl Pulse {
             bass_accent_release: 0.1,
             bass_accent_value: 0.0,
             duck_value: 0.0,
+            chord_open: true,
+            bar_step: 0,
+            chord_value: 1.0,
+            chord_depth: 0.0,
+            chord_volume: 1.0,
+            chord_away: false,
+            chord_section: 0.0,
+            chord_ramp: 1.0,
+            chord_duty: 1.0,
             seconds: 0.0,
             counts: [0; 3],
             rng,
@@ -188,10 +239,20 @@ impl Pulse {
         self.tempo
     }
 
-    /// How far the drone dips now (see `PulseOut::duck`).
+    /// How far the drone dips with the thumps now, from 0 (not at all) to 1 (silent).
     #[cfg(test)]
     pub fn duck(&self) -> f32 {
         self.duck_value
+    }
+
+    /// Whether the bass is away from home, which lets the chord gate play.
+    pub fn set_away(&mut self, away: bool) {
+        self.chord_away = away;
+    }
+
+    /// How far the chord gate dips the chord now, from 0 to `CHORD_GATE`.
+    pub fn chord_gate(&self) -> f32 {
+        self.chord_depth * (1.0 - self.chord_value)
     }
 
     /// The synth bass's accent now, from 0 to `COUPLING`.
@@ -227,6 +288,14 @@ impl Pulse {
         // Thumps spread evenly over a bar of 16 sixteenths.
         self.duck_gap = 240.0 / (self.tempo * self.patterns.thumps.max(1) as f32);
         self.duck_shape = [0, 1].map(|end| lerp(DUCK_SHAPE[0][end], DUCK_SHAPE[1][end], warmth));
+        let playing = (self.chord_away || !CHORD_GATE_AWAY_ONLY) as u8 as f32;
+        let fade = block_seconds * self.tempo / 240.0;
+        self.chord_section += (playing - self.chord_section).clamp(-fade, fade);
+        self.chord_depth = CHORD_GATE * smoothstep(0.25, 0.7, params.form) * self.chord_section;
+        self.chord_volume = lerp(CHORD_GATE_VOLUME[0], CHORD_GATE_VOLUME[1], warmth);
+        let ramp = lerp(CHORD_GATE_RAMP[0], CHORD_GATE_RAMP[1], warmth);
+        self.chord_ramp = 1.0 - (-1.0 / (ramp * self.sample_rate)).exp();
+        self.chord_duty = lerp(CHORD_GATE_DUTY[0], CHORD_GATE_DUTY[1], warmth);
         self.bass_accent_release = lerp(BASS_ACCENT_RELEASE[0], BASS_ACCENT_RELEASE[1], warmth);
         for stab in &mut self.stabs {
             stab.normalize();
@@ -260,6 +329,13 @@ impl Pulse {
             } else {
                 0
             },
+            chord_gate: if open && form >= 0.25 {
+                let reach = ((form - 0.25) / 0.45).clamp(0.0, 1.0);
+                let share = lerp(CHORD_GATE_OPEN[0], CHORD_GATE_OPEN[1], reach);
+                (share * (BAR / CHORD_GATE_GRID) as f32).round() as usize
+            } else {
+                BAR / CHORD_GATE_GRID
+            },
             swing: lerp(0.5, 0.57, smooth(params.heat)) + LOOSE_SWING * params.looseness,
         };
     }
@@ -287,6 +363,13 @@ impl Pulse {
         };
         let even = step.is_multiple_of(2);
         let patterns = self.patterns;
+        self.bar_step = bar_step;
+        self.chord_open = euclidean(
+            patterns.chord_gate,
+            BAR / CHORD_GATE_GRID,
+            0,
+            bar_step / CHORD_GATE_GRID,
+        );
 
         if euclidean(patterns.thumps, BAR, 0, bar_step) {
             let velocity = if bar_step == 0 { 1.0 } else { 0.82 };
@@ -350,6 +433,19 @@ impl Pulse {
             self.play(self.step.wrapping_add(1));
         }
 
+        // Where in the current gate step we are, from 0 to 1, with the swing.
+        let swing = self.patterns.swing as f64;
+        let sixteenth = if self.odd_played {
+            (self.pair_phase - swing) / (1.0 - swing)
+        } else {
+            self.pair_phase / swing
+        } as f32;
+        #[allow(clippy::modulo_one)] // the grid is tunable
+        let position =
+            ((self.bar_step % CHORD_GATE_GRID) as f32 + sixteenth) / CHORD_GATE_GRID as f32;
+        let target = (self.chord_open && position < self.chord_duty) as u8 as f32;
+        self.chord_value += (target - self.chord_value) * self.chord_ramp;
+
         self.level = (self.level + self.level_step).clamp(0.0, 1.0);
         let noise = self.rng.range(-1.0, 1.0);
         let thump = self.thump.next() * THUMP_LEVEL;
@@ -373,7 +469,7 @@ impl Pulse {
                 (0.3 * tick[0] + 0.25 * stab) * level,
                 (0.3 * tick[1] + 0.25 * stab) * level,
             ],
-            duck,
+            drone: (1.0 - duck) * (1.0 - self.chord_volume * self.chord_gate()),
         }
     }
 }
@@ -713,7 +809,8 @@ mod tests {
                 if frame % BLOCK == 0 {
                     pulse.update_block(&params);
                 }
-                let duck = pulse.next().duck;
+                pulse.next();
+                let duck = pulse.duck();
                 deepest = deepest.max(duck);
                 accent = accent.max(pulse.bass_accent());
                 released += (duck < 0.5 * (DUCK * COUPLING).min(1.0)) as usize;
@@ -732,6 +829,48 @@ mod tests {
                 assert!(released > frames / 5, "swells back between thumps");
             } else {
                 assert_eq!((deepest, accent), (0.0, 0.0), "untouched without thumps");
+            }
+        }
+    }
+
+    #[test]
+    fn chord_gate_chops_the_chord_on_the_grid() {
+        let rate = 8000.0;
+        let harmony = Harmony::from_palette(&PALETTES[0]);
+        for (form, heat, away, choppy) in [
+            (0.1, 0.0, true, false),
+            (0.8, 0.0, false, !CHORD_GATE_AWAY_ONLY),
+            (0.8, 0.0, true, true),
+            (0.8, 1.0, true, true),
+        ] {
+            let mut pulse = Pulse::new(rate, Rhythm::Euclidean, &harmony, Rng::new(1));
+            pulse.set_away(away);
+            let params = Params {
+                heat,
+                ..params(form, 0.0)
+            };
+            let (mut deepest, mut steepest, mut previous) = (0.0_f32, 0.0_f32, 0.0_f32);
+            for frame in 0..(rate as usize * 10) {
+                if frame % BLOCK == 0 {
+                    pulse.update_block(&params);
+                }
+                pulse.next();
+                let gate = pulse.chord_gate();
+                deepest = deepest.max(gate);
+                steepest = steepest.max((gate - previous).abs());
+                previous = gate;
+            }
+            if !choppy {
+                assert_eq!(deepest, 0.0, "steady without the gate");
+            } else {
+                assert!(deepest > 0.9 * CHORD_GATE, "{heat}: {deepest}");
+                // Hard when cold, soft when warm: the largest change per sample.
+                let ramp = lerp(CHORD_GATE_RAMP[0], CHORD_GATE_RAMP[1], heat);
+                let expected = CHORD_GATE / (ramp * rate);
+                assert!(
+                    steepest < 1.1 * expected && steepest > 0.5 * expected,
+                    "{steepest}"
+                );
             }
         }
     }
