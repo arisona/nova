@@ -8,6 +8,8 @@ Nova produces drone and ambient sound with its own character: one instrument tha
 
 Sound and light reference each other without being locked together: they share the controls and the tide clock, and the rendered image shapes the sound through slow, smoothed features, never by triggering notes voxel by voxel. The coupling stays subtle: a listener should sense that sound and light belong together, not hear the image being played.
 
+Nova is not a general music engine or a DAW. It follows one specific approach to sound design, which opens up a large sonic space within clear boundaries. Instruments, voices and parameters are added where they widen that space, not for flexibility's sake, and the web app keeps its simple controls.
+
 ## Target system
 
 Sound is designed for a high-end system with full bass extension, for example two Genelec 8030 with a 7050 subwoofer (down to about 25 Hz, bass-managed below about 85 Hz). Installations vary from living rooms to offices and exhibitions; Volume adapts the level, the design does not depend on the room.
@@ -83,12 +85,24 @@ The measurements catch technical problems; they say nothing about whether it sou
 
 1. Offline harness and first sketches: bed, air and space; pulse in Euclidean and polymeter variants. _(done)_
 2. Go live: the renderer publishes features and effective controls to the audio thread, and the instrument replaces the three-voice synth. _(done)_
-3. Listen and tune, step by step _(current)_:
-   1. Tonal balance: fewer highs at their sources, the bed further back, a synth bass on the root. _(done)_
-   2. A warm bed that sounds less like an organ: breath, drifting brightness, slight detuning, deeper movement. _(done)_
-   3. Slow harmonic motion: root and voicing evolve over minutes. _(done)_
-   4. A narrower tempo range; tides vary the regularity of the rhythm rather than its speed. _(done)_
-   5. The drone follows the pulse: dips with the thumps, the synth bass accents them. _(done)_
-   6. Rhythmic chord modulation: the chord pulses with a gate pattern on the grid, while the bass is away from home. _(done)_
-   7. Later: reverb, delay and stereo image; dub throws of the chord; the pulse into the fog (less transient thumps and ticks, deeper with Void); a bass accent that stays out of the chord's range; looseness for the drone's pumping; `COUPLING` as a parameter; coupling to the image; a per-room low-pass setting in the settings file; the grain layer and module hints.
-4. Profile on the Raspberry Pi with visuals active, and listen on the target system in different rooms.
+3. Listen and tune, step by step _(done for now)_:
+   1. Tonal balance: fewer highs at their sources, the bed further back, a synth bass on the root.
+   2. A warm bed that sounds less like an organ: breath, drifting brightness, slight detuning, deeper movement.
+   3. Slow harmonic motion: root and voicing evolve over minutes.
+   4. A narrower tempo range; tides vary the regularity of the rhythm rather than its speed.
+   5. The drone follows the pulse: dips with the thumps, the synth bass accents them.
+   6. Rhythmic chord modulation: the chord pulses with a gate pattern on the grid, while the bass is away from home.
+   7. Visual activity on a logarithmic scale, so calm and busy modules both stay distinguishable.
+4. Profile on the Raspberry Pi 4 with visuals active. _(done)_ The instrument renders at about 6 times real time (about 17% of one core), and the visuals take well under 1 ms per frame. Periods of 2048 frames stopped the underruns that periods of 512 caused. Listening on the target system in different rooms is still to come, through an audio HAT or USB DAC: the Pi's own output is 16-bit and noisy.
+5. Architecture, without building a general music engine _(next)_:
+   1. Move audio into its own crate, `nova-audio`: DSP, voices, the instrument and native output. It knows nothing of the server's state: the server adapts its settings, effective controls and image features to the crate's types. A package profile (`opt-level` 2 in dev builds) keeps debug builds fast enough for audio. The sketches stay in the server, since they need the content.
+   2. Inside the crate, structure by role: `dsp` (building blocks) → `voices` (bed, air, thump, tick, stab, reverb and so on) → `instruments` → `engine` (shared musical time, master, instrument selection) → `io`.
+   3. A shared conductor: tempo, steps, bars, sections, harmony progression and tides move from the instrument into the engine, so several instruments can play in the same time.
+   4. A typed signal bus instead of a modulation matrix: a plain struct (dip, gate, accent, away and so on), written per block and read by the instruments that need it.
+   5. Presets: an instrument's constants become a plain data struct, so some instruments in the web app can be presets of the same code.
+6. A second, contrasting instrument; then extract what both share.
+7. An instrument selector in the web app, like the content strip, once there are two: every instrument interprets the same controls, instruments are registered like content modules, and switching crossfades.
+8. Later:
+   - Tuning: reverb, delay and stereo image; dub throws of the chord; the pulse into the fog (less transient thumps and ticks, deeper with Void); a bass accent that stays out of the chord's range; looseness for the drone's pumping; `COUPLING` as a parameter; a per-room low-pass setting in the settings file; the grain layer.
+   - The image, always subtle: height sets the chord's register, brightness and width; the colours' shares weight the chord tones; local flashes as onsets; features that follow Flip Vertical; module hints.
+   - Output: choose the highest-resolution sample format a device offers (F32, I32 or I24 before I16), with dither for 16-bit output; scale quality down (reverb channels, partials) only if a target needs it.

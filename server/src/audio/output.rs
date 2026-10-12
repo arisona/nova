@@ -20,6 +20,12 @@ const RHYTHM: Rhythm = Rhythm::Euclidean;
 /// Seconds between reports of dropouts in the log.
 const DROPOUT_REPORT_SECONDS: u64 = 10;
 
+/// Frames per callback. ALSA keeps two of them buffered, so 2048 frames give the audio
+/// thread about 40 ms of slack at 48 kHz, enough for the scheduling delays of a busy
+/// Raspberry Pi; 512 underran there. Nothing is played live, so the latency of about 85 ms
+/// only delays the response to the sliders slightly.
+const PERIOD_FRAMES: u32 = 2048;
+
 /// Whether the stream must be rebuilt after an error. Dropouts, a reroute to a new default
 /// device and refused real-time scheduling leave it running.
 fn is_fatal(kind: ErrorKind) -> bool {
@@ -171,7 +177,7 @@ fn open_stream(feed: Arc<AudioFeed>, faults: Arc<Faults>) -> Result<Stream, Stri
         return Err("Unsupported channel count or sample rate".into());
     }
     if let cpal::SupportedBufferSize::Range { min, max } = supported.buffer_size() {
-        config.buffer_size = cpal::BufferSize::Fixed(512_u32.clamp(*min, *max));
+        config.buffer_size = cpal::BufferSize::Fixed(PERIOD_FRAMES.clamp(*min, *max));
     }
     match supported.sample_format() {
         cpal::SampleFormat::F32 => build_stream::<f32>(&device, &config, feed, faults),
