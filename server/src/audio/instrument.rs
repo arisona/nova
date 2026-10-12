@@ -263,14 +263,57 @@ impl Harmony {
     }
 }
 
+/// Range of visual activity the sound follows, on a logarithmic scale: calm content (about
+/// 0.005) still differs, busy content (about 0.2) does not all sound the same.
+const ACTIVITY_RANGE: [f32; 2] = [0.003, 0.3];
+
+/// A quick rise of the activity above this multiple of its slow level, plus a margin, is an
+/// onset, which adds a stab; onsets are at least `ONSET_COOLDOWN` seconds apart.
+const ONSET_RATIO: f32 = 1.8;
+const ONSET_MARGIN: f32 = 0.03;
+const ONSET_COOLDOWN: f32 = 8.0;
+
+/// Visual activity, followed slowly (2 s) for the sound and quickly (0.15 s) for onsets.
+pub struct Activity {
+    slow: f32,
+    fast: f32,
+    cooldown: f32,
+}
+
+impl Default for Activity {
+    fn default() -> Self {
+        Self {
+            slow: 0.0,
+            fast: 0.0,
+            cooldown: ONSET_COOLDOWN,
+        }
+    }
+}
+
+impl Activity {
+    /// Follows the activity of a frame `seconds` long; returns the level for the sound, from
+    /// 0 to 1, and whether this is an onset.
+    pub fn update(&mut self, activity: f32, seconds: f32) -> (f32, bool) {
+        let activity = activity.min(2.0);
+        self.slow += (activity - self.slow) * coefficient(2.0, 1.0 / seconds);
+        self.fast += (activity - self.fast) * coefficient(0.15, 1.0 / seconds);
+        self.cooldown -= seconds;
+        let onset = self.cooldown <= 0.0 && self.fast > ONSET_RATIO * self.slow + ONSET_MARGIN;
+        if onset {
+            self.cooldown = ONSET_COOLDOWN;
+        }
+        let [low, high] = ACTIVITY_RANGE;
+        let level = ((self.slow.max(low) / low).ln() / (high / low).ln()).min(1.0);
+        (level, onset)
+    }
+}
+
 pub struct Instrument {
     sample_rate: f32,
     target: Controls,
     features: Features,
     params: Params,
-    /// Raw visual activity, smoothed slowly and quickly, for the level and for onsets.
-    activity_slow: f32,
-    activity_fast: f32,
+    activity: Activity,
     palette: usize,
     harmony: Harmony,
     /// Sections of the harmony so far, and steps of the bass progression.
@@ -315,8 +358,7 @@ impl Instrument {
             },
             features: Features::default(),
             params,
-            activity_slow: 0.0,
-            activity_fast: 0.0,
+            activity: Activity::default(),
             palette: 0,
             harmony,
             section: 0.0,
@@ -367,12 +409,12 @@ impl Instrument {
         for (smoothed, &layer) in params.layers.iter_mut().zip(&self.features.layers) {
             *smoothed += (layer - *smoothed) * layers;
         }
-        let activity = self.features.activity.min(2.0);
-        self.activity_slow += (activity - self.activity_slow) * coefficient(2.0, block_rate);
-        self.activity_fast += (activity - self.activity_fast) * coefficient(0.15, block_rate);
-        params.activity = 1.0 - (-self.activity_slow / 0.06).exp();
+        let (activity, onset) = self
+            .activity
+            .update(self.features.activity, 1.0 / block_rate);
+        params.activity = activity;
         params.looseness = tides::LOOSENESS.offset(self.target.tide_seconds).max(0.0);
-        if self.activity_fast > 1.8 * self.activity_slow + 0.03 {
+        if onset {
             self.pulse.request_accent();
         }
 

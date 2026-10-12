@@ -77,9 +77,6 @@ const CHORD_GATE_AWAY_ONLY: bool = true;
 /// Release of the bass accent in seconds, when cold and warm.
 const BASS_ACCENT_RELEASE: [f32; 2] = [0.12, 0.22];
 
-/// Seconds between stabs added by visual onsets.
-const ACCENT_COOLDOWN: f32 = 8.0;
-
 const STAB_TONES: usize = 3;
 const STAB_PARTIALS: usize = 10;
 
@@ -123,7 +120,6 @@ pub struct Pulse {
     stabs: [Stab; 2],
     next_stab: usize,
     accent: bool,
-    cooldown: f32,
     duck: Duck,
     bass_accent: Envelope,
     /// Coupling scaled in by Form, and the releases for the current tempo and Heat.
@@ -173,7 +169,6 @@ impl Pulse {
             stabs: [Stab::new(sample_rate), Stab::new(sample_rate)],
             next_stab: 0,
             accent: false,
-            cooldown: ACCENT_COOLDOWN,
             duck: Duck::default(),
             bass_accent: Envelope::default(),
             coupling: 0.0,
@@ -229,8 +224,9 @@ impl Pulse {
         ];
     }
 
+    /// Adds a stab on the next off-beat, if thumps play (see `Activity`).
     pub fn request_accent(&mut self) {
-        if self.cooldown <= 0.0 {
+        if self.patterns.thumps > 0 {
             self.accent = true;
         }
     }
@@ -272,7 +268,6 @@ impl Pulse {
     pub fn update_block(&mut self, params: &Params) {
         let block_seconds = BLOCK as f32 / self.sample_rate;
         self.seconds += block_seconds;
-        self.cooldown -= block_seconds;
         // The first block takes the tempo as it is, like the other controls.
         if self.params.replace(*params).is_none() {
             self.tempo = lerp(SLOWEST, FASTEST, params.flow_setting);
@@ -411,7 +406,6 @@ impl Pulse {
         if stab || accent {
             if accent {
                 self.accent = false;
-                self.cooldown = ACCENT_COOLDOWN;
             }
             self.stabs[self.next_stab].trigger(0.9, self.chord, params.heat);
             self.next_stab = 1 - self.next_stab;

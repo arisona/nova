@@ -95,7 +95,7 @@ cargo test --release --manifest-path server/Cargo.toml audio_sketches -- --ignor
 cargo test --manifest-path server/Cargo.toml native_audio_output_smoke -- --ignored --nocapture
 ```
 
-The sketches render the instrument offline, driven by the real content modules, and need no device (see [Audio concept](audio_concept.md#sketches)). They write WAV files, spectrograms and `report.md` to `nova-audio-sketches` in the OS temporary directory, or to `NOVA_AUDIO_DIR`; `NOVA_SKETCH=void` renders only scenarios whose name contains `void`. The smoke test needs an output device and stays muted.
+The sketches render the instrument offline, driven by the real content modules, and need no device (see [Audio concept](audio_concept.md#sketches)). They write WAV files, spectrograms and `report.md` to `nova-audio-sketches` in the OS temporary directory, or to `NOVA_AUDIO_DIR`; `NOVA_SKETCH=void` renders only scenarios whose name contains `void`. Two more ignored tests support tuning: `audio_ducking_profile` prints how the drone dips with the thumps (`NOVA_HEAT`, `NOVA_FLOW`), and `audio_feature_report` writes `features.md` with the image features every module hands to the sound across Form and Flow. The smoke test needs an output device and stays muted.
 
 ## Adding content
 

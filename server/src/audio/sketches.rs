@@ -15,8 +15,9 @@ use std::time::{Duration, Instant};
 
 use std::sync::Arc;
 
+use super::features::LAYERS;
 use super::feed::{AudioFeed, FeedPublisher};
-use super::instrument::{Instrument, Rhythm};
+use super::instrument::{Activity, Instrument, Rhythm};
 use crate::app_state::AppState;
 use crate::content::all_content_names;
 use crate::palettes::PALETTES;
@@ -494,4 +495,80 @@ fn audio_ducking_profile() {
             10.0 * (power / loudest).log10()
         );
     }
+}
+
+/// What the image hands to the sound, per module across Form and Flow, without rendering
+/// audio: the raw activity (mean, 90th percentile, maximum), the level it gives the sound
+/// (from 0 to 1), onsets per minute (stabs while thumps play), and where the light sits
+/// (centroid and spread in layers from 0 at the bottom to 9 at the top, and the share in
+/// the top three layers). Writes `features.md` to `NOVA_AUDIO_DIR` or the temporary
+/// directory and prints it.
+#[test]
+#[ignore = "writes a report of the image features per module"]
+fn audio_feature_report() {
+    let directory = std::env::var_os("NOVA_AUDIO_DIR")
+        .map(Into::into)
+        .unwrap_or_else(|| std::env::temp_dir().join("nova-audio-sketches"));
+    std::fs::create_dir_all(&directory).unwrap();
+    let mut report = String::from(
+        "# Image features\n\nPer module, Form and Flow, one minute each (the first 5 s \
+         skipped), Heat and Void 0.5. See `audio_feature_report` in `audio/sketches.rs`.\n\n\
+         | Module | Form | Flow | Activity mean / p90 / max | Level | Onsets/min | Centroid | \
+         Spread | Top 3 layers |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n",
+    );
+    for content in all_content_names() {
+        for form in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            for flow in [0.25, 0.5, 1.0] {
+                let mut state = AppState::default();
+                assert!(state.set_selected_content(&content));
+                state.set_form(form);
+                state.set_flow(flow);
+                let feed = Arc::new(AudioFeed::new(&state));
+                let mut renderer = Renderer::new(state.dim());
+                renderer.feed_audio(FeedPublisher::new(Arc::clone(&feed)));
+                let mut activity = Activity::default();
+                let (mut raw, mut levels, mut onsets) = (Vec::new(), 0.0, 0);
+                let (mut centroid, mut spread, mut top) = (0.0, 0.0, 0.0);
+                let frames = (60.0 / FRAME_SECONDS) as usize;
+                let skipped = (5.0 / FRAME_SECONDS) as usize;
+                for frame in 0..frames {
+                    renderer.render_step(&mut RenderState::from(&state), FRAME_SECONDS);
+                    let features = feed.features();
+                    let (level, onset) = activity.update(features.activity, FRAME_SECONDS);
+                    if frame < skipped {
+                        continue;
+                    }
+                    raw.push(features.activity);
+                    levels += level;
+                    onsets += onset as u32;
+                    let mean: f32 = (0..LAYERS)
+                        .map(|layer| layer as f32 * features.layers[layer])
+                        .sum();
+                    let variance: f32 = (0..LAYERS)
+                        .map(|layer| (layer as f32 - mean).powi(2) * features.layers[layer])
+                        .sum();
+                    centroid += mean;
+                    spread += variance.sqrt();
+                    top += features.layers[LAYERS - 3..].iter().sum::<f32>();
+                }
+                let count = raw.len() as f32;
+                let mean = raw.iter().sum::<f32>() / count;
+                raw.sort_by(f32::total_cmp);
+                writeln!(
+                    report,
+                    "| {content} | {form} | {flow} | {mean:.3} / {:.3} / {:.2} | {:.2} | {:.1} | {:.1} | {:.1} | {:.0}% |",
+                    raw[(raw.len() as f32 * 0.9) as usize],
+                    raw[raw.len() - 1],
+                    levels / count,
+                    onsets as f32 * 60.0 / 55.0,
+                    centroid / count,
+                    spread / count,
+                    100.0 * top / count,
+                )
+                .unwrap();
+            }
+        }
+    }
+    std::fs::write(directory.join("features.md"), &report).unwrap();
+    println!("{report}");
 }
