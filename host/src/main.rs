@@ -7,7 +7,7 @@ mod state;
 mod voxel;
 mod web;
 
-use nova_audio::{Output, Preset};
+use nova_audio::Output;
 use nova_core::{Part, Status};
 use nova_voxel::{Hardware, Renderer, Simulator};
 use state::State;
@@ -36,16 +36,10 @@ fn main() {
     })
     .expect("Error setting signal handler");
 
-    let (bus, simulator, audio, instrument, dim) = {
+    let (bus, simulator, audio, dim) = {
         let state = state.lock().unwrap();
         log::debug!("Using settings:\n{:#?}", *state);
-        (
-            state.bus(),
-            state.simulator(),
-            state.audio(),
-            state.instrument().to_string(),
-            state.dim(),
-        )
+        (state.bus(), state.simulator(), state.audio(), state.dim())
     };
     log::info!(
         "Starting Nova in {} mode",
@@ -54,9 +48,7 @@ fn main() {
 
     // The sound plays while this lives.
     let _sound = if audio {
-        log::info!("Playing {instrument}");
-        let preset = Preset::named(&instrument).unwrap_or_default();
-        Output::start(Arc::clone(&bus), preset)
+        Output::start(Arc::clone(&bus))
             .inspect_err(|error| {
                 log::error!("Cannot start the sound: {error}");
                 bus.report(

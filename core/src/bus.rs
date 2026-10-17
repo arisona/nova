@@ -1,5 +1,5 @@
 //! The bus: what the parts share while Nova plays. The host puts the controls on it as the
-//! user sets them; the display adds the tide clock and the features of its light with every
+//! user sets them, and the instrument the selected content plays; the display adds the tide clock and the features of its light with every
 //! frame; the sound reads all of it. Each part also leaves its status there for the host.
 //!
 //! Lock-free for the values, so the audio callback can read them; values may come from
@@ -51,6 +51,7 @@ pub struct Bus {
     flow: Float,
     form: Float,
     void: Float,
+    instrument: AtomicUsize,
     clock: AtomicU64,
     level: Float,
     balance: Float,
@@ -93,6 +94,16 @@ impl Bus {
             form: self.form.get(),
             void: self.void.get(),
         }
+    }
+
+    /// The instrument to play, a position in the sound's list of instruments
+    /// (`nova_audio::INSTRUMENTS`). The sound mixes over to a new one.
+    pub fn set_instrument(&self, instrument: usize) {
+        self.instrument.store(instrument, Ordering::Relaxed);
+    }
+
+    pub fn instrument(&self) -> usize {
+        self.instrument.load(Ordering::Relaxed)
     }
 
     /// The tide clock, in seconds (see `tides::TideClock`).
@@ -151,7 +162,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn bus_carries_controls_clock_light_and_statuses() {
+    fn bus_carries_controls_instrument_clock_light_and_statuses() {
         let controls = Controls {
             brightness: 0.1,
             volume: 0.4,
@@ -164,6 +175,9 @@ mod tests {
         let bus = Bus::new(&controls);
         assert_eq!(bus.controls(), controls);
         assert_eq!(bus.clock(), 0.0);
+        assert_eq!(bus.instrument(), 0);
+        bus.set_instrument(2);
+        assert_eq!(bus.instrument(), 2);
         assert_eq!(bus.light(), Features::default());
         bus.set_clock(1_234.567_891_234);
         assert_eq!(bus.clock(), 1_234.567_891_234);

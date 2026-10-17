@@ -344,7 +344,7 @@ mod tests {
 
     fn engine(controls: Controls) -> Engine {
         let preset = Preset::Fathom(super::Preset::DEFAULT);
-        let mut engine = Engine::with_palettes(RATE, 3, palettes(), &preset);
+        let mut engine = Engine::with_palettes(RATE, 3, palettes(), &[preset], 0);
         engine.set_controls(controls);
         engine
     }

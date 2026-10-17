@@ -3,7 +3,8 @@
 //! A service thread opens the stream, rebuilds it when it breaks, retries a missing device,
 //! counts dropouts and leaves the sound's status on the bus. The stream uses the device's sample
 //! rate and format, with mono downmix when needed; every new stream starts a new engine,
-//! which fades in from silence.
+//! which fades in from silence with the instrument on the bus, and mixes over to any other
+//! the bus asks for.
 
 use std::hash::{BuildHasher, RandomState};
 use std::sync::{
@@ -20,7 +21,7 @@ use cpal::{
 use nova_core::{Bus, Part, Status};
 
 use crate::engine::Engine;
-use crate::instruments::Preset;
+use crate::instruments::{INSTRUMENTS, Preset};
 
 /// Seconds between reports of dropouts in the log.
 const DROPOUT_REPORT_SECONDS: u64 = 10;
@@ -73,9 +74,10 @@ pub struct Output {
 }
 
 impl Output {
-    /// Starts the service thread, which plays `preset` from the bus as soon as a device is
-    /// available, until the output is dropped.
-    pub fn start(bus: Arc<Bus>, preset: Preset) -> std::io::Result<Self> {
+    /// Starts the service thread, which plays `INSTRUMENTS` from the bus as soon as a device
+    /// is available, until the output is dropped.
+    pub fn start(bus: Arc<Bus>) -> std::io::Result<Self> {
+        let presets: Vec<Preset> = INSTRUMENTS.iter().map(|(_, preset)| *preset).collect();
         let stop = Arc::new(AtomicBool::new(false));
         let thread_stop = Arc::clone(&stop);
         let thread = thread::Builder::new()
@@ -116,7 +118,7 @@ impl Output {
                         log::warn!("Audio stream interrupted; retrying output device");
                     }
                     if stream.is_none() && Instant::now() >= retry_at {
-                        match open_stream(Arc::clone(&bus), &preset, Arc::clone(&faults)) {
+                        match open_stream(Arc::clone(&bus), &presets, Arc::clone(&faults)) {
                             Ok(opened) => {
                                 stream = Some(opened);
                                 status = Status::Ok("Audio ready".into());
@@ -156,7 +158,7 @@ impl Drop for Output {
     }
 }
 
-fn open_stream(bus: Arc<Bus>, preset: &Preset, faults: Arc<Faults>) -> Result<Stream, String> {
+fn open_stream(bus: Arc<Bus>, presets: &[Preset], faults: Arc<Faults>) -> Result<Stream, String> {
     let device = cpal::default_host()
         .default_output_device()
         .ok_or("No output device")?;
@@ -171,17 +173,19 @@ fn open_stream(bus: Arc<Bus>, preset: &Preset, faults: Arc<Faults>) -> Result<St
         config.buffer_size = cpal::BufferSize::Fixed(PERIOD_FRAMES.clamp(*min, *max));
     }
     match supported.sample_format() {
-        cpal::SampleFormat::F32 => build_stream::<f32>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::F64 => build_stream::<f64>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::I8 => build_stream::<i8>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::I16 => build_stream::<i16>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::I24 => build_stream::<cpal::I24>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::I32 => build_stream::<i32>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::I64 => build_stream::<i64>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::U8 => build_stream::<u8>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::U16 => build_stream::<u16>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::U32 => build_stream::<u32>(&device, &config, bus, preset, faults),
-        cpal::SampleFormat::U64 => build_stream::<u64>(&device, &config, bus, preset, faults),
+        cpal::SampleFormat::F32 => build_stream::<f32>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::F64 => build_stream::<f64>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::I8 => build_stream::<i8>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::I16 => build_stream::<i16>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::I24 => {
+            build_stream::<cpal::I24>(&device, &config, bus, presets, faults)
+        }
+        cpal::SampleFormat::I32 => build_stream::<i32>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::I64 => build_stream::<i64>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::U8 => build_stream::<u8>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::U16 => build_stream::<u16>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::U32 => build_stream::<u32>(&device, &config, bus, presets, faults),
+        cpal::SampleFormat::U64 => build_stream::<u64>(&device, &config, bus, presets, faults),
         format => Err(format!("Unsupported sample format: {format}")),
     }
 }
@@ -202,17 +206,19 @@ fn build_stream<Sample: SizedSample + FromSample<f32>>(
     device: &cpal::Device,
     config: &StreamConfig,
     bus: Arc<Bus>,
-    preset: &Preset,
+    presets: &[Preset],
     faults: Arc<Faults>,
 ) -> Result<Stream, String> {
     let seed = RandomState::new().hash_one(Instant::now());
-    let mut engine = Engine::new(config.sample_rate as f32, seed, preset);
+    let first = bus.instrument().min(presets.len() - 1);
+    let mut engine = Engine::with_instruments(config.sample_rate as f32, seed, presets, first);
     let channels = config.channels as usize;
     let stream = device
         .build_output_stream(
             *config,
             move |output: &mut [Sample], _| {
                 engine.set_controls(bus.controls());
+                engine.set_instrument(bus.instrument());
                 engine.set_clock(bus.clock());
                 engine.set_light(bus.light());
                 for frame in output.chunks_mut(channels) {
@@ -272,7 +278,7 @@ mod tests {
         // Volume 0: the bus starts with every control in the middle and Volume muted.
         let bus = Arc::new(Bus::new(&Default::default()));
         let faults = Arc::new(Faults::default());
-        let stream = open_stream(bus, &Preset::default(), Arc::clone(&faults)).unwrap();
+        let stream = open_stream(bus, &[Preset::default()], Arc::clone(&faults)).unwrap();
         thread::park_timeout(Duration::from_millis(500));
         assert!(!faults.fatal.load(Ordering::Relaxed));
         drop(stream);

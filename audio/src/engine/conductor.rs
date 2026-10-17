@@ -66,6 +66,8 @@ pub struct Conductor {
     due: Option<Change>,
     announce: Option<Change>,
     score: Score,
+    /// The score to play from the next phrase start, when the instrument changes.
+    next_score: Option<Score>,
     rng: Rng,
     /// Form, Flow as set and the share of lit voxels, from the latest block.
     form: f32,
@@ -109,6 +111,7 @@ impl Conductor {
             due: None,
             announce: None,
             score,
+            next_score: None,
             rng: Rng::new(seed),
             form: 0.5,
             flow_setting: 0.5,
@@ -198,6 +201,11 @@ impl Conductor {
         signals.echo = echo[self.progression % echo.len()];
     }
 
+    /// Plays `score` from the next phrase start, as one instrument mixes over to another.
+    pub fn set_score(&mut self, score: Score) {
+        self.next_score = Some(score);
+    }
+
     /// Throws the next stab, for a change of bass or palette.
     fn arm_section(&mut self) {
         if self.score.throws.sections {
@@ -209,6 +217,11 @@ impl Conductor {
     /// pattern, which holds for the bar.
     fn new_bar(&mut self, step: u64) {
         self.bar = step / BAR as u64;
+        if self.bar.is_multiple_of(PHRASE as u64)
+            && let Some(score) = self.next_score.take()
+        {
+            self.score = score;
+        }
         if self.bar.is_multiple_of(PHRASE as u64)
             && let Some(change) = self.due.take()
         {

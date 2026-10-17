@@ -1,11 +1,13 @@
-//! The engine: shared musical time, the instrument, and the master.
+//! The engine: shared musical time, the instruments, and the master.
 //!
-//! It plays from the controls as set, the tide clock and the features of the light, as the
-//! bus carries them (`nova_core::Bus`). Once per block it moves Heat, Flow, Form and Void by
-//! the global tides, as the display does, smooths them and the light, lets the conductor
-//! move time and harmony, and lets the instrument read and write the signals; every sample
-//! goes from the instrument through the master. It plays in the audio callback, so it
-//! allocates only on construction.
+//! It plays from the controls as set, the instrument to play, the tide clock and the
+//! features of the light, as the bus carries them (`nova_core::Bus`). Once per block it moves
+//! Heat, Flow, Form and Void by the global tides, as the display does, smooths them and the
+//! light, lets the conductor move time and harmony, and lets the instrument read and write
+//! the signals; every sample goes from the instrument through the master. A new instrument
+//! mixes in while the previous one fades out, both on the shared conductor. It plays
+//! in the audio callback, so it allocates only on construction: every instrument it can
+//! play is built up front.
 
 mod conductor;
 mod master;
@@ -19,8 +21,12 @@ use crate::dsp::coefficient;
 use crate::harmony::{Harmony, Palette};
 use crate::instruments::{Instrument, Preset};
 use crate::params::Params;
-use crate::signals::Signals;
+use crate::signals::{Change, Signals};
 use master::Master;
+
+/// Seconds a change of instrument takes. The conductor turns to the new instrument's score
+/// on the first phrase start past halfway.
+const MIX_SECONDS: f32 = 5.0;
 
 /// Range of visual activity the sound follows, on a logarithmic scale: calm content (about
 /// 0.005) still differs, busy content (about 0.2) does not all sound the same.
@@ -78,7 +84,19 @@ pub struct Engine {
     activity: Activity,
     conductor: Conductor,
     signals: Signals,
-    instrument: Instrument,
+    /// Every instrument the engine can play, with its preset.
+    presets: Vec<Preset>,
+    instruments: Vec<Instrument>,
+    /// The instrument playing, the one asked for, and the one whose score the conductor
+    /// plays.
+    current: usize,
+    wanted: usize,
+    scored: usize,
+    /// The instrument mixing in, how far from 0 to 1, and the gains of the current and the
+    /// incoming one.
+    incoming: Option<usize>,
+    mix: f32,
+    gains: [f32; 2],
     master: Master,
     position: usize,
     /// Whether the controls have been smoothed since the start; the first block takes
@@ -90,7 +108,13 @@ impl Engine {
     /// An engine that plays `preset`; `seed` varies the details. It starts silent, until
     /// the controls set the volume.
     pub fn new(sample_rate: f32, seed: u64, preset: &Preset) -> Self {
-        Self::with_palettes(sample_rate, seed, Palette::all(), preset)
+        Self::with_instruments(sample_rate, seed, std::slice::from_ref(preset), 0)
+    }
+
+    /// An engine that can play any of `presets`, starting with the one at `first`, and mix
+    /// from one to another (see `set_instrument`).
+    pub fn with_instruments(sample_rate: f32, seed: u64, presets: &[Preset], first: usize) -> Self {
+        Self::with_palettes(sample_rate, seed, Palette::all(), presets, first)
     }
 
     /// An engine with other palettes than Nova's, for tests.
@@ -98,11 +122,25 @@ impl Engine {
         sample_rate: f32,
         seed: u64,
         palettes: Vec<Palette>,
-        preset: &Preset,
+        presets: &[Preset],
+        first: usize,
     ) -> Self {
         assert!(sample_rate.is_finite() && sample_rate >= 8000.0);
         assert!(palettes.len() >= nova_core::PALETTES.len());
+        assert!(first < presets.len());
         let harmony = Harmony::from_palette(&palettes[0]);
+        let instruments = presets
+            .iter()
+            .enumerate()
+            .map(|(index, preset)| {
+                Instrument::new(
+                    preset,
+                    sample_rate,
+                    &harmony,
+                    seed.wrapping_add(index as u64),
+                )
+            })
+            .collect();
         Self {
             sample_rate,
             palettes,
@@ -111,9 +149,16 @@ impl Engine {
             light: Features::default(),
             params: Params::default(),
             activity: Activity::default(),
-            conductor: Conductor::new(sample_rate, harmony, preset.score(), seed),
+            conductor: Conductor::new(sample_rate, harmony, presets[first].score(), seed),
             signals: Signals::new(harmony),
-            instrument: Instrument::new(preset, sample_rate, &harmony, seed),
+            presets: presets.to_vec(),
+            instruments,
+            current: first,
+            wanted: first,
+            scored: first,
+            incoming: None,
+            mix: 0.0,
+            gains: [1.0, 0.0],
             master: Master::new(sample_rate),
             position: 0,
             primed: false,
@@ -124,6 +169,15 @@ impl Engine {
     pub fn set_controls(&mut self, controls: Controls) {
         self.controls = controls.sanitized();
         self.master.set_volume(self.controls.volume);
+    }
+
+    /// The instrument to play, a position in the engine's presets; others are ignored. A
+    /// new one mixes in over `MIX_SECONDS`; one asked for during a mix follows after it,
+    /// unless it is the one fading out, which then turns back.
+    pub fn set_instrument(&mut self, instrument: usize) {
+        if instrument < self.instruments.len() {
+            self.wanted = instrument;
+        }
     }
 
     /// The tide clock, in seconds.
@@ -175,6 +229,41 @@ impl Engine {
         params.activity = activity;
         self.signals.onset = onset;
 
+        // The mix: start one to the instrument asked for, or turn back to the one fading
+        // out; the conductor turns to the new score past halfway.
+        let mut load = false;
+        match self.incoming {
+            None if self.wanted != self.current => {
+                self.incoming = Some(self.wanted);
+                self.mix = 0.0;
+                load = true;
+            }
+            Some(incoming) if self.wanted == self.current => {
+                self.current = incoming;
+                self.incoming = Some(self.wanted);
+                self.mix = 1.0 - self.mix;
+            }
+            _ => {}
+        }
+        if let Some(incoming) = self.incoming {
+            self.mix += 1.0 / (MIX_SECONDS * block_rate);
+            if self.mix >= 1.0 {
+                self.current = incoming;
+                self.incoming = None;
+                self.mix = 0.0;
+            }
+        }
+        let scored = match self.incoming {
+            Some(incoming) if self.mix >= 0.5 => incoming,
+            _ => self.current,
+        };
+        if scored != self.scored {
+            self.scored = scored;
+            self.conductor.set_score(self.presets[scored].score());
+        }
+        let angle = self.mix * std::f32::consts::FRAC_PI_2;
+        self.gains = [angle.cos(), angle.sin()];
+
         let params = self.params;
         self.conductor.update_block(
             &params,
@@ -183,7 +272,21 @@ impl Engine {
             &self.palettes,
             &mut self.signals,
         );
-        self.instrument.update_block(&params, &mut self.signals);
+        // Each instrument reads the conductor's signals and writes its own; the louder one's
+        // remain. An instrument mixing in takes the harmony as it is now.
+        let mut current = self.signals;
+        self.instruments[self.current].update_block(&params, &mut current);
+        if let Some(incoming) = self.incoming {
+            let mut signals = self.signals;
+            if load {
+                signals.change = Some(Change::Load);
+            }
+            self.instruments[incoming].update_block(&params, &mut signals);
+            if self.mix >= 0.5 {
+                current = signals;
+            }
+        }
+        self.signals = current;
     }
 
     pub fn next_frame(&mut self) -> [f32; 2] {
@@ -192,7 +295,12 @@ impl Engine {
         }
         self.position = (self.position + 1) % BLOCK;
         let now = self.conductor.next();
-        let mix = self.instrument.next(&now);
+        let mut mix = self.instruments[self.current].next(&now);
+        if let Some(incoming) = self.incoming {
+            let other = self.instruments[incoming].next(&now);
+            let [current, incoming] = self.gains;
+            mix = [0, 1].map(|channel| mix[channel] * current + other[channel] * incoming);
+        }
         self.master.process(mix)
     }
 
@@ -201,9 +309,9 @@ impl Engine {
         &self.signals
     }
 
-    /// Steps the instrument's pulse has played, per voice: thumps, ticks and stabs.
+    /// Steps the current instrument's pulse has played, per voice: thumps, ticks and stabs.
     pub fn steps(&self) -> [u64; 3] {
-        self.instrument.steps()
+        self.instruments[self.current].steps()
     }
 }
 
@@ -237,7 +345,8 @@ mod tests {
     }
 
     fn engine(seed: u64, preset: &Preset) -> Engine {
-        let mut engine = Engine::with_palettes(RATE, seed, palettes(), preset);
+        let mut engine =
+            Engine::with_palettes(RATE, seed, palettes(), std::slice::from_ref(preset), 0);
         engine.set_controls(loud());
         engine
     }
@@ -352,6 +461,36 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn a_new_instrument_mixes_in_and_can_turn_back() {
+        let presets: Vec<Preset> = INSTRUMENTS.iter().map(|(_, preset)| *preset).collect();
+        let mut engine = Engine::with_palettes(RATE, 3, palettes(), &presets, 0);
+        engine.set_controls(loud());
+        rms(&mut engine, 2.0);
+        engine.set_instrument(1);
+        // Halfway, both play; the sound never drops out on the way.
+        for _ in 0..10 {
+            assert!(rms(&mut engine, MIX_SECONDS / 20.0) > 0.01);
+        }
+        assert_eq!((engine.current, engine.incoming), (0, Some(1)));
+        // Asked for again, the first one turns back from where the mix is.
+        engine.set_instrument(0);
+        rms(&mut engine, MIX_SECONDS / 50.0);
+        assert_eq!((engine.current, engine.incoming), (1, Some(0)));
+        assert!(engine.mix > 0.45 && engine.mix < 0.6, "{}", engine.mix);
+        // Another one waits for the mix to end, then mixes in after it.
+        engine.set_instrument(2);
+        rms(&mut engine, MIX_SECONDS * 0.6);
+        assert_eq!((engine.current, engine.incoming), (0, Some(2)));
+        rms(&mut engine, MIX_SECONDS * 1.1);
+        assert_eq!((engine.current, engine.incoming), (2, None));
+        assert_eq!(engine.scored, 2);
+        // Unknown instruments change nothing.
+        engine.set_instrument(7);
+        rms(&mut engine, 1.0);
+        assert_eq!((engine.current, engine.incoming), (2, None));
     }
 
     #[test]

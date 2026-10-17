@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -5,12 +6,23 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use nova_audio::DEFAULT_INSTRUMENT;
+use nova_audio::{DEFAULT_INSTRUMENT, INSTRUMENTS};
 use nova_core::{Bus, Controls, PALETTES, Part, Status};
 use nova_voxel::{
     Calibration, MODULE_GRID_MAX, MODULE_X_RES, MODULE_Y_RES, MODULE_Z_RES, Pattern,
     PatternSelection, all_content_names,
 };
+
+/// The instrument each content module plays, unless the settings file links it to another;
+/// modules not listed play `DEFAULT_INSTRUMENT`. A first guess, to be tuned by ear.
+const CONTENT_INSTRUMENTS: [(&str, &str); 6] = [
+    ("Andromeda", "Fathom"),
+    ("Betelgeuse", "Strata"),
+    ("Oort Cloud", "Strata"),
+    ("Orion's Belt", "Shoal"),
+    ("Pleiades", "Shoal"),
+    ("Tannhäuser Gate", "Fathom"),
+];
 
 /// The host's state: the settings, saved in `nova_settings.json`, and what only lives while
 /// Nova runs: the bus the parts meet on, requests and the test pattern. The controls go
@@ -39,7 +51,8 @@ pub struct State {
     webserver_port: u16,
     simulator: bool,
     audio: bool,
-    instrument: String,
+    /// The instrument each content module plays, by name.
+    instruments: BTreeMap<String, String>,
 
     #[serde(skip)]
     available_content: Vec<String>,
@@ -144,7 +157,10 @@ impl State {
         settings.set_webserver_port(saved.webserver_port);
         settings.simulator = saved.simulator;
         settings.audio = saved.audio;
-        settings.set_instrument(&saved.instrument);
+        for (content, instrument) in &saved.instruments {
+            settings.set_instrument(content, instrument);
+        }
+        settings.publish();
         settings
     }
 
@@ -193,6 +209,7 @@ impl State {
         }
         if !self.enabled_content.contains(&self.selected_content) {
             self.selected_content = self.enabled_content[0].clone();
+            self.publish();
         }
     }
 
@@ -205,6 +222,8 @@ impl State {
         let enabled = self.enabled_content.iter().any(|enabled| enabled == name);
         if enabled {
             self.selected_content = name.to_string();
+            self.publish();
+            log::info!("{name} plays {}", self.instrument());
         }
         enabled
     }
@@ -298,9 +317,14 @@ impl State {
         Arc::clone(&self.bus)
     }
 
-    /// Puts the controls on the bus.
+    /// Puts the controls and the selected content's instrument on the bus.
     fn publish(&self) {
         self.bus.set_controls(&self.controls());
+        let instrument = INSTRUMENTS
+            .iter()
+            .position(|(name, _)| *name == self.instrument())
+            .unwrap_or(0);
+        self.bus.set_instrument(instrument);
     }
 
     /// The universal controls as set.
@@ -407,20 +431,22 @@ impl State {
         self.audio
     }
 
-    /// The instrument the sound plays, by name (see `nova_audio::INSTRUMENTS`).
+    /// The instrument the selected content plays, by name (see `nova_audio::INSTRUMENTS`).
     pub fn instrument(&self) -> &str {
-        &self.instrument
+        self.instruments
+            .get(&self.selected_content)
+            .map_or(DEFAULT_INSTRUMENT, String::as_str)
     }
 
-    /// Selects an instrument by name; unknown names change nothing.
-    fn set_instrument(&mut self, name: &str) {
-        if nova_audio::INSTRUMENTS
-            .iter()
-            .any(|(known, _)| *known == name)
-        {
-            self.instrument = name.to_string();
+    /// Links a content module to an instrument, both by name; unknown names change nothing.
+    fn set_instrument(&mut self, content: &str, instrument: &str) {
+        if !self.knows_content(content) {
+            log::warn!("Unknown content {content:?} linked to an instrument");
+        } else if !INSTRUMENTS.iter().any(|(known, _)| *known == instrument) {
+            log::warn!("Unknown instrument {instrument:?} for {content}");
         } else {
-            log::warn!("Unknown instrument {name:?}, playing {}", self.instrument);
+            self.instruments
+                .insert(content.to_string(), instrument.to_string());
         }
     }
 
@@ -459,7 +485,7 @@ impl State {
 
     /// Restores default settings, keeping the bus, the display calibration, and
     /// what can only be configured in the settings file: the Ethernet interface, the web
-    /// server port, the simulator and audio switches, the instrument, and a layout of more
+    /// server port, the simulator and audio switches, the instruments, and a layout of more
     /// than one module.
     pub fn restore_defaults(&mut self) {
         let defaults = Self::default();
@@ -476,7 +502,7 @@ impl State {
             webserver_port: self.webserver_port,
             simulator: self.simulator,
             audio: self.audio,
-            instrument: std::mem::take(&mut self.instrument),
+            instruments: std::mem::take(&mut self.instruments),
             bus: std::mem::take(&mut self.bus),
             hardware_reset_requested: self.hardware_reset_requested,
             shutdown_requested: self.shutdown_requested,
@@ -517,7 +543,16 @@ impl Default for State {
             webserver_port: 8080,
             simulator: false,
             audio: false,
-            instrument: DEFAULT_INSTRUMENT.to_string(),
+            instruments: available_content
+                .iter()
+                .map(|content| {
+                    let instrument = CONTENT_INSTRUMENTS
+                        .iter()
+                        .find(|(known, _)| known == content)
+                        .map_or(DEFAULT_INSTRUMENT, |(_, instrument)| instrument);
+                    (content.clone(), instrument.to_string())
+                })
+                .collect(),
 
             available_content,
 
@@ -648,7 +683,8 @@ mod tests {
         state.set_webserver_port(8000);
         state.simulator = true;
         state.audio = true;
-        state.set_instrument("Fathom");
+        let first = state.selected_content().to_string();
+        state.set_instrument(&first, "Shoal");
         state
             .bus()
             .report(Part::Sound, Status::Ok("Audio ready".into()));
@@ -663,7 +699,7 @@ mod tests {
         assert_eq!(state.webserver_port(), 8000);
         assert!(state.simulator());
         assert!(state.audio());
-        assert_eq!(state.instrument(), "Fathom");
+        assert_eq!(state.instrument(), "Shoal");
         assert_eq!(
             state.bus().status(Part::Sound),
             Status::Ok("Audio ready".into())
@@ -742,15 +778,24 @@ mod tests {
     }
 
     #[test]
-    fn instruments_are_chosen_by_name_in_the_settings_file() {
-        assert_eq!(State::default().instrument(), DEFAULT_INSTRUMENT);
-        let mut saved = serde_json::to_value(State::default()).unwrap();
-        saved["instrument"] = serde_json::json!("Fathom");
+    fn content_plays_its_instrument_and_puts_it_on_the_bus() {
+        let index = |name: &str| INSTRUMENTS.iter().position(|(known, _)| *known == name);
+        let mut state = State::default();
+        for content in state.available_content().to_vec() {
+            assert!(state.set_selected_content(&content));
+            assert_eq!(Some(state.bus().instrument()), index(state.instrument()));
+        }
+        assert!(state.set_selected_content("Pleiades"));
+        assert_eq!(state.instrument(), "Shoal");
+
+        let mut saved = serde_json::to_value(&state).unwrap();
+        saved["instruments"]["Pleiades"] = serde_json::json!("Fathom");
         let state = State::from_saved(serde_json::from_value(saved.clone()).unwrap());
         assert_eq!(state.instrument(), "Fathom");
-        saved["instrument"] = serde_json::json!("Theremin");
+        assert_eq!(Some(state.bus().instrument()), index("Fathom"));
+        saved["instruments"]["Pleiades"] = serde_json::json!("Theremin");
         let state = State::from_saved(serde_json::from_value(saved).unwrap());
-        assert_eq!(state.instrument(), DEFAULT_INSTRUMENT);
+        assert_eq!(state.instrument(), "Shoal");
     }
 
     #[test]
