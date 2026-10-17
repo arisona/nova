@@ -1,4 +1,4 @@
-import { NavigateBefore } from '@mui/icons-material';
+import { NavigateBefore } from './icons';
 import {
   Button,
   IconButton,

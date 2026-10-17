@@ -1,4 +1,4 @@
-import { Animation } from '@mui/icons-material';
+import { Animation } from './icons';
 
 import { ControlRow } from './ControlRow';
 import { ContentSignature } from './ContentSignature';

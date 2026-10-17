@@ -1,0 +1,17 @@
+[package]
+name = "nova-voxel"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+description = "The light of the Nova voxel display: content, rendering, calibration, the hardware driver and the simulator"
+
+[dependencies]
+nova-core = { path = "../core" }
+glam = "0.34.1"
+log = "0.4.34"
+mac_address = "1.2.1"
+miniquad = "0.4.11"
+noise = "0.9.0"
+palette = "0.7.7"
+pcap = "2.5.0"
+serde = { version = "1.0.229", features = ["derive"] }

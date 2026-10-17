@@ -2,13 +2,13 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "server-build",
+      "label": "nova-build",
       "type": "shell",
       "command": "cargo build",
       "group": "build",
       "problemMatcher": ["$rustc"],
       "options": {
-        "cwd": "${workspaceFolder}/server"
+        "cwd": "${workspaceFolder}"
       }
     },
     {

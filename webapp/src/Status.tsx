@@ -1,4 +1,4 @@
-import { CheckCircle, OfflineBolt } from '@mui/icons-material';
+import { CheckCircle, OfflineBolt } from './icons';
 import { Box, Stack, Typography } from '@mui/material';
 
 interface StatusProps {

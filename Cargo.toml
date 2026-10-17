@@ -1,0 +1,7 @@
+[workspace]
+members = ["audio", "core", "host", "voxel"]
+resolver = "3"
+
+# Audio runs in real time: unoptimized, it is too slow and the stream drops out.
+[profile.dev.package.nova-audio]
+opt-level = 2

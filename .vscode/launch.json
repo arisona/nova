@@ -2,13 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Nova Server",
+      "name": "Debug Nova",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/server/target/debug/nova-server",
+      "program": "${workspaceFolder}/target/debug/nova",
       "args": [],
-      "cwd": "${workspaceFolder}/server",
-      "preLaunchTask": "server-build"
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "nova-build"
     }
   ]
 }

@@ -45,7 +45,7 @@ The web app is already built into the repository, so the Pi needs no Node.js.
 
 ## Native audio output
 
-The server plays audio through ALSA; no PulseAudio or PipeWire is needed. Connect speakers through a USB DAC, an audio HAT, HDMI, or the analog output. `aplay -l` lists devices and `aplay -L` lists ALSA PCM names. Set the default output before starting Nova. A USB DAC with a stable card name is more reliable than card numbers.
+Nova plays audio through ALSA; no PulseAudio or PipeWire is needed. Connect speakers through a USB DAC, an audio HAT, HDMI, or the analog output. `aplay -l` lists devices and `aplay -L` lists ALSA PCM names. Set the default output before starting Nova. A USB DAC with a stable card name is more reliable than card numbers.
 
 If a sound server is installed, configure the ALSA default to go through it rather than competing for the device. The user running Nova needs audio permissions (`pi` is in the `audio` group by default).
 
@@ -62,10 +62,10 @@ Once Nova is running, open `http://nova.local:8080`.
 Use this for experimenting and debugging. Build, grant the capabilities, and run in the foreground (stop with Ctrl+C):
 
 ```sh
-cd ~/nova/server
+cd ~/nova
 cargo build --release
-sudo setcap cap_net_raw,cap_net_admin+ep target/release/nova-server
-cd ~ && ~/nova/server/target/release/nova-server
+sudo setcap cap_net_raw,cap_net_admin+ep target/release/nova
+cd ~ && ~/nova/target/release/nova
 ```
 
 Each rebuild replaces the binary and drops its capabilities, so repeat `setcap` after building.
@@ -73,7 +73,7 @@ Each rebuild replaces the binary and drops its capabilities, so repeat `setcap` 
 To serve on port 80 instead of 8080, also grant `cap_net_bind_service` and set `"webserver_port": 80` in `~/nova_settings.json`:
 
 ```sh
-sudo setcap cap_net_raw,cap_net_admin,cap_net_bind_service+ep ~/nova/server/target/release/nova-server
+sudo setcap cap_net_raw,cap_net_admin,cap_net_bind_service+ep ~/nova/target/release/nova
 ```
 
 ### Option B: run as a service
@@ -81,16 +81,16 @@ sudo setcap cap_net_raw,cap_net_admin,cap_net_bind_service+ep ~/nova/server/targ
 Use this for installations. Nova starts at boot and restarts if it exits. Install the binary to `~/.cargo/bin` and create a systemd service that grants the capabilities:
 
 ```sh
-cargo install --path ~/nova/server
+cargo install --path ~/nova/host
 sudo tee /etc/systemd/system/nova.service > /dev/null <<'EOF'
 [Unit]
-Description=Nova control server
+Description=Nova
 After=network.target
 
 [Service]
 User=pi
 WorkingDirectory=/home/pi
-ExecStart=/home/pi/.cargo/bin/nova-server
+ExecStart=/home/pi/.cargo/bin/nova
 Environment=RUST_LOG=info
 AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 Restart=always
@@ -105,7 +105,8 @@ sudo systemctl enable --now nova
 To use port 80, add `CAP_NET_BIND_SERVICE` to `AmbientCapabilities` and set `webserver_port` as in option A.
 
 - Logs: `journalctl -u nova -f`
-- Update: `cd ~/nova && git pull && cargo install --path server && sudo systemctl restart nova`
+- Update: `cd ~/nova && git pull && cargo install --path host && sudo systemctl restart nova`
+- Updating an installation from before the binary was called `nova` (it was `nova-server`, built from `~/nova/server`): install as above, point the service to the new binary with `sudo sed -i 's#bin/nova-server#bin/nova#' /etc/systemd/system/nova.service`, then `sudo systemctl daemon-reload && sudo systemctl restart nova`, and remove the old binary with `cargo uninstall nova-server`.
 - Stop, for example before using option A: `sudo systemctl stop nova`; `sudo systemctl disable nova` also removes it from startup. Stopping resets the modules, so the display goes dark.
 
 ## Configure the voxel display

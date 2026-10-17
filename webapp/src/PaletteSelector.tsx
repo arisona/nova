@@ -1,4 +1,4 @@
-import { Palette as PaletteIcon } from '@mui/icons-material';
+import { Palette as PaletteIcon } from './icons';
 import { Box } from '@mui/material';
 
 import { Palette } from './App';
