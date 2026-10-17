@@ -10,11 +10,15 @@ import { CycleButton } from './CycleButton';
 export const ContentSelector = ({
   enabled,
   value,
+  pending,
+  sent,
   colors,
   onChange,
 }: {
   enabled: string[];
   value: string;
+  pending: boolean;
+  sent: number;
   colors: string[];
   onChange: (name: string) => void;
 }) => {
@@ -30,6 +34,8 @@ export const ContentSelector = ({
     <ControlRow icon={<Animation />} label="Content">
       <CycleButton
         name={name}
+        pending={pending}
+        sent={sent}
         ariaLabel={`Content: ${name}. Select for the next content.`}
         disabled={enabled.length < 2}
         onClick={selectNext}

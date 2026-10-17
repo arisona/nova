@@ -18,6 +18,15 @@ import {
 } from './icons';
 
 import { useNavigate } from 'react-router-dom';
+import { useDelayedSend } from './CycleButton';
+
+const sendContent = (name: string) => {
+  apiSetValue('selected-content', name);
+};
+
+const sendPalette = (name: string) => {
+  apiSetValue('palette', name);
+};
 
 // Icons: Material Symbols, Rounded and filled (see icons.tsx), https://fonts.google.com/icons
 
@@ -29,6 +38,8 @@ export const MainPage = ({
   setState: React.Dispatch<React.SetStateAction<NovaState>>;
 }) => {
   const navigate = useNavigate();
+  const content = useDelayedSend(sendContent);
+  const palette = useDelayedSend(sendPalette);
 
   const handleSettings = () => {
     void navigate('/settings');
@@ -40,7 +51,7 @@ export const MainPage = ({
       ?.colors.map((color) => color.hex) ?? [];
 
   const handleContentChange = (name: string) => {
-    apiSetValue('selected-content', name);
+    content.select(name);
     setState((prevState) => ({ ...prevState, selectedContent: name }));
   };
 
@@ -61,7 +72,7 @@ export const MainPage = ({
   };
 
   const handlePaletteChange = (name: string) => {
-    apiSetValue('palette', name);
+    palette.select(name);
     setState((prevState) => ({ ...prevState, palette: name }));
   };
 
@@ -133,6 +144,8 @@ export const MainPage = ({
         <ContentSelector
           enabled={state.enabledContent}
           value={state.selectedContent}
+          pending={content.pending}
+          sent={content.sent}
           colors={paletteColors}
           onChange={handleContentChange}
         />
@@ -141,6 +154,8 @@ export const MainPage = ({
       <PaletteSelector
         palettes={state.palettes}
         value={state.palette}
+        pending={palette.pending}
+        sent={palette.sent}
         onChange={handlePaletteChange}
       />
       <Slider

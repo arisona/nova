@@ -11,10 +11,14 @@ import { CycleButton } from './CycleButton';
 export const PaletteSelector = ({
   palettes,
   value,
+  pending,
+  sent,
   onChange,
 }: {
   palettes: Palette[];
   value: string;
+  pending: boolean;
+  sent: number;
   onChange: (name: string) => void;
 }) => {
   const index = Math.max(
@@ -33,6 +37,8 @@ export const PaletteSelector = ({
     <ControlRow icon={<PaletteIcon />} label="Palette">
       <CycleButton
         name={name}
+        pending={pending}
+        sent={sent}
         ariaLabel={`Palette: ${name}. Select for the next palette.`}
         disabled={palettes.length < 2}
         onClick={selectNext}
