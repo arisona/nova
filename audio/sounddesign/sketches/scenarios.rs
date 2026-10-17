@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use nova_audio::strata;
-use nova_audio::{Preset, fathom};
+use nova_audio::{Preset, fathom, shoal};
 use nova_core::{Bus, Controls, Features, HUES};
 use nova_voxel::{MODULE_X_RES, MODULE_Y_RES, MODULE_Z_RES, Renderer, Settings, all_content_names};
 
@@ -230,6 +230,11 @@ pub fn all(names: &[String]) -> Vec<Scenario> {
             "fathom_",
             Preset::Fathom(fathom::Preset::DEFAULT),
         ),
+        (
+            shoal_scenarios(),
+            "shoal_",
+            Preset::Shoal(shoal::Preset::DEFAULT),
+        ),
     ] {
         let first = specs.len() + 1;
         for spec in specs {
@@ -383,6 +388,67 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             |t, state| {
                 state.set_form(0.3);
                 state.set_height(t);
+            },
+        ),
+    ]
+}
+
+/// Shoal's scripted scenarios, named `shoal_…`.
+fn shoal_scenarios() -> Vec<Spec> {
+    let shoal = Preset::Shoal(shoal::Preset::DEFAULT);
+    vec![
+        scenario(
+            "shoal_01_cold_to_warm",
+            "Bells (Form 0.7), Heat from 0 to 1: arpeggio, interlocking parts, syncopation",
+            90.0,
+            shoal,
+            |t, state| {
+                state.set_form(0.7);
+                state.set_heat(t);
+            },
+        ),
+        scenario(
+            "shoal_02_ambient_to_rhythmic",
+            "Form from 0 to 1: drone and gong, bells in quarters, eighths, 16ths, then kick",
+            120.0,
+            shoal,
+            |t, state| state.set_form(t),
+        ),
+        scenario(
+            "shoal_03_cold_ambient",
+            "Antarctica Freeze, Heat 0.15, Form 0.35, Void 0.6",
+            60.0,
+            shoal,
+            |_, state| {
+                state.set_palette("Antarctica Freeze");
+                state.set_heat(0.15);
+                state.set_form(0.35);
+                state.set_void(0.6);
+            },
+        ),
+        scenario(
+            "shoal_04_warm_rhythmic",
+            "Tikal Humm, Heat 0.85, Form 0.8, Flow 0.55",
+            60.0,
+            shoal,
+            |_, state| {
+                state.set_palette("Tikal Humm");
+                state.set_heat(0.85);
+                state.set_form(0.8);
+                state.set_flow(0.55);
+            },
+        ),
+        scenario(
+            "shoal_05_harmonic_motion",
+            "Belize Ripple, Heat 0.5, Form 0.6, Flow 0.6 for 10 minutes: new melodies from the \
+             same patterns with every bass move",
+            600.0,
+            shoal,
+            |_, state| {
+                state.set_palette("Belize Ripple");
+                state.set_heat(0.5);
+                state.set_form(0.6);
+                state.set_flow(0.6);
             },
         ),
     ]

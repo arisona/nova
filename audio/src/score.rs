@@ -80,8 +80,9 @@ impl Pattern {
         }
     }
 
-    /// A bass line: `notes` is a step string of intervals above the root for the steps of
-    /// `steps`, `1` the root, `5` the fifth, `8` the octave; `.` plays the root.
+    /// With notes: `notes` is a step string beside `steps`. For a bass line they are
+    /// intervals above the root, `1` the root, `5` the fifth, `8` the octave, and `.` plays
+    /// the root; for bells, degrees of the chord, `1` its lowest tone.
     pub const fn with_notes(steps: &str, notes: &str) -> Self {
         let (weights, len) = read(steps);
         let (notes, count) = read(notes);
@@ -98,10 +99,14 @@ impl Pattern {
         self.weights[(step % self.len as u64) as usize]
     }
 
+    /// The digit of the note on `step`, 0 where none is written.
+    pub fn digit(&self, step: u64) -> u8 {
+        self.notes[(step % self.len as u64) as usize]
+    }
+
     /// The frequency ratio of the note on `step` to the root.
     pub fn note(&self, step: u64) -> f32 {
-        let interval = self.notes[(step % self.len as u64) as usize];
-        INTERVALS[interval.max(1) as usize - 1]
+        INTERVALS[self.digit(step).max(1) as usize - 1]
     }
 }
 
@@ -169,15 +174,15 @@ impl Patterns {
         (from * (2.0 - 2.0 * blend).min(1.0)).max(to * (2.0 * blend).min(1.0))
     }
 
-    /// The note of `step` at `position`, from the pattern it mostly comes from.
-    pub fn note(&self, position: f32, step: u64) -> f32 {
+    /// The pattern that `step` at `position` mostly comes from, for its note.
+    pub fn source(&self, position: f32, step: u64) -> &Pattern {
         let index = (position as usize).min(self.list.len() - 1);
         let next = (index + 1).min(self.list.len() - 1);
         let blend = position - index as f32;
         let [from, to] = [index, next].map(|index| &self.list[index]);
         let near = (from.weight(step) as f32 * (2.0 - 2.0 * blend).min(1.0))
             >= (to.weight(step) as f32 * (2.0 * blend).min(1.0));
-        if near { from } else { to }.note(step)
+        if near { from } else { to }
     }
 
     /// The velocity of `step` at `position` and `density`, if it plays.
@@ -252,6 +257,8 @@ pub struct Score {
     pub stab: Patterns,
     /// A bass line, with notes.
     pub bass: Patterns,
+    /// Bells, with degrees of the chord as notes.
+    pub bell: Patterns,
     /// The steps on which the chord gate closes.
     pub gate: Patterns,
     /// Time of the dub delay in 16ths, one per section of the harmony in turn: the first

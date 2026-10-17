@@ -74,6 +74,7 @@ pub const SCORE: Score = Score {
         ],
     },
     gate: Patterns::NONE,
+    bell: Patterns::NONE,
     echo: &[3.0, 4.0, 3.0, 6.0],
     ghost: 0.2,
     drop: 0.12,

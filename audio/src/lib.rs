@@ -7,7 +7,8 @@
 //! it:
 //!
 //! - `dsp`: building blocks (oscillators, filters, delay lines, a limiter)
-//! - `voices`: sound sources and effects (bed, air, thump, tick, stab, dub delay, reverb)
+//! - `voices`: sound sources and effects (bed, air, thump, tick, stab, sub, bell, dub delay,
+//!   reverb)
 //! - `instruments`: voices played together, with their character as a preset
 //! - `engine`: the conductor's shared musical time and harmony, the instrument, the master
 //! - `io`: the native output
@@ -34,7 +35,7 @@ const BLOCK: usize = 32;
 
 pub use engine::{Activity, Engine};
 pub use harmony::{Color, Harmony, MAX_COLORS, Palette, Tone};
-pub use instruments::{DEFAULT_INSTRUMENT, INSTRUMENTS, Preset, fathom, strata};
+pub use instruments::{DEFAULT_INSTRUMENT, INSTRUMENTS, Preset, fathom, shoal, strata};
 pub use io::Output;
 pub use score::{Pattern, Patterns, Score, Throws};
 pub use signals::{Change, Signals};

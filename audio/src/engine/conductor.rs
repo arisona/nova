@@ -74,10 +74,10 @@ pub struct Conductor {
     /// The current bar, and whether the bass was away at its start.
     bar: u64,
     bar_away: bool,
-    /// Density of kick, ticks, stabs, bass and gate for the current bar, and where they
-    /// play in their patterns.
-    density: [u8; 5],
-    position: [f32; 5],
+    /// Density of kick, ticks, stabs, bass, gate and bells for the current bar, and where
+    /// they play in their patterns.
+    density: [u8; 6],
+    position: [f32; 6],
     /// Whether the current bar is in a break: kick, ticks and bass rest.
     breaking: bool,
     /// Stabs in the current bar, and the step of its last one.
@@ -115,8 +115,8 @@ impl Conductor {
             lit: 0.5,
             bar: 0,
             bar_away: false,
-            density: [0; 5],
-            position: [0.0; 5],
+            density: [0; 6],
+            position: [0.0; 6],
             breaking: false,
             stabs: 0,
             last_stab: 0,
@@ -226,10 +226,10 @@ impl Conductor {
         // The last bar of every few is a fill, one pattern warmer.
         let fill = score.fills > 0 && (self.bar + 1).is_multiple_of(score.fills);
         let moves = self.bar_away as usize + fill as usize;
-        for (part, patterns) in [score.kick, score.tick, score.stab, score.bass, score.gate]
-            .iter()
-            .enumerate()
-        {
+        let parts = [
+            score.kick, score.tick, score.stab, score.bass, score.gate, score.bell,
+        ];
+        for (part, patterns) in parts.iter().enumerate() {
             self.density[part] = if resting {
                 0
             } else {
@@ -281,16 +281,18 @@ impl Conductor {
             self.new_bar(step);
         }
         let score = self.score;
-        let [mut kick, mut tick, stab, mut bass, gate] = self.density;
+        let [mut kick, mut tick, stab, mut bass, gate, bell] = self.density;
         if self.breaking {
             (kick, tick, bass) = (0, 0, 0);
         }
-        let [at_kick, at_tick, at_stab, at_bass, at_gate] = self.position;
+        let [at_kick, at_tick, at_stab, at_bass, at_gate, at_bell] = self.position;
         let away = self.bar_away;
         let mut hits = Hits {
             kick: score.kick.hit(at_kick, kick, step).unwrap_or(0.0),
             bass: score.bass.hit(at_bass, bass, step).unwrap_or(0.0),
-            note: score.bass.note(at_bass, step),
+            note: score.bass.source(at_bass, step).note(step),
+            bell: score.bell.hit(at_bell, bell, step).unwrap_or(0.0),
+            degree: score.bell.source(at_bell, step).digit(step).max(1),
             gate: score.gate.hit(at_gate, gate, step).unwrap_or(0.0),
             ..Hits::default()
         };

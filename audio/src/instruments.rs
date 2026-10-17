@@ -6,6 +6,7 @@
 //! builds, where the audio has to keep up in real time too.
 
 pub mod fathom;
+pub mod shoal;
 pub mod strata;
 
 use crate::harmony::Harmony;
@@ -13,6 +14,7 @@ use crate::params::Params;
 use crate::score::Score;
 use crate::signals::{Now, Signals};
 use fathom::Fathom;
+use shoal::Shoal;
 use strata::Strata;
 
 /// Which instrument to play, and how.
@@ -22,11 +24,13 @@ use strata::Strata;
 pub enum Preset {
     Strata(strata::Preset),
     Fathom(fathom::Preset),
+    Shoal(shoal::Preset),
 }
 
 /// The instruments to choose from, by name, in alphabetical order.
-pub const INSTRUMENTS: [(&str, Preset); 2] = [
+pub const INSTRUMENTS: [(&str, Preset); 3] = [
     ("Fathom", Preset::Fathom(fathom::Preset::DEFAULT)),
+    ("Shoal", Preset::Shoal(shoal::Preset::DEFAULT)),
     ("Strata", Preset::Strata(strata::Preset::DEFAULT)),
 ];
 
@@ -45,6 +49,7 @@ impl Preset {
         match self {
             Self::Strata(preset) => preset.score,
             Self::Fathom(preset) => preset.score,
+            Self::Shoal(preset) => preset.score,
         }
     }
 
@@ -61,6 +66,7 @@ impl Preset {
 pub enum Instrument {
     Strata(Box<Strata>),
     Fathom(Box<Fathom>),
+    Shoal(Box<Shoal>),
 }
 
 impl Instrument {
@@ -74,6 +80,9 @@ impl Instrument {
             Preset::Fathom(preset) => {
                 Self::Fathom(Box::new(Fathom::new(sample_rate, preset, harmony, seed)))
             }
+            Preset::Shoal(preset) => {
+                Self::Shoal(Box::new(Shoal::new(sample_rate, preset, harmony, seed)))
+            }
         }
     }
 
@@ -83,6 +92,7 @@ impl Instrument {
         match self {
             Self::Strata(strata) => strata.update_block(params, signals),
             Self::Fathom(fathom) => fathom.update_block(params, signals),
+            Self::Shoal(shoal) => shoal.update_block(params, signals),
         }
     }
 
@@ -92,14 +102,16 @@ impl Instrument {
         match self {
             Self::Strata(strata) => strata.next(now),
             Self::Fathom(fathom) => fathom.next(now),
+            Self::Shoal(shoal) => shoal.next(now),
         }
     }
 
-    /// Steps played so far: thumps, ticks and stabs.
+    /// Steps played so far: thumps, ticks and stabs (bells for Shoal).
     pub fn steps(&self) -> [u64; 3] {
         match self {
             Self::Strata(strata) => strata.steps(),
             Self::Fathom(fathom) => fathom.steps(),
+            Self::Shoal(shoal) => shoal.steps(),
         }
     }
 }

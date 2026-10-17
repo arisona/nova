@@ -3,6 +3,7 @@
 
 pub mod air;
 pub mod bed;
+pub mod bell;
 pub mod dub_delay;
 pub mod reverb;
 pub mod stab;
@@ -12,6 +13,7 @@ pub mod tick;
 
 pub use air::Air;
 pub use bed::Bed;
+pub use bell::Bell;
 pub use dub_delay::DubDelay;
 pub use reverb::Reverb;
 pub use stab::Stab;

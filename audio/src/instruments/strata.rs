@@ -34,6 +34,7 @@ pub const SCORE: Score = Score {
         list: &[Pattern::new(".... ..6. ..3. ..9.")],
     },
     bass: Patterns::NONE,
+    bell: Patterns::NONE,
     gate: Patterns {
         from: 0.25,
         list: &[Pattern::new(".9.6 .8.. .9.5 .7.4")],

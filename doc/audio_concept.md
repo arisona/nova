@@ -1,6 +1,6 @@
 # Audio concept: Nova as an instrument
 
-Status: work in progress. Two instruments are live and ready for tuning: Strata, which replaced the three-voice synth, and Fathom; the [README](../README.md#audio) summarizes what it does. This document keeps the reasoning, the open questions and the offline [sketches](#sketches).
+Status: work in progress. Three instruments are live and ready for tuning: Strata, which replaced the three-voice synth, Fathom and Shoal; the [README](../README.md#audio) summarizes what it does. This document keeps the reasoning, the open questions and the offline [sketches](#sketches).
 
 ## Aim
 
@@ -113,6 +113,21 @@ Questions for listening:
 - Do the throws feel intended, and how often for short and for long listening?
 - Is the dark drone at low Form a good counterpart to Strata's?
 
+## Shoal
+
+The third instrument is the most rhythmic and the most melodic: the chord on bells, as a gamelan would play it, after the interlocking parts of Balinese gamelan and the arpeggios of minimal music. Its rhythm and melody come from the same score as everything else; only the notes are new, degrees of the chord beside the weights.
+
+- **Bells**: modal synthesis, four inharmonic modes per note (those of a free bar, 1, 2.76, 5.4 and 8.93), each with a twin detuned by 1.8 Hz when cold and 3.2 Hz when warm, so every note shimmers like a gamelan's paired instruments (ombak), the bed's beating twins struck. Eight notes ring at once; the quietest makes room for a new one, fading out over 3 ms.
+- **Parts**: one pattern plays both interlocking parts, the even 16ths from the left and the odd ones from the right (as in the kotekan nyog cag). The patterns run from an arpeggio of 12 steps (cold), which phases against the bar, through interlocking parts circling the chord, to a syncopated figure over two bars (warm). Weights follow the levels of elaboration: quarters first, then eighths, then 16ths, so Form doubles the density the way a gamelan moves between its levels (irama).
+- **Gong**: the colotomic frame. The gong closes every phrase, its fifth marks the half; it plays the score's bass part.
+- **Drone and beat**: the bed's chord sinks to about −7 dB under the bells; a soft kick and off-beat ticks join late, so Shoal can turn into dub without losing the bells.
+
+Questions for listening:
+
+- Do the bells shimmer without sounding out of tune?
+- Does the arpeggio against the bar feel intended, and do the interlocking parts read as one stream?
+- Is the gong a frame or a disturbance?
+
 ## The image
 
 The image reaches the sound as a description of the light rather than of the display, so a projection or an LED wall could hand over the same, and later the sound could describe itself the same way for the light. Each feature is a contract about measuring, not about answering: every instrument decides what to do with it, rarely one to one, and may ignore it. A profile of the light over height is left out on purpose: ten bands in, ten bands out is a spectrum analyzer.
@@ -154,7 +169,7 @@ Audio is a crate of its own, `nova-audio` in `audio`, so it can grow without the
 
 The sketches are an example of the audio crate, in `audio/sounddesign/sketches`; [Development](development.md#audio-output) has the commands. They render the instruments offline to `nova-audio-sketches` in the OS temporary directory, or to the directory in `NOVA_AUDIO_DIR`. Scripted scenarios set the controls as the sliders would, which the sound moves by the global tides as it does live, and hand over neutral gray light; the content modules are rendered by the real renderer through a bus, so they sound as the live instrument would.
 
-Scenarios for Strata (`strata_…`): Heat, Form (in both rhythm variants), Void and Flow sweeps, every palette in turn, four corners (cold and warm, ambient and rhythmic), 10 minutes of harmonic motion, the light from the bottom to the top, and every content module with all controls at 0.5. Fathom has its own set (`fathom_…`): Heat with stabs, Form, Void and Flow sweeps, every palette, the four corners, 10 minutes of harmonic motion, 3 minutes of its throws for long listening, the light from the bottom to the top, from all voxels lit to none, from the left to the right, and every module at 0.5. For each it writes a 32-bit float stereo WAV at 48 kHz and a spectrogram (PPM, 20 Hz to 20 kHz on a logarithmic axis), and `report.md` lists the integrated loudness (ITU-R BS.1770) and loudness range, sample peak, crest factor, the share of energy per frequency band and the energy per octave band (the spectral balance), the side-to-mid ratio below 80 Hz (the mono check for the subwoofer), how much faster than real time the instrument rendered, the visual activity, and how many steps each pulse voice played.
+Scenarios for Strata (`strata_…`): Heat, Form (in both rhythm variants), Void and Flow sweeps, every palette in turn, four corners (cold and warm, ambient and rhythmic), 10 minutes of harmonic motion, the light from the bottom to the top, and every content module with all controls at 0.5. Fathom has its own set (`fathom_…`): Heat with stabs, Form, Void and Flow sweeps, every palette, the four corners, 10 minutes of harmonic motion, 3 minutes of its throws for long listening, the light from the bottom to the top, from all voxels lit to none, from the left to the right, and every module at 0.5. Shoal's (`shoal_…`): Heat and Form sweeps, a cold ambient and a warm rhythmic corner, 10 minutes of harmonic motion, and every module at 0.5. For each it writes a 32-bit float stereo WAV at 48 kHz and a spectrogram (PPM, 20 Hz to 20 kHz on a logarithmic axis), and `report.md` lists the integrated loudness (ITU-R BS.1770) and loudness range, sample peak, crest factor, the share of energy per frequency band and the energy per octave band (the spectral balance), the side-to-mid ratio below 80 Hz (the mono check for the subwoofer), how much faster than real time the instrument rendered, the visual activity, and how many steps each pulse voice played.
 
 The sketches measure about −21 LUFS for the drone and −19.5 LUFS with the pulse, peaks below −3 dBFS, and side signal more than 40 dB below the mid signal under 80 Hz. Fathom's drone measures about −20 LUFS like Strata's, its swells and stabs −17 to −21 LUFS depending on Form and Heat (Strata with the pulse −16.5 to −20), with peaks below −3 dBFS; at Void 0.5 its stabs rise about 12 dB above what remains between them (300 Hz to 3 kHz). On an Apple M2 they render about 50 times faster than real time in release builds, Fathom as fast as Strata. Debug builds optimize the audio crate too, which made the instrument 6 to 10 times faster there, close to its release speed. The reverb and the limiter are our own: an earlier FunDSP reverb, built from generic combinators, ran at 0.3 times real time in debug builds and made the stream drop out.
 
@@ -195,8 +210,8 @@ The measurements catch technical problems; they say nothing about whether it sou
    1. Scores and phrases _(done, to listen to)_: Strata's and Fathom's current patterns written as weights and played by the conductor, which also decides the throws, so Strata could throw its stabs too; the polymeter variant becomes patterns of 12 and 7 steps. The harmony's sections end on a phrase start.
    2. Fathom evolves _(done, to listen to)_: patterns from cold to warm, a warmer neighbour while the bass is away, the delay's time changing with the sections. Between neighbours, the steps of the next pattern come in during the first half of the way and those of the previous one leave during the second, so the blend never leaves a hole.
    3. Fills and breaks; the low end moving too: a bass line, and the kick taking part in the patterns' changes _(done, to listen to)_. The bass line's notes are intervals above the root, a second step string beside its weights.
-   4. _(next)_ A rhythmic instrument, working title Shoal: struck bars in pairs that beat like a gamelan's, with interlocking parts and arpeggios over the chord, through the dub delay.
-8. An instrument selector in the web app, like the content strip, once there are two: every instrument interprets the same controls, instruments are registered like content modules, and switching mixes them on the shared conductor over a phrase or two, as in a DJ mix: their patterns blend from one score to the other, the voices crossfade and the bass swaps on a phrase start. Both play during the mix; optimize only if the Pi needs it.
+   4. A rhythmic instrument, Shoal (see [Shoal](#shoal)): struck bars in pairs that beat like a gamelan's, with interlocking parts and arpeggios over the chord, through the dub delay. _(done, to listen to)_
+8. An instrument selector in the web app, like the content strip, now that there are three: every instrument interprets the same controls, instruments are registered like content modules, and switching mixes them on the shared conductor over a phrase or two, as in a DJ mix: their patterns blend from one score to the other, the voices crossfade and the bass swaps on a phrase start. Both play during the mix; optimize only if the Pi needs it.
 9. Later:
    - Pulsar, a gentler cousin of Fathom from the design panel: a 12 dB filter without the ping, stabs that are heard only in the echo (ghost stabs on the Looseness tide), a send that alternates sides bar by bar, and Void raising the feedback. It does not stand apart enough for an instrument of its own, but it could become a Fathom preset once ghost stabs and the alternating send exist.
    - Tuning: reverb, delay and stereo image; dub throws of the chord; the pulse into the fog (less transient thumps and ticks, deeper with Void); a bass accent that stays out of the chord's range; looseness for the drone's pumping; `coupling` as a parameter; a per-room low-pass setting in the settings file; the grain layer.
