@@ -13,7 +13,8 @@
 //! - `io`: the native output
 //!
 //! Beside them: `params` (the smoothed controls and light the voices read), `harmony` (the
-//! tonal world of a palette) and `signals` (what the engine's parts tell each other).
+//! tonal world of a palette), `score` (an instrument's rhythm, which the conductor plays)
+//! and `signals` (what the engine's parts tell each other).
 //!
 //! The DSP is plain code, without heavily generic abstractions, which can run hundreds of
 //! times slower in debug builds and make the stream drop out.
@@ -24,6 +25,7 @@ mod harmony;
 mod instruments;
 mod io;
 mod params;
+mod score;
 mod signals;
 mod voices;
 
@@ -34,4 +36,5 @@ pub use engine::{Activity, Engine};
 pub use harmony::{Color, Harmony, MAX_COLORS, Palette, Tone};
 pub use instruments::{DEFAULT_INSTRUMENT, INSTRUMENTS, Preset, fathom, strata};
 pub use io::Output;
+pub use score::{Pattern, Patterns, Score, Throws};
 pub use signals::{Change, Signals};

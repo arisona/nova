@@ -12,6 +12,9 @@ use crate::harmony::Harmony;
 /// Steps per bar (16ths).
 pub const BAR: usize = 16;
 
+/// Bars per phrase.
+pub const PHRASE: usize = 4;
+
 /// What changed in the harmony at the start of a block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Change {
@@ -40,6 +43,10 @@ pub struct Signals {
     pub looseness: f32,
     /// Whether the visual activity rose suddenly (see `engine::Activity`).
     pub onset: bool,
+    /// Stabs in the current bar.
+    pub stabs: usize,
+    /// Time of the dub delay in 16ths.
+    pub echo: f32,
 
     // From the instruments.
     /// How far the drone dips with the thumps, from 0 to 1.
@@ -59,6 +66,8 @@ impl Signals {
             away: false,
             looseness: 0.0,
             onset: false,
+            stabs: 0,
+            echo: 3.0,
             dip: 0.0,
             gate: 0.0,
             accent: 0.0,
@@ -74,4 +83,21 @@ pub struct Now {
     pub step: Option<u64>,
     /// How far into the current 16th, from 0 to 1.
     pub progress: f32,
+    /// What the score plays on that 16th.
+    pub hits: Hits,
+}
+
+/// What the score plays on a 16th: a velocity per part, 0 where it rests.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Hits {
+    pub kick: f32,
+    pub tick: f32,
+    pub stab: f32,
+    /// A note of the bass line, and its frequency ratio to the root.
+    pub bass: f32,
+    pub note: f32,
+    /// The chord gate closes.
+    pub gate: f32,
+    /// The stab is thrown into the dub delay: boost, hold and release in bars.
+    pub throw: Option<[f32; 3]>,
 }

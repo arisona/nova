@@ -6,6 +6,7 @@ pub mod bed;
 pub mod dub_delay;
 pub mod reverb;
 pub mod stab;
+pub mod sub;
 pub mod thump;
 pub mod tick;
 
@@ -14,5 +15,6 @@ pub use bed::Bed;
 pub use dub_delay::DubDelay;
 pub use reverb::Reverb;
 pub use stab::Stab;
+pub use sub::Sub;
 pub use thump::Thump;
 pub use tick::Tick;

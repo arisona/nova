@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use nova_audio::strata::{self, Rhythm};
+use nova_audio::strata;
 use nova_audio::{Preset, fathom};
 use nova_core::{Bus, Controls, Features, HUES};
 use nova_voxel::{MODULE_X_RES, MODULE_Y_RES, MODULE_Z_RES, Renderer, Settings, all_content_names};
@@ -255,7 +255,7 @@ pub fn all(names: &[String]) -> Vec<Scenario> {
 /// Strata's scripted scenarios, named `strata_…`.
 fn strata_scenarios(palettes: usize) -> Vec<Spec> {
     let euclidean = Preset::Strata(strata::Preset::DEFAULT);
-    let polymeter = Preset::Strata(strata::Preset::DEFAULT.with_rhythm(Rhythm::Polymeter));
+    let polymeter = Preset::Strata(strata::Preset::POLYMETER);
     vec![
         scenario(
             "strata_01_cold_to_warm",

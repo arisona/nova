@@ -111,7 +111,7 @@ impl Engine {
             light: Features::default(),
             params: Params::default(),
             activity: Activity::default(),
-            conductor: Conductor::new(sample_rate, harmony),
+            conductor: Conductor::new(sample_rate, harmony, preset.score(), seed),
             signals: Signals::new(harmony),
             instrument: Instrument::new(preset, sample_rate, &harmony, seed),
             master: Master::new(sample_rate),
@@ -213,7 +213,7 @@ mod tests {
     use crate::dsp::{Rng, Svf};
     use crate::harmony::tests::palettes;
     use crate::instruments::INSTRUMENTS;
-    use crate::instruments::strata::{self, Rhythm};
+    use crate::instruments::strata;
     use nova_core::{HUES, PALETTES};
 
     const RATE: f32 = 16_000.0;
@@ -223,7 +223,7 @@ mod tests {
         let mut presets = INSTRUMENTS.to_vec();
         presets.push((
             "Strata (polymeter)",
-            Preset::Strata(strata::Preset::DEFAULT.with_rhythm(Rhythm::Polymeter)),
+            Preset::Strata(strata::Preset::POLYMETER),
         ));
         presets
     }

@@ -10,18 +10,47 @@ pub mod space;
 use crate::dsp::Rng;
 use crate::harmony::Harmony;
 use crate::params::Params;
+use crate::score::{Pattern, Patterns, Score, Throws};
 use crate::signals::{Change, Now, Signals};
 use crate::voices::{Air, Bed};
 use pulse::Pulse;
 use space::Space;
 
 pub use crate::voices::bed;
-pub use pulse::Rhythm;
+
+/// Strata's rhythm: thumps from Form 0.2, ticks from 0.35, stabs from 0.45 and the chord
+/// gate from 0.25, each growing denser towards Form 1; no throws.
+pub const SCORE: Score = Score {
+    kick: Patterns {
+        from: 0.2,
+        list: &[Pattern::new("9... 3... 7... 5...")],
+    },
+    tick: Patterns {
+        from: 0.35,
+        list: &[Pattern::new("5.72 4.81 5.72 4.91")],
+    },
+    stab: Patterns {
+        from: 0.45,
+        list: &[Pattern::new(".... ..6. ..3. ..9.")],
+    },
+    bass: Patterns::NONE,
+    gate: Patterns {
+        from: 0.25,
+        list: &[Pattern::new(".9.6 .8.. .9.5 .7.4")],
+    },
+    echo: &[3.0],
+    ghost: 0.2,
+    drop: 0.12,
+    throws: Throws::NONE,
+    fills: 0,
+    breaks: 0,
+};
 
 /// Everything that sets Strata's character, as data: instruments that share this code
 /// differ only in their presets.
 #[derive(Clone, Copy, Debug)]
 pub struct Preset {
+    pub score: Score,
     pub bed: bed::Settings,
     pub pulse: pulse::Settings,
     pub space: space::Settings,
@@ -29,16 +58,28 @@ pub struct Preset {
 
 impl Preset {
     pub const DEFAULT: Self = Self {
+        score: SCORE,
         bed: bed::Settings::DEFAULT,
         pulse: pulse::Settings::DEFAULT,
         space: space::Settings::DEFAULT,
     };
 
-    /// This preset with another rhythm.
-    pub const fn with_rhythm(mut self, rhythm: Rhythm) -> Self {
-        self.pulse.rhythm = rhythm;
-        self
-    }
+    /// Strata with ticks in loops of 12 steps and stabs in loops of 7, which phase against
+    /// the bar.
+    pub const POLYMETER: Self = Self {
+        score: Score {
+            tick: Patterns {
+                from: 0.35,
+                list: &[Pattern::new("5.8. 3.9. 4.7.")],
+            },
+            stab: Patterns {
+                from: 0.45,
+                list: &[Pattern::new("..9..6.")],
+            },
+            ..SCORE
+        },
+        ..Self::DEFAULT
+    };
 }
 
 pub struct Strata {
@@ -86,7 +127,8 @@ impl Strata {
         self.bed.update_block(params, signals);
         self.air.update_block(params);
         self.pulse.update_block(params, signals);
-        self.space.update_block(params, signals.tempo, 0.0);
+        self.space
+            .update_block(params, signals.tempo, signals.echo, 0.0);
     }
 
     #[inline]

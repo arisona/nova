@@ -8,20 +8,84 @@
 
 pub mod chord;
 
-use crate::dsp::{Rng, Svf};
+use crate::BLOCK;
+use crate::dsp::{Rng, Svf, coefficient, lerp, smooth};
 use crate::harmony::Harmony;
-use crate::instruments::strata::pulse::{self, Pulse, Rhythm};
+use crate::instruments::strata::pulse::{self, Pulse};
 use crate::instruments::strata::space::{self, Space};
 use crate::params::Params;
+use crate::score::{Pattern, Patterns, Score};
 use crate::signals::{Change, Now, Signals};
-use crate::voices::{Air, Bed, bed, dub_delay};
+use crate::voices::{Air, Bed, Sub, bed, dub_delay};
 use chord::Chord;
 
-pub use chord::Throws;
+pub use crate::score::Throws;
+
+/// Fathom's rhythm, from straight (cold) to syncopated (warm); while the bass is away, one
+/// pattern warmer. Stabs on the off-beat eighths when cold (even 16ths, so swing never moves
+/// them, and never the downbeat, which belongs to the kick): swells on the second off-beat of
+/// every second bar from Form 0.15, which turn into stabs, then on the second off-beat of
+/// every bar, growing to all four, the skank. Warmer, the third stab pushes into the fourth
+/// beat, and then the second bar answers the first, with a stab right after the kick and one
+/// leading into the next bar. The kick from Form 0.4, half time and then four to the floor,
+/// never three, which would land on the stabs; warmer, a ghost kick before the bar, and at
+/// the warmest a one drop, on the third beat only, until the kick fills in again. Ticks from
+/// 0.5, growing into off-beat hats; when warm, a shaker of 16ths. A bass line from 0.45:
+/// a sub on the off-beats between the kicks when cold, with octaves and fifths warmer, a dub
+/// riff on the one when warm. The echoes are dotted eighths at home, a quarter and a dotted
+/// quarter while the bass is away. The last bar of every eighth is a fill, and the last
+/// phrase of every eighth a break.
+pub const SCORE: Score = Score {
+    kick: Patterns {
+        from: 0.4,
+        list: &[
+            Pattern::new("9... 5... 7... 5..."),
+            Pattern::new("9... 5... 7... 5..3"),
+            Pattern::new("4... 3... 9... 5..3"),
+        ],
+    },
+    tick: Patterns {
+        from: 0.5,
+        list: &[
+            Pattern::new("5.72 4.81 5.72 4.91"),
+            Pattern::new("1.93 2.83 1.95 2.74"),
+        ],
+    },
+    stab: Patterns {
+        from: 0.15,
+        list: &[
+            Pattern::new("..3. ..9. ..5. ..6. ..3. ..8. ..5. ..6."),
+            Pattern::new("..3. ..9. ...5 ..6. ..3. ..8. ...5 ..6."),
+            Pattern::new("..3. ..9. ...5 ..6. .3.. ..8. ..5. ...6"),
+        ],
+    },
+    bass: Patterns {
+        from: 0.45,
+        list: &[
+            Pattern::new("..9. ..6. ..8. ..5."),
+            Pattern::with_notes(
+                "..9. ..6. ..8. ..5. ..9. ..6. ..8. 5.4.",
+                "..1. ..1. ..1. ..1. ..1. ..1. ..1. 8.5.",
+            ),
+            Pattern::with_notes(
+                "9..4 ..6. 7... ..5. 9..4 ..6. 7.3. .5..",
+                "1..1 ..8. 5... ..1. 1..1 ..8. 5.4. .1..",
+            ),
+        ],
+    },
+    gate: Patterns::NONE,
+    echo: &[3.0, 4.0, 3.0, 6.0],
+    ghost: 0.2,
+    drop: 0.12,
+    throws: Throws::SHORT,
+    fills: 8,
+    breaks: 8,
+};
 
 /// Everything that sets Fathom's character, as data.
 #[derive(Clone, Copy, Debug)]
 pub struct Preset {
+    pub score: Score,
     pub bed: bed::Settings,
     /// Kick and ticks, with the drone's dip and the bass accent; its stabs and chord gate
     /// stay off.
@@ -33,6 +97,11 @@ pub struct Preset {
     /// Level of the reverb for the drone and for stabs (see `space::Settings::reverb_level`):
     /// the drone sinks into the hall, stabs stand out from it.
     pub reverb: [f32; 2],
+    /// Peak level of the bass line, and the level of the bed's bass while the line plays:
+    /// the sustained bass gives way to it.
+    pub line: [f32; 2],
+    /// How long a note of the bass line holds before it fades, in 16ths, when cold and warm.
+    pub line_hold: [f32; 2],
 }
 
 /// The register the chord is folded into, in Hz.
@@ -40,6 +109,7 @@ const REGISTER: [f32; 2] = [180.0, 720.0];
 
 impl Preset {
     pub const DEFAULT: Self = Self {
+        score: SCORE,
         bed: bed::Settings {
             // Pulse-like and glassy when cold, saw-like when warm; the low-pass shapes it.
             cold: [1.0, 0.08, 0.34, 0.06, 0.2, 0.05, 0.14, 0.04],
@@ -64,15 +134,11 @@ impl Preset {
             ..bed::Settings::DEFAULT
         },
         pulse: pulse::Settings {
-            // Kick from Form 0.4, half time and then four to the floor, never three, which
-            // would land on the stabs; ticks from Form 0.5; no stabs of its own.
-            starts: [0.4, 0.5, f32::INFINITY],
-            thump_counts: [1, 2, 4, 4],
+            // The chord plays the stabs; no gate.
             thump_level: 0.22,
             tick_level: 0.12,
             stab_level: 0.0,
             chord_gate: 0.0,
-            rhythm: Rhythm::Euclidean,
             ..pulse::Settings::DEFAULT
         },
         chord: chord::Settings::DEFAULT,
@@ -92,16 +158,19 @@ impl Preset {
         },
         air: 0.5,
         reverb: [1.55, 0.6],
+        line: [0.16, 0.3],
+        line_hold: [1.2, 2.2],
     };
 
     /// This preset with other throws.
     pub const fn with_throws(mut self, throws: Throws) -> Self {
-        self.chord.throws = throws;
+        self.score.throws = throws;
         self
     }
 }
 
 pub struct Fathom {
+    sample_rate: f32,
     bed: Bed,
     air: Air,
     pulse: Pulse,
@@ -111,6 +180,28 @@ pub struct Fathom {
     reverb: [f32; 2],
     /// Fourth-order Butterworth high-pass on the send, so the delay stays out of the bass.
     send_filter: [Svf; 2],
+    sub: Sub,
+    line: [f32; 2],
+    line_hold: [f32; 2],
+    /// The root, folded into 40 to 80 Hz, the tempo and Heat, for the notes of the line.
+    root: f32,
+    tempo: f32,
+    heat: f32,
+    /// Seconds since the line's latest note, and how far the line has taken over from the
+    /// bed's bass, from 0 to 1.
+    since_line: f32,
+    taken: f32,
+}
+
+/// `frequency` folded by octaves into 40 to 80 Hz.
+fn sub_octave(mut frequency: f32) -> f32 {
+    while frequency < 40.0 {
+        frequency *= 2.0;
+    }
+    while frequency >= 80.0 {
+        frequency *= 0.5;
+    }
+    frequency
 }
 
 impl Fathom {
@@ -119,6 +210,7 @@ impl Fathom {
         let mut rng = Rng::new(seed);
         let register = preset.bed.register.unwrap_or(REGISTER);
         Self {
+            sample_rate,
             bed: Bed::new(sample_rate, preset.bed, harmony, Rng::new(rng.next_u64())),
             air: Air::new(sample_rate, harmony, Rng::new(rng.next_u64())),
             pulse: Pulse::new(sample_rate, preset.pulse, harmony, Rng::new(rng.next_u64())),
@@ -136,6 +228,14 @@ impl Fathom {
                 Svf::new(160.0, 0.541, sample_rate),
                 Svf::new(160.0, 1.307, sample_rate),
             ],
+            sub: Sub::new(sample_rate),
+            line: preset.line,
+            line_hold: preset.line_hold,
+            root: sub_octave(harmony.root()),
+            tempo: 100.0,
+            heat: 0.5,
+            since_line: f32::INFINITY,
+            taken: 0.0,
         }
     }
 
@@ -155,17 +255,25 @@ impl Fathom {
                 self.air.change(harmony);
                 self.pulse.change(harmony);
                 self.chord.set_harmony(harmony, false);
-                self.chord.arm_section();
             }
             Some(Change::Bass) => {
                 self.bed.set_bass(harmony.root());
                 self.air.change(harmony);
                 self.pulse.change(harmony);
-                self.chord.arm_section();
             }
             Some(Change::Voice) => self.bed.move_voice(),
             None => {}
         }
+        self.root = sub_octave(signals.harmony.root());
+        self.tempo = signals.tempo.max(1.0);
+        self.heat = params.heat;
+        // The line takes over from the bed's bass over a bar, and gives it back a bar after
+        // its latest note.
+        let block_seconds = BLOCK as f32 / self.sample_rate;
+        let bar_seconds = 240.0 / self.tempo;
+        self.since_line += block_seconds;
+        let target = (self.since_line < bar_seconds) as u8 as f32;
+        self.taken += (target - self.taken) * coefficient(bar_seconds, 1.0 / block_seconds);
         self.chord.update_block(params, signals);
         self.bed.set_filter(Some(self.chord.filter()));
         for filter in &mut self.send_filter {
@@ -179,7 +287,7 @@ impl Fathom {
             .set_reverb_level(drone * (stabs / drone).powf(self.chord.morph()));
         self.space.set_echo_start(self.chord.echo_start());
         self.space
-            .update_block(params, signals.tempo, self.chord.boost());
+            .update_block(params, signals.tempo, signals.echo, self.chord.boost());
     }
 
     #[inline]
@@ -187,11 +295,21 @@ impl Fathom {
         let mut pulse = self.pulse.next(now);
         let stab = self.chord.next(now);
         let parts = self.bed.next_parts(1.0);
+        if now.hits.bass > 0.0 {
+            let warmth = smooth(self.heat);
+            let hold = lerp(self.line_hold[0], self.line_hold[1], warmth) * 15.0 / self.tempo;
+            let frequency = self.root * now.hits.note;
+            self.sub.trigger(now.hits.bass, frequency, hold, self.heat);
+            self.since_line = 0.0;
+        }
+        let [line, residual] = self.line;
+        let low = self.sub.next() * line;
+        let bass = lerp(1.0, residual, self.taken);
         // Between stabs, the chord follows the drone's dip; the stab itself does not.
         let gain = stab.residual * pulse.drone + stab.dry;
         let bed = [
-            parts.bass[0] + parts.chord[0] * gain,
-            parts.bass[1] + parts.chord[1] * gain,
+            parts.bass[0] * bass + low + parts.chord[0] * gain,
+            parts.bass[1] * bass + low + parts.chord[1] * gain,
         ];
         let air = self
             .air

@@ -84,8 +84,8 @@ impl Space {
         self.dub.set_start(side);
     }
 
-    /// `boost` throws the dub delay (see `voices/dub_delay.rs`).
-    pub fn update_block(&mut self, params: &Params, tempo: f32, boost: f32) {
+    /// `echo` is the dub delay's time in 16ths, `boost` throws it (see `voices/dub_delay.rs`).
+    pub fn update_block(&mut self, params: &Params, tempo: f32, echo: f32, boost: f32) {
         let distance = params.void;
         self.dry_step = (lerp(1.0, 0.45, distance) - self.dry) / BLOCK as f32;
         self.wet_step =
@@ -94,7 +94,7 @@ impl Space {
         for filter in &mut self.damping {
             filter.set(cutoff, 0.6, self.sample_rate);
         }
-        self.dub.update_block(tempo, params.heat, boost);
+        self.dub.update_block(tempo, echo, params.heat, boost);
         self.reverb.update_block();
     }
 

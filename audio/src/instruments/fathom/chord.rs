@@ -1,17 +1,15 @@
 //! Fathom's chord: how the bed's chord tones are played as dub stabs.
 //!
-//! The chord is one paraphonic voice. Stabs land on off-beat eighths (even 16ths, so swing
-//! never moves them, and never the downbeat, which belongs to the kick), in patterns that
-//! grow denser with Form and change only at bar starts. Each stab opens a resonant low-pass
+//! The chord is one paraphonic voice, which plays the stabs of the score (see `SCORE` in
+//! `fathom.rs`). Each stab opens a resonant low-pass
 //! on the chord and closes it again, cold like struck glass that rings as it fades, warm
 //! like a round "bwow" that closes faster than it fades. Only the stab goes to the dub
 //! delay, so the echoes carry the groove; between stabs a quiet residual of the chord stays.
 //! A slow ride moves the filter like a hand on the cutoff knob, opening while the bass is
 //! away from home and closing when it returns.
 //!
-//! Throws push the delay for a moment: the last stab of a phrase, the first stab after the
-//! bass or the palette changes, after a sudden rise in visual activity, and now and then
-//! when the rhythm loosens. How often is tunable (`Throws`), for short or long listening.
+//! Throws push the delay for a moment, on the stabs the conductor throws (see
+//! `score::Throws`).
 //!
 //! Below the first pattern, Form gives a pure drone through the low-pass, as loud as
 //! Strata's; above it, swells every second bar, which turn into stabs. Like the pulse, the
@@ -21,33 +19,8 @@ use crate::BLOCK;
 use crate::dsp::{Contour, Drift, Rng, coefficient, lerp, resonance, smooth, smoothstep};
 use crate::harmony::{CROSSFADE_SECONDS, Harmony};
 use crate::params::Params;
-use crate::signals::{BAR, Now, Signals};
+use crate::signals::{Now, Signals};
 use crate::voices::bed::Filter;
-
-/// Steps of a bar as a bit set.
-const fn steps(list: &[usize]) -> u16 {
-    let mut mask = 0;
-    let mut index = 0;
-    while index < list.len() {
-        mask |= 1 << list[index];
-        index += 1;
-    }
-    mask
-}
-
-/// Stab steps at home, per pattern level: swells (every second bar), then stabs ever more
-/// often, up to all four off-beat eighths. While the bass is away, every pattern moves a
-/// beat earlier, still on the off-beats, and with it the phrase's last stab.
-const PATTERNS: [u16; 5] = [
-    steps(&[6]),
-    steps(&[6]),
-    steps(&[6, 14]),
-    steps(&[6, 10, 14]),
-    steps(&[2, 6, 10, 14]),
-];
-
-/// How far Form must cross a pattern's threshold before the pattern changes, either way.
-const HYSTERESIS: f32 = 0.02;
 
 /// Highest cutoff, so cold pings stay soft in the highs.
 const MAX_CUTOFF: f32 = 4500.0;
@@ -55,51 +28,9 @@ const MAX_CUTOFF: f32 = 4500.0;
 /// Seconds the delay boost takes to rise.
 const BOOST_RISE: f32 = 0.05;
 
-/// When and how hard stabs are thrown into the delay.
-#[derive(Clone, Copy, Debug)]
-pub struct Throws {
-    /// Every this many bars the phrase's last stab is thrown, twice as often while the bass
-    /// is away; 0 never.
-    pub phrase_bars: u64,
-    /// Whether bass and palette changes, and sudden rises in visual activity, throw the
-    /// next stab.
-    pub sections: bool,
-    pub onsets: bool,
-    /// Chance per bar of a throw at full Looseness (see the conductor's tide).
-    pub loose: f32,
-    /// Delay boost, and its hold and release in bars: of phrase and loose throws, and of
-    /// the bigger section and onset throws.
-    pub phrase: [f32; 3],
-    pub section: [f32; 3],
-}
-
-impl Throws {
-    /// For short listening: a throw every few bars.
-    pub const SHORT: Self = Self {
-        phrase_bars: 4,
-        sections: true,
-        onsets: true,
-        loose: 0.3,
-        phrase: [0.18, 0.5, 1.0],
-        section: [0.28, 1.0, 2.0],
-    };
-
-    /// For long listening: rarer gestures that keep the attention without wearing out.
-    pub const LONG: Self = Self {
-        phrase_bars: 16,
-        sections: true,
-        onsets: false,
-        loose: 0.1,
-        phrase: [0.15, 0.5, 1.0],
-        section: [0.24, 1.0, 2.0],
-    };
-}
-
 /// Each pair when cold and warm.
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
-    /// Form at which each pattern starts, from swells to all four off-beats.
-    pub levels: [f32; 5],
     /// Peak level of a stab, relative to the drone; lower when warm, where stabs last
     /// longer. Swells, which sit on the full drone, rise only by `swell_level`.
     pub stab_level: [f32; 2],
@@ -142,15 +73,13 @@ pub struct Settings {
     /// that, they stay where they started, on the left at first; `None` ignores the balance.
     pub echo_side: Option<f32>,
     /// How sparse light fills the space: as the share of lit voxels falls from half to
-    /// nothing, the delay's feedback rises by up to the first, and the chance per bar of a
-    /// throw by up to the second (see `Features::density`); 0 ignores the density.
-    pub sparse: [f32; 2],
-    pub throws: Throws,
+    /// nothing, the delay's feedback rises by up to this much (see `Features::density`; the
+    /// score throws more too); 0 ignores the density.
+    pub sparse: f32,
 }
 
 impl Settings {
     pub const DEFAULT: Self = Self {
-        levels: [0.15, 0.3, 0.42, 0.58, 0.72],
         stab_level: [3.3, 2.6],
         swell_level: 0.5,
         residual: 0.06,
@@ -170,8 +99,7 @@ impl Settings {
         height: 1.0,
         send: [0.3, 0.45],
         echo_side: Some(0.1),
-        sparse: [0.06, 0.25],
-        throws: Throws::SHORT,
+        sparse: 0.06,
     };
 }
 
@@ -191,22 +119,6 @@ fn log_lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (b / a).powf(t)
 }
 
-/// Pattern level for `form` from `current`, with hysteresis.
-fn pattern_level(form: f32, current: usize, levels: &[f32; 5]) -> usize {
-    let mut level = 0;
-    for (index, &threshold) in levels.iter().enumerate() {
-        let margin = if index < current {
-            -HYSTERESIS
-        } else {
-            HYSTERESIS
-        };
-        if form >= threshold + margin {
-            level = index + 1;
-        }
-    }
-    level
-}
-
 pub struct Chord {
     sample_rate: f32,
     settings: Settings,
@@ -216,7 +128,8 @@ pub struct Chord {
     params: Params,
     tempo: f32,
     away: bool,
-    looseness: f32,
+    /// Stabs in the current bar.
+    stabs: usize,
     /// How sparse the light is, from 0 (half lit or more) to 1 (dark), and the feedback it
     /// adds to the delay.
     sparseness: f32,
@@ -225,19 +138,12 @@ pub struct Chord {
     echo_right: bool,
     /// How far the chord plays, from 0 at Flow 0 (resting) to 1.
     rest: f32,
-    level: usize,
-    bar: u64,
-    /// Whether the bass was away at the start of the bar: patterns change only there.
-    bar_away: bool,
     /// Whether the first block has set the slewed values.
     primed: bool,
     contour: Contour,
     velocity: f32,
     thrown: bool,
     stab_level: f32,
-    /// Throws waiting for the next stab: a big one (sections and onsets) or a phrase-sized
-    /// one (looseness).
-    armed: Option<[f32; 3]>,
     morph: f32,
     residual: f32,
     drift: Drift,
@@ -276,20 +182,16 @@ impl Chord {
             params: Params::default(),
             tempo: 100.0,
             away: false,
-            looseness: 0.0,
+            stabs: 0,
             sparseness: 0.0,
             space: 0.0,
             echo_right: false,
             rest: 1.0,
-            level: 0,
-            bar: 0,
-            bar_away: false,
             primed: false,
             contour: Contour::default(),
             velocity: 0.0,
             thrown: false,
             stab_level: 0.0,
-            armed: None,
             morph: 0.0,
             residual: 1.0,
             arc: -1.0,
@@ -336,13 +238,6 @@ impl Chord {
         }
     }
 
-    /// Throws the next stab, for a change of bass or palette.
-    pub fn arm_section(&mut self) {
-        if self.settings.throws.sections {
-            self.armed = Some(self.settings.throws.section);
-        }
-    }
-
     /// The low-pass on the chord now.
     pub fn filter(&self) -> Filter {
         self.filter
@@ -368,7 +263,7 @@ impl Chord {
         self.count
     }
 
-    /// Reads tempo, away, looseness and onsets from the signals.
+    /// Reads tempo, away and the stabs of the bar from the signals.
     pub fn update_block(&mut self, params: &Params, signals: &Signals) {
         let settings = &self.settings;
         let block_seconds = BLOCK as f32 / self.sample_rate;
@@ -376,10 +271,7 @@ impl Chord {
         self.params = *params;
         self.tempo = signals.tempo;
         self.away = signals.away;
-        self.looseness = signals.looseness;
-        if signals.onset && settings.throws.onsets && self.level >= 2 {
-            self.armed = Some(settings.throws.section);
-        }
+        self.stabs = signals.stabs;
         let bar_seconds = 240.0 / self.tempo.max(1.0);
         let warmth = smooth(params.heat);
 
@@ -464,7 +356,7 @@ impl Chord {
             lerp(settings.send[0], settings.send[1], warmth) * (0.75 + 0.5 * params.void);
         // Sparse light fills the space, a complement rather than a mirror.
         self.sparseness = ((0.5 - params.image.density) * 2.0).clamp(0.0, 1.0);
-        self.space = settings.sparse[0] * self.sparseness;
+        self.space = settings.sparse * self.sparseness;
         // Echoes answer the light across the room.
         if let Some(threshold) = settings.echo_side {
             let balance = params.image.balance;
@@ -477,54 +369,9 @@ impl Chord {
         self.send_target = if self.thrown { 1.0 } else { self.send_level };
     }
 
-    fn new_bar(&mut self, bar: u64) {
-        self.bar = bar;
-        self.bar_away = self.away;
-        self.level = if self.rest < 0.01 {
-            0
-        } else {
-            pattern_level(self.params.form, self.level, &self.settings.levels)
-        };
-        if self.level < 2 {
-            self.armed = None;
-        } else if self.armed.is_none()
-            && self.rng.unit()
-                < self.settings.throws.loose * self.looseness
-                    + self.settings.sparse[1] * self.sparseness
-        {
-            self.armed = Some(self.settings.throws.phrase);
-        }
-    }
-
-    /// The current pattern; swells play every second bar.
-    fn pattern(&self) -> u16 {
-        if self.level == 0 || (self.level == 1 && !self.bar.is_multiple_of(2)) {
-            return 0;
-        }
-        let pattern = PATTERNS[self.level - 1];
-        if self.bar_away {
-            pattern.rotate_right(4)
-        } else {
-            pattern
-        }
-    }
-
-    fn trigger(&mut self, bar_step: usize, pattern: u16) {
+    /// A stab of `velocity`, thrown if asked.
+    fn trigger(&mut self, velocity: f32, throw: Option<[f32; 3]>) {
         let settings = &self.settings;
-        let throws = settings.throws;
-        // The phrase's last stab, at the end of every few bars.
-        let period = if self.bar_away && throws.phrase_bars > 0 {
-            (throws.phrase_bars / 2).max(1)
-        } else {
-            throws.phrase_bars
-        };
-        let last = bar_step == 15 - pattern.leading_zeros() as usize;
-        let phrase = self.level >= 2 && period > 0 && last && (self.bar + 1).is_multiple_of(period);
-        let throw = if self.level < 2 {
-            None
-        } else {
-            self.armed.take().or(phrase.then_some(throws.phrase))
-        };
         self.thrown = throw.is_some();
         if let Some([peak, hold, release]) = throw {
             let bar_seconds = 240.0 / self.tempo.max(1.0);
@@ -562,19 +409,14 @@ impl Chord {
         // previous stab is.
         let current = self.velocity * self.stab_level * self.contour.value();
         // Sparse stabs hit harder, so the loudness holds as the patterns thin out.
-        let density = if self.level >= 2 {
-            (4.0 / pattern.count_ones() as f32).powf(0.25)
-        } else {
-            1.0
-        };
+        let density = lerp(1.0, (4.0 / self.stabs.max(1) as f32).powf(0.25), morph);
         self.stab_level = lerp(
             settings.swell_level,
             lerp(settings.stab_level[0], settings.stab_level[1], warmth) * density,
             morph,
         );
-        let accent = if bar_step % 8 == 6 { 1.0 } else { 0.85 };
         self.velocity =
-            accent * (0.85 + 0.3 * self.params.activity) * if self.thrown { 1.15 } else { 1.0 };
+            velocity * (0.85 + 0.3 * self.params.activity) * if self.thrown { 1.15 } else { 1.0 };
         let start = current / (self.velocity * self.stab_level).max(1e-6);
         self.contour
             .trigger_from(start, attack, hold, release, self.sample_rate);
@@ -583,15 +425,8 @@ impl Chord {
 
     #[inline]
     pub fn next(&mut self, now: &Now) -> Stab {
-        if let Some(step) = now.step {
-            let bar_step = (step % BAR as u64) as usize;
-            if bar_step == 0 {
-                self.new_bar(step / BAR as u64);
-            }
-            let pattern = self.pattern();
-            if pattern & (1 << bar_step) != 0 {
-                self.trigger(bar_step, pattern);
-            }
+        if now.hits.stab > 0.0 {
+            self.trigger(now.hits.stab, now.hits.throw);
         }
         let envelope = self.contour.next();
         self.send += (self.send_target - self.send) * self.send_slew;
@@ -610,29 +445,26 @@ mod tests {
     use crate::engine::Conductor;
     use crate::harmony::Palette;
     use crate::harmony::tests::palette;
+    use crate::instruments::fathom::SCORE;
+    use crate::score::{Score, Throws};
     use nova_core::Controls;
     use nova_core::Features;
 
     const RATE: f32 = 8000.0;
 
     #[test]
-    fn patterns_are_off_beat_eighths_growing_denser() {
-        let mut previous = 0;
-        for &pattern in &PATTERNS {
-            for mask in [pattern, pattern.rotate_right(4)] {
-                assert_eq!(mask & !steps(&[2, 6, 10, 14]), 0, "{mask:b}");
+    fn stabs_leave_the_beats_to_the_kick() {
+        for (index, pattern) in SCORE.stab.list.iter().enumerate() {
+            for step in 0..64 {
+                // The coldest pattern plays only the off-beat eighths.
+                let free = if index == 0 {
+                    step % 4 == 2
+                } else {
+                    step % 4 != 0
+                };
+                assert!(free || pattern.weight(step) == 0, "{index}, step {step}");
             }
-            assert!(pattern.count_ones() >= previous);
-            previous = pattern.count_ones();
         }
-        let levels = Settings::DEFAULT.levels;
-        assert_eq!(pattern_level(0.0, 0, &levels), 0);
-        assert_eq!(pattern_level(1.0, 0, &levels), 5);
-        // Near a threshold, the pattern holds either way.
-        assert_eq!(pattern_level(0.43, 2, &levels), 2);
-        assert_eq!(pattern_level(0.41, 3, &levels), 3);
-        assert_eq!(pattern_level(0.45, 2, &levels), 3);
-        assert_eq!(pattern_level(0.39, 3, &levels), 2);
     }
 
     /// Plays the chord on the conductor's grid for `seconds`, with half the voxels lit;
@@ -653,13 +485,19 @@ mod tests {
     ) -> (u64, u64, f32, Stab) {
         let palettes: [Palette; 1] = [palette()];
         let harmony = Harmony::from_palette(&palettes[0]);
-        let mut conductor = Conductor::new(RATE, harmony);
+        let score = Score { throws, ..SCORE };
+        let mut conductor = Conductor::new(RATE, harmony, score, 1);
+        if let Some(away) = away {
+            conductor.hold_away(away);
+        }
         let mut signals = Signals::new(harmony);
-        let settings = Settings {
-            throws,
-            ..Settings::DEFAULT
-        };
-        let mut chord = Chord::new(RATE, settings, [180.0, 720.0], &harmony, Rng::new(1));
+        let mut chord = Chord::new(
+            RATE,
+            Settings::DEFAULT,
+            [180.0, 720.0],
+            &harmony,
+            Rng::new(1),
+        );
         let params = Params {
             form,
             flow,
@@ -674,9 +512,6 @@ mod tests {
         for frame in 0..(seconds * RATE) as usize {
             if frame % BLOCK == 0 {
                 conductor.update_block(&params, &Controls::default(), 0.0, &palettes, &mut signals);
-                if let Some(away) = away {
-                    signals.away = away;
-                }
                 chord.update_block(&params, &signals);
                 boost = boost.max(chord.boost());
                 let filter = chord.filter();
@@ -716,7 +551,7 @@ mod tests {
         let rate = 48_000.0;
         let palettes: [Palette; 1] = [palette()];
         let harmony = Harmony::from_palette(&palettes[0]);
-        let mut conductor = Conductor::new(rate, harmony);
+        let mut conductor = Conductor::new(rate, harmony, SCORE, 1);
         let mut signals = Signals::new(harmony);
         let mut chord = Chord::new(
             rate,
@@ -768,7 +603,7 @@ mod tests {
         assert!(away > short, "twice as often while away: {away} vs {short}");
 
         // Sparse light fills the space: more feedback and throws of its own.
-        let [feedback, _] = Settings::DEFAULT.sparse;
+        let feedback = Settings::DEFAULT.sparse;
         let (_, sparse, boost, _) = play_away(0.9, 0.5, never, 60.0, Some(false), 0.0);
         assert!(sparse > 0 && boost > feedback, "{sparse}, {boost}");
     }

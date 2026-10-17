@@ -1,50 +1,32 @@
-//! The pulse: tuned sub thumps, noise ticks and chord stabs on the conductor's grid of 16ths.
+//! The pulse: tuned sub thumps, noise ticks and chord stabs, played as the conductor's score
+//! hands them out.
 //!
-//! Form decides how many pulses each voice spreads over its loop (Euclidean patterns).
-//! Patterns change only at bar boundaries, so the rhythm never feels random; visual activity
-//! shapes the dynamics, not where steps fall. A sudden rise in visual activity may add one
-//! stab on the next off-beat. Cold is straight, short and bright; warm swings, with softer,
-//! longer thumps and darker stabs.
+//! Visual activity shapes the dynamics, not where steps fall. A sudden rise in visual
+//! activity may add one stab on the next off-beat. Cold is straight, short and bright; warm
+//! swings, with softer, longer thumps and darker stabs.
 //!
 //! The drone follows the thumps (`Settings::coupling`): the chord, the air and the reverb dip
 //! and swell back, and the synth bass gets a short accent, so bass and thump fuse into one. A
-//! chord gate on the grid lets the drone pulse by itself: on closed steps of a Euclidean
-//! pattern the chord, the air and the reverb dip, and the chord's upper partials more, like
+//! chord gate on the grid lets the drone pulse by itself: on the steps where the score closes
+//! it, the chord, the air and the reverb dip, and the chord's upper partials more, like
 //! a filter; hard and short when cold, rounder and darker when warm. The gate plays while
 //! the bass is away from home and fades out when it returns: tension and release. The dip,
 //! the gate and the accent go out as signals.
 
 use crate::BLOCK;
-use crate::dsp::{Envelope, Rng, coefficient, euclidean, lerp, smooth, smoothstep};
+use crate::dsp::{Envelope, Rng, coefficient, lerp, smooth, smoothstep};
 use crate::harmony::Harmony;
 use crate::params::Params;
-use crate::signals::{BAR, Now, Signals};
+use crate::signals::{BAR, Hits, Now, Signals};
 use crate::voices::stab::STAB_TONES;
 use crate::voices::{Stab, Thump, Tick};
 
-/// How the pulse places its steps: everything on one 16-step bar, or loops of 16, 12 and
-/// 7 steps that phase against each other.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Rhythm {
-    Euclidean,
-    Polymeter,
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
-    pub rhythm: Rhythm,
-    /// Form at which thumps, ticks and stabs start; an infinite start leaves a voice out.
-    pub starts: [f32; 3],
-    /// Thumps per bar as Form rises from their start, in four even steps.
-    pub thump_counts: [usize; 4],
+    /// Levels of thumps, ticks and stabs; a stab level of 0 leaves the stabs to others.
     pub thump_level: f32,
     pub tick_level: f32,
     pub stab_level: f32,
-    /// When the rhythm loosens (see the conductor's Looseness tide): the chance of a quiet
-    /// ghost tick on an empty step and of leaving out a tick off the beat. Thumps and stabs
-    /// stay exact.
-    pub ghost: f32,
-    pub drop: f32,
     /// How strongly the drone follows the pulse: 0 leaves it untouched, 1 pumps like dub.
     /// Form scales it in from the first thumps.
     pub coupling: f32,
@@ -59,12 +41,8 @@ pub struct Settings {
     /// Seconds the dip takes to reach its depth.
     pub duck_attack: f32,
     /// How far the drone dips on the closed steps of the chord gate at full Form; 0 keeps it
-    /// steady. Form scales it in from 0.25 to 0.7.
+    /// steady. Form scales it in from 0.25 to 0.7; the score closes more steps as it rises.
     pub chord_gate: f32,
-    /// Length of a gate step in 16ths: 1 chops on 16ths, 2 on 8ths.
-    pub chord_gate_grid: usize,
-    /// Share of open steps at Form 0.25 and from Form 0.7: few closed steps, then choppier.
-    pub chord_gate_open: [f32; 2],
     /// Ramp of the chord gate in seconds, and the share of an open step it stays open, when
     /// cold and warm: a hard trance gate, or a rounder one.
     pub chord_gate_ramp: [f32; 2],
@@ -81,21 +59,14 @@ pub struct Settings {
 
 impl Settings {
     pub const DEFAULT: Self = Self {
-        rhythm: Rhythm::Euclidean,
-        starts: [0.2, 0.35, 0.45],
-        thump_counts: [1, 2, 3, 4],
         thump_level: 0.24,
         tick_level: 0.15,
         stab_level: 0.3,
-        ghost: 0.2,
-        drop: 0.12,
         coupling: 0.5,
         duck: 1.0,
         duck_shape: [[0.0, 0.4], [0.15, 0.85]],
         duck_attack: 0.008,
         chord_gate: 0.5,
-        chord_gate_grid: 1,
-        chord_gate_open: [0.875, 0.5625],
         chord_gate_ramp: [0.004, 0.012],
         chord_gate_duty: [0.5, 0.65],
         chord_gate_volume: [1.0, 0.7],
@@ -114,23 +85,13 @@ pub struct PulseOut {
     pub drone: f32,
 }
 
-/// Pulses per voice, fixed for a bar.
-#[derive(Clone, Copy, Default)]
-struct Patterns {
-    thumps: usize,
-    ticks: usize,
-    stabs: usize,
-    /// Open steps of the chord gate, of `BAR / chord_gate_grid`.
-    chord_gate: usize,
-}
-
 pub struct Pulse {
     sample_rate: f32,
     settings: Settings,
     params: Option<Params>,
-    looseness: f32,
     tempo: f32,
-    patterns: Patterns,
+    /// Thumps in the current bar and the one before.
+    thumps: [usize; 2],
     level: f32,
     level_step: f32,
     root: f32,
@@ -154,8 +115,6 @@ pub struct Pulse {
     /// Whether the chord gate is open on the current step, its openness from 0 to 1, how
     /// deep it dips, its ramp coefficient and duty.
     chord_open: bool,
-    /// The 16th within the bar now.
-    bar_step: usize,
     chord_value: f32,
     chord_depth: f32,
     chord_volume: f32,
@@ -175,9 +134,8 @@ impl Pulse {
             sample_rate,
             settings,
             params: None,
-            looseness: 0.0,
             tempo: 0.0,
-            patterns: Patterns::default(),
+            thumps: [0; 2],
             level: 0.0,
             level_step: 0.0,
             root: 0.0,
@@ -197,7 +155,6 @@ impl Pulse {
             bass_accent_value: 0.0,
             duck_value: 0.0,
             chord_open: true,
-            bar_step: 0,
             chord_value: 1.0,
             chord_depth: 0.0,
             chord_volume: 1.0,
@@ -264,25 +221,27 @@ impl Pulse {
         smoothstep(0.12, 0.3, params.form) * smoothstep(0.0, 0.15, params.flow_setting)
     }
 
-    /// Reads the tempo, the looseness, whether the bass is away and onsets from the signals.
+    /// Reads the tempo, whether the bass is away and onsets from the signals.
     pub fn update_block(&mut self, params: &Params, signals: &Signals) {
         let settings = &self.settings;
         let block_seconds = BLOCK as f32 / self.sample_rate;
         self.seconds += block_seconds;
         self.params = Some(*params);
         self.tempo = signals.tempo;
-        self.looseness = signals.looseness;
         self.chord_away = signals.away;
         // A sudden rise in visual activity adds a stab on the next off-beat, if thumps play.
-        if signals.onset && self.patterns.thumps > 0 && settings.stab_level > 0.0 {
+        if signals.onset
+            && self.thumps.iter().any(|&thumps| thumps > 0)
+            && settings.stab_level > 0.0
+        {
             self.accent = true;
         }
         self.level_step = (Self::gate(params) - self.level) * coefficient(1.0, 1.0 / block_seconds)
             / BLOCK as f32;
         let warmth = smooth(params.heat);
         self.coupling = settings.coupling * smoothstep(0.2, 0.6, params.form);
-        // Thumps spread evenly over a bar of 16 sixteenths.
-        self.duck_gap = 240.0 / (self.tempo * self.patterns.thumps.max(1) as f32);
+        // As if the thumps spread evenly over the bar.
+        self.duck_gap = 240.0 / (self.tempo * self.thumps[1].max(1) as f32);
         let shape = settings.duck_shape;
         self.duck_shape = [0, 1].map(|end| lerp(shape[0][end], shape[1][end], warmth));
         let playing = (self.chord_away || !settings.chord_gate_away_only) as u8 as f32;
@@ -313,113 +272,36 @@ impl Pulse {
         }
     }
 
-    fn new_bar(&mut self) {
-        if let Some(harmony) = self.next_harmony.take() {
-            self.adopt(&harmony);
-        }
-        let Some(params) = self.params else {
-            return;
-        };
-        let settings = &self.settings;
-        let [thumps, ticks, stabs] = settings.starts;
-        let form = params.form;
-        let open = Self::gate(&params) > 0.01;
-        let (tick_steps, stab_steps) = self.loop_lengths();
-        let gate_steps = BAR / settings.chord_gate_grid;
-        let scaled = |low: f32, count: f32| ((form - low) / (1.0 - low)).clamp(0.0, 1.0) * count;
-        self.patterns = Patterns {
-            thumps: if open && form >= thumps {
-                settings.thump_counts[(scaled(thumps, 4.0) as usize).min(3)]
-            } else {
-                0
-            },
-            ticks: if open && form >= ticks {
-                scaled(ticks, tick_steps as f32 * 0.625).round() as usize
-            } else {
-                0
-            },
-            stabs: if open && form >= stabs {
-                1 + (scaled(stabs, stab_steps as f32 * 0.19) as usize).min(stab_steps / 6)
-            } else {
-                0
-            },
-            chord_gate: if open && form >= 0.25 {
-                let reach = ((form - 0.25) / 0.45).clamp(0.0, 1.0);
-                let [few, many] = settings.chord_gate_open;
-                (lerp(few, many, reach) * gate_steps as f32).round() as usize
-            } else {
-                gate_steps
-            },
-        };
-    }
-
-    /// Loop lengths of ticks and stabs; thumps always follow the bar.
-    fn loop_lengths(&self) -> (usize, usize) {
-        match self.settings.rhythm {
-            Rhythm::Euclidean => (BAR, BAR),
-            Rhythm::Polymeter => (12, 7),
-        }
-    }
-
-    fn play(&mut self, step: u64) {
+    fn play(&mut self, step: u64, hits: &Hits) {
         let bar_step = (step % BAR as u64) as usize;
         if bar_step == 0 {
-            self.new_bar();
+            if let Some(harmony) = self.next_harmony.take() {
+                self.adopt(&harmony);
+            }
+            self.thumps = [0, self.thumps[0]];
         }
         let Some(params) = self.params else {
             return;
         };
-        let (tick_steps, stab_steps) = self.loop_lengths();
-        let (tick_rotation, stab_rotation) = match self.settings.rhythm {
-            Rhythm::Euclidean => (2, 2),
-            Rhythm::Polymeter => (1, 3),
-        };
         let even = step.is_multiple_of(2);
-        let patterns = self.patterns;
-        let grid = self.settings.chord_gate_grid;
-        self.bar_step = bar_step;
-        self.chord_open = euclidean(patterns.chord_gate, BAR / grid, 0, bar_step / grid);
+        self.chord_open = hits.gate == 0.0;
 
-        if euclidean(patterns.thumps, BAR, 0, bar_step) {
-            let velocity = if bar_step == 0 { 1.0 } else { 0.82 };
-            self.thump.trigger(velocity, self.root, params.heat);
-            self.duck.trigger(velocity);
-            self.bass_accent.trigger(velocity);
+        if hits.kick > 0.0 {
+            self.thump.trigger(hits.kick, self.root, params.heat);
+            self.duck.trigger(hits.kick);
+            self.bass_accent.trigger(hits.kick);
+            self.thumps[0] += 1;
             self.counts[0] += 1;
         }
-        let tick = euclidean(
-            patterns.ticks,
-            tick_steps,
-            tick_rotation,
-            (step % tick_steps as u64) as usize,
-        );
-        // Loose: a few ticks off the beat drop out, a few empty steps get a ghost tick.
-        let loose = self.looseness;
-        let tick = if tick {
-            (bar_step.is_multiple_of(4) || self.rng.unit() >= self.settings.drop * loose)
-                .then_some(1.0)
-        } else if patterns.ticks > 0 && loose > 0.0 && self.rng.unit() < self.settings.ghost * loose
-        {
-            Some(0.4)
-        } else {
-            None
-        };
-        if let Some(scale) = tick {
+        if hits.tick > 0.0 {
             let breath = 0.85 + 0.15 * (std::f32::consts::TAU * self.seconds / 11.0).sin();
-            let velocity =
-                if even { 0.8 } else { 0.55 } * (0.75 + 0.5 * params.activity) * breath * scale;
+            let velocity = 0.8 * hits.tick * (0.75 + 0.5 * params.activity) * breath;
             let pan = if even { -0.35 } else { 0.35 } + self.rng.range(-0.1, 0.1);
             self.tick.trigger(velocity, pan, params.heat);
             self.counts[1] += 1;
         }
-        let stab = euclidean(
-            patterns.stabs,
-            stab_steps,
-            stab_rotation,
-            (step % stab_steps as u64) as usize,
-        );
-        let accent = self.accent && !even && patterns.thumps > 0;
-        if stab || accent {
+        let accent = self.accent && !even && self.thumps.iter().any(|&thumps| thumps > 0);
+        if (hits.stab > 0.0 || accent) && self.settings.stab_level > 0.0 {
             if accent {
                 self.accent = false;
             }
@@ -432,13 +314,11 @@ impl Pulse {
     #[inline]
     pub fn next(&mut self, now: &Now) -> PulseOut {
         if let Some(step) = now.step {
-            self.play(step);
+            self.play(step, &now.hits);
         }
 
-        // Where in the current gate step we are, from 0 to 1, with the swing.
-        let grid = self.settings.chord_gate_grid;
-        let position = ((self.bar_step % grid) as f32 + now.progress) / grid as f32;
-        let target = (self.chord_open && position < self.chord_duty) as u8 as f32;
+        // Open for the first part of an open step, with the swing.
+        let target = (self.chord_open && now.progress < self.chord_duty) as u8 as f32;
         self.chord_value += (target - self.chord_value) * self.chord_ramp;
 
         let settings = &self.settings;
@@ -525,6 +405,7 @@ mod tests {
     use crate::engine::Conductor;
     use crate::harmony::Palette;
     use crate::harmony::tests::palette;
+    use crate::instruments::strata::SCORE;
     use nova_core::Controls;
 
     const RATE: f32 = 8000.0;
@@ -537,25 +418,23 @@ mod tests {
         }
     }
 
-    /// Plays the pulse on the conductor's grid for `seconds`, with the bass away or at home
-    /// and the given looseness, calling `inspect` after every sample.
+    /// Plays the pulse to Strata's score for `seconds`, with the bass away or at home,
+    /// calling `inspect` after every sample.
     fn play(
         pulse: &mut Pulse,
         params: &Params,
         away: bool,
-        looseness: f32,
         seconds: f32,
         mut inspect: impl FnMut(&Pulse),
     ) {
         let palettes: [Palette; 1] = [palette()];
         let harmony = Harmony::from_palette(&palettes[0]);
-        let mut conductor = Conductor::new(RATE, harmony);
+        let mut conductor = Conductor::new(RATE, harmony, SCORE, 1);
         let mut signals = Signals::new(harmony);
         for frame in 0..(seconds * RATE) as usize {
             if frame % BLOCK == 0 {
                 conductor.update_block(params, &Controls::default(), 0.0, &palettes, &mut signals);
                 signals.away = away;
-                signals.looseness = looseness;
                 pulse.update_block(params, &signals);
             }
             pulse.next(&conductor.next());
@@ -605,7 +484,7 @@ mod tests {
             let mut pulse = pulse(1);
             let (mut deepest, mut accent, mut released) = (0.0_f32, 0.0_f32, 0);
             let seconds = 20.0;
-            play(&mut pulse, &params(form), false, 0.0, seconds, |pulse| {
+            play(&mut pulse, &params(form), false, seconds, |pulse| {
                 deepest = deepest.max(pulse.duck_value);
                 accent = accent.max(pulse.bass_accent_value);
                 released += (pulse.duck_value < 0.5 * (duck * coupling).min(1.0)) as usize;
@@ -654,7 +533,7 @@ mod tests {
                 ..params(form)
             };
             let (mut deepest, mut steepest, mut previous) = (0.0_f32, 0.0_f32, 0.0_f32);
-            play(&mut pulse, &params, away, 0.0, 10.0, |pulse| {
+            play(&mut pulse, &params, away, 10.0, |pulse| {
                 let gate = pulse.chord_gate();
                 deepest = deepest.max(gate);
                 steepest = steepest.max((gate - previous).abs());
@@ -673,24 +552,5 @@ mod tests {
                 );
             }
         }
-    }
-
-    fn ticks(looseness: f32, seed: u64) -> u64 {
-        let mut pulse = pulse(seed);
-        play(&mut pulse, &params(0.7), false, looseness, 40.0, |_| {});
-        pulse.counts()[1]
-    }
-
-    #[test]
-    fn rhythm_is_exact_unless_the_tide_loosens_it() {
-        let strict = ticks(0.0, 1);
-        assert!(strict > 50, "{strict}");
-        assert_eq!(strict, ticks(0.0, 2), "no chance involved while strict");
-        let loose = [ticks(1.0, 1), ticks(1.0, 2)];
-        assert!(
-            loose.iter().all(|&count| count != strict),
-            "{strict} vs {loose:?}"
-        );
-        assert!(loose[0] != loose[1]);
     }
 }

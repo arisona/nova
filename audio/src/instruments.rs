@@ -10,6 +10,7 @@ pub mod strata;
 
 use crate::harmony::Harmony;
 use crate::params::Params;
+use crate::score::Score;
 use crate::signals::{Now, Signals};
 use fathom::Fathom;
 use strata::Strata;
@@ -39,6 +40,14 @@ impl Default for Preset {
 }
 
 impl Preset {
+    /// Its rhythm, which the conductor plays.
+    pub fn score(&self) -> Score {
+        match self {
+            Self::Strata(preset) => preset.score,
+            Self::Fathom(preset) => preset.score,
+        }
+    }
+
     /// The instrument of that name in `INSTRUMENTS`, if there is one.
     pub fn named(name: &str) -> Option<Self> {
         INSTRUMENTS

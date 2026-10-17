@@ -1,20 +1,28 @@
-//! The conductor: the musical time and harmony all instruments share.
+//! The conductor: the musical time, the harmony and the rhythm all instruments share.
 //!
 //! Tempo follows the Flow slider (without its tide, so it does not wobble) on a grid of 16ths
-//! in bars of 16, swung when warm. The harmony moves in sections: at every boundary the bass
-//! moves between home and the palette's own pitch classes, halfway one chord tone changes its
-//! octave; a new palette starts the progression again, once the previous crossfade is done.
-//! The audio tides run from the host's tide clock. Everything goes out as signals once per
-//! block, and the grid as `Now` once per sample.
+//! in bars of 16 and phrases of 4 bars, swung when warm. The harmony moves in sections, which
+//! end on a phrase start: at every boundary the bass moves between home and the palette's own
+//! pitch classes, halfway one chord tone changes its octave; a new palette starts the
+//! progression again, once the previous crossfade is done. The audio tides run from the
+//! host's tide clock.
+//!
+//! The conductor plays the instrument's score (see `score.rs`): at every bar start it sets
+//! the density of each pattern from Form, and on every step it hands out the hits, with ghost
+//! ticks and dropped ones when the rhythm loosens, fills and breaks, and decides which stabs
+//! are thrown.
+//! Everything goes out as signals once per block, and the grid with its hits as `Now` once
+//! per sample.
 
 use nova_core::Controls;
 use nova_core::tides::LOOSENESS;
 
 use crate::BLOCK;
-use crate::dsp::{coefficient, lerp, smooth};
+use crate::dsp::{Rng, coefficient, lerp, smooth, smoothstep};
 use crate::harmony::{CROSSFADE_SECONDS, Harmony, Palette};
 use crate::params::Params;
-use crate::signals::{BAR, Change, Now, Signals};
+use crate::score::{GHOST, Patterns, Score};
+use crate::signals::{BAR, Change, Hits, Now, PHRASE, Signals};
 
 /// Tempo range in beats per minute, over the Flow slider.
 const SLOWEST: f32 = 80.0;
@@ -53,10 +61,35 @@ pub struct Conductor {
     /// Sections of the harmony so far, and steps of the bass progression.
     section: f64,
     progression: usize,
+    /// A change of the harmony waiting for the next phrase start, and one to announce with
+    /// the next block.
+    due: Option<Change>,
+    announce: Option<Change>,
+    score: Score,
+    rng: Rng,
+    /// Form, Flow as set and the share of lit voxels, from the latest block.
+    form: f32,
+    flow_setting: f32,
+    lit: f32,
+    /// The current bar, and whether the bass was away at its start.
+    bar: u64,
+    bar_away: bool,
+    /// Density of kick, ticks, stabs, bass and gate for the current bar, and where they
+    /// play in their patterns.
+    density: [u8; 5],
+    position: [f32; 5],
+    /// Whether the current bar is in a break: kick, ticks and bass rest.
+    breaking: bool,
+    /// Stabs in the current bar, and the step of its last one.
+    stabs: usize,
+    last_stab: u64,
+    /// A throw waiting for the next stab.
+    armed: Option<[f32; 3]>,
 }
 
 impl Conductor {
-    pub fn new(sample_rate: f32, harmony: Harmony) -> Self {
+    /// Plays `score`; `seed` varies the details of loose rhythm.
+    pub fn new(sample_rate: f32, harmony: Harmony, score: Score, seed: u64) -> Self {
         Self {
             sample_rate,
             primed: false,
@@ -73,6 +106,21 @@ impl Conductor {
             crossfade: 1.0,
             section: 0.0,
             progression: 0,
+            due: None,
+            announce: None,
+            score,
+            rng: Rng::new(seed),
+            form: 0.5,
+            flow_setting: 0.5,
+            lit: 0.5,
+            bar: 0,
+            bar_away: false,
+            density: [0; 5],
+            position: [0.0; 5],
+            breaking: false,
+            stabs: 0,
+            last_stab: 0,
+            armed: None,
         }
     }
 
@@ -103,6 +151,13 @@ impl Conductor {
         self.tempo += change.clamp(-8.0 * block_seconds, 8.0 * block_seconds);
         self.heat = params.heat;
         self.looseness = LOOSENESS.offset(clock).max(0.0);
+        self.form = params.form;
+        self.flow_setting = params.flow_setting;
+        self.lit = params.image.density;
+        let throws = self.score.throws;
+        if signals.onset && throws.onsets && self.density[2] >= 2 {
+            self.armed = Some(throws.section);
+        }
 
         if controls.palette != self.palette && self.crossfade >= 1.0 {
             self.palette = controls.palette;
@@ -110,29 +165,166 @@ impl Conductor {
             self.harmony = self.home;
             self.section = 0.0;
             self.progression = 0;
+            self.due = None;
+            self.announce = None;
             self.crossfade = 0.0;
             signals.change = Some(Change::Palette);
+            self.arm_section();
         }
         if self.crossfade < 1.0 {
             self.crossfade = (self.crossfade + block_seconds / CROSSFADE_SECONDS).min(1.0);
         }
 
-        // Sections of the harmony: the bass moves at every boundary, the voicing halfway.
+        // Sections of the harmony: the bass moves at every boundary, the voicing halfway,
+        // both on the next phrase start.
         let before = self.section;
         let seconds = lerp(SECTION_SECONDS[0], SECTION_SECONDS[1], params.flow);
         self.section += (block_seconds / seconds) as f64;
         if self.section.floor() > before.floor() {
-            self.progression += 1;
-            self.harmony = self.home.with_bass(self.home.bass(self.progression));
-            signals.change = Some(Change::Bass);
+            self.due = Some(Change::Bass);
         } else if (self.section - 0.5).floor() > (before - 0.5).floor() {
-            signals.change = Some(Change::Voice);
+            self.due = self.due.or(Some(Change::Voice));
+        }
+        if let Some(change) = self.announce.take() {
+            signals.change = signals.change.or(Some(change));
         }
 
         signals.tempo = self.tempo;
         signals.harmony = self.harmony;
         signals.away = !self.progression.is_multiple_of(2);
         signals.looseness = self.looseness;
+        signals.stabs = self.stabs;
+        let echo = self.score.echo;
+        signals.echo = echo[self.progression % echo.len()];
+    }
+
+    /// Throws the next stab, for a change of bass or palette.
+    fn arm_section(&mut self) {
+        if self.score.throws.sections {
+            self.armed = Some(self.score.throws.section);
+        }
+    }
+
+    /// At a bar start: a harmony change due on a phrase start, and the density of every
+    /// pattern, which holds for the bar.
+    fn new_bar(&mut self, step: u64) {
+        self.bar = step / BAR as u64;
+        if self.bar.is_multiple_of(PHRASE as u64)
+            && let Some(change) = self.due.take()
+        {
+            if change == Change::Bass {
+                self.progression += 1;
+                self.harmony = self.home.with_bass(self.home.bass(self.progression));
+                self.arm_section();
+            }
+            self.announce = Some(change);
+        }
+        self.bar_away = !self.progression.is_multiple_of(2);
+        // Like the pulse, the rhythm rests at Flow 0.
+        let resting = smoothstep(0.0, 0.15, self.flow_setting) < 0.01;
+        let score = self.score;
+        // The last bar of every few is a fill, one pattern warmer.
+        let fill = score.fills > 0 && (self.bar + 1).is_multiple_of(score.fills);
+        let moves = self.bar_away as usize + fill as usize;
+        for (part, patterns) in [score.kick, score.tick, score.stab, score.bass, score.gate]
+            .iter()
+            .enumerate()
+        {
+            self.density[part] = if resting {
+                0
+            } else {
+                patterns.density(self.form, self.density[part])
+            };
+            self.position[part] = patterns.position(self.heat, moves);
+        }
+        // The last phrase of every few is a break, if the kick plays; the stab after it is
+        // thrown hard as kick, ticks and bass drop back in.
+        let phrase = self.bar / PHRASE as u64;
+        let was_breaking = self.breaking;
+        self.breaking =
+            score.breaks > 0 && (phrase + 1).is_multiple_of(score.breaks) && self.density[0] > 0;
+        if was_breaking && !self.breaking && score.throws.sections {
+            self.armed = Some(score.throws.section);
+        }
+        let (mut stabs, mut last) = (0, 0);
+        for step in step..step + BAR as u64 {
+            if self.plays(&score.stab, 2, step) {
+                stabs += 1;
+                last = step;
+            }
+        }
+        self.stabs = stabs;
+        self.last_stab = last;
+
+        // Throws begin once the stabs play more than their first step.
+        let throws = score.throws;
+        let sparse = ((0.5 - self.lit) * 2.0).clamp(0.0, 1.0);
+        if self.density[2] < 2 {
+            self.armed = None;
+        } else if self.armed.is_none()
+            && self.rng.unit() < throws.loose * self.looseness + throws.sparse * sparse
+        {
+            self.armed = Some(throws.phrase);
+        }
+    }
+
+    fn plays(&self, patterns: &Patterns, part: usize, step: u64) -> bool {
+        patterns
+            .hit(self.position[part], self.density[part], step)
+            .is_some()
+    }
+
+    /// The hits of `step`.
+    fn play(&mut self, step: u64) -> Hits {
+        let bar_step = step % BAR as u64;
+        if bar_step == 0 {
+            self.new_bar(step);
+        }
+        let score = self.score;
+        let [mut kick, mut tick, stab, mut bass, gate] = self.density;
+        if self.breaking {
+            (kick, tick, bass) = (0, 0, 0);
+        }
+        let [at_kick, at_tick, at_stab, at_bass, at_gate] = self.position;
+        let away = self.bar_away;
+        let mut hits = Hits {
+            kick: score.kick.hit(at_kick, kick, step).unwrap_or(0.0),
+            bass: score.bass.hit(at_bass, bass, step).unwrap_or(0.0),
+            note: score.bass.note(at_bass, step),
+            gate: score.gate.hit(at_gate, gate, step).unwrap_or(0.0),
+            ..Hits::default()
+        };
+        // Loose: a few ticks off the beat drop out, a few empty steps get a ghost tick.
+        let loose = self.looseness;
+        hits.tick = match score.tick.hit(at_tick, tick, step) {
+            Some(velocity) => {
+                if bar_step.is_multiple_of(4) || self.rng.unit() >= score.drop * loose {
+                    velocity
+                } else {
+                    0.0
+                }
+            }
+            None if tick > 0 && loose > 0.0 && self.rng.unit() < score.ghost * loose => GHOST,
+            None => 0.0,
+        };
+        if let Some(velocity) = score.stab.hit(at_stab, stab, step) {
+            hits.stab = velocity;
+            if stab >= 2 {
+                // The last stab of every few bars, twice as often while the bass is away.
+                let bars = score.throws.phrase_bars;
+                let period = if away { (bars / 2).max(1) } else { bars };
+                let phrase = self.breaking
+                    || bars > 0 && step == self.last_stab && (self.bar + 1).is_multiple_of(period);
+                hits.throw = self.armed.take().or(phrase.then_some(score.throws.phrase));
+            }
+        }
+        hits
+    }
+
+    /// Holds the bass away from home or at home, for tests.
+    #[cfg(test)]
+    pub(crate) fn hold_away(&mut self, away: bool) {
+        self.progression = away as usize;
     }
 
     /// Once per sample: the grid. The second 16th of a pair starts late when the rhythm
@@ -155,13 +347,18 @@ impl Conductor {
             self.odd_played = true;
             step = Some(self.step.wrapping_add(1));
         }
+        let hits = step.map_or(Hits::default(), |step| self.play(step));
         let swing = self.swing as f64;
         let progress = if self.odd_played {
             (self.pair_phase - swing) / (1.0 - swing)
         } else {
             self.pair_phase / swing
         } as f32;
-        Now { step, progress }
+        Now {
+            step,
+            progress,
+            hits,
+        }
     }
 }
 
@@ -169,35 +366,67 @@ impl Conductor {
 mod tests {
     use super::*;
     use crate::harmony::tests::palette;
+    use crate::instruments::strata::SCORE;
 
     const RATE: f32 = 8000.0;
 
-    /// Runs the conductor for `seconds`; returns the steps and the changes it announced.
+    fn conductor(seed: u64) -> Conductor {
+        Conductor::new(RATE, Harmony::from_palette(&palette()), SCORE, seed)
+    }
+
+    /// What a run of the conductor played: the frame of every step, the changes it announced
+    /// with the latest step before each, and the ticks.
+    struct Run {
+        steps: Vec<(usize, u64)>,
+        changes: Vec<(Change, u64)>,
+        ticks: usize,
+    }
+
+    /// Runs the conductor for `seconds` at the tide `clock`.
+    fn run_at(
+        conductor: &mut Conductor,
+        params: &Params,
+        controls: &Controls,
+        clock: f64,
+        seconds: f32,
+    ) -> Run {
+        let palettes = [palette(), Palette::new(&palette().colors()[..2])];
+        let mut signals = Signals::new(conductor.harmony);
+        let (mut steps, mut changes, mut ticks) = (Vec::new(), Vec::new(), 0);
+        for frame in 0..(seconds * RATE) as usize {
+            if frame % BLOCK == 0 {
+                conductor.update_block(params, controls, clock, &palettes, &mut signals);
+                let latest = steps.last().map_or(0, |&(_, step)| step);
+                changes.extend(signals.change.map(|change| (change, latest)));
+            }
+            let now = conductor.next();
+            if let Some(step) = now.step {
+                steps.push((frame, step));
+                ticks += (now.hits.tick > 0.0) as usize;
+            }
+        }
+        Run {
+            steps,
+            changes,
+            ticks,
+        }
+    }
+
     fn run(
         conductor: &mut Conductor,
         params: &Params,
         controls: &Controls,
         seconds: f32,
     ) -> (Vec<(usize, u64)>, Vec<Change>) {
-        let palettes = [palette(), Palette::new(&palette().colors()[..2])];
-        let mut signals = Signals::new(conductor.harmony);
-        let (mut steps, mut changes) = (Vec::new(), Vec::new());
-        for frame in 0..(seconds * RATE) as usize {
-            if frame % BLOCK == 0 {
-                conductor.update_block(params, controls, 0.0, &palettes, &mut signals);
-                changes.extend(signals.change);
-            }
-            if let Some(step) = conductor.next().step {
-                steps.push((frame, step));
-            }
-        }
-        (steps, changes)
+        let run = run_at(conductor, params, controls, 0.0, seconds);
+        let changes = run.changes.into_iter().map(|(change, _)| change).collect();
+        (run.steps, changes)
     }
 
     #[test]
     fn steps_follow_the_tempo_and_swing_when_warm() {
         for (heat, swung) in [(0.0, false), (1.0, true)] {
-            let mut conductor = Conductor::new(RATE, Harmony::from_palette(&palette()));
+            let mut conductor = conductor(1);
             let params = Params {
                 heat,
                 flow_setting: 1.0,
@@ -226,12 +455,20 @@ mod tests {
     #[test]
     fn sections_move_the_bass_and_a_palette_change_starts_again() {
         let harmony = Harmony::from_palette(&palette());
-        let mut conductor = Conductor::new(RATE, harmony);
+        let mut conductor = conductor(1);
         let params = Params {
             flow: 1.0,
             ..Params::default()
         };
-        let (_, changes) = run(&mut conductor, &params, &Controls::default(), 70.0);
+        let changes = run_at(&mut conductor, &params, &Controls::default(), 0.0, 80.0).changes;
+        // Harmony changes wait for a phrase start.
+        for &(change, step) in &changes[1..] {
+            assert!(
+                step.is_multiple_of((PHRASE * BAR) as u64),
+                "{change:?} at {step}"
+            );
+        }
+        let changes: Vec<Change> = changes.into_iter().map(|(change, _)| change).collect();
         assert_eq!(
             changes,
             [
@@ -252,5 +489,87 @@ mod tests {
         assert_eq!(changes, [Change::Palette]);
         assert_eq!(conductor.progression, 0);
         assert!(conductor.crossfade > 0.0 && conductor.crossfade < 1.0);
+    }
+
+    #[test]
+    fn rhythm_is_exact_unless_the_tide_loosens_it() {
+        // Clocks where the Looseness tide is at rest, and where it is high.
+        let clocks: Vec<f64> = (0..400).map(|second| second as f64).collect();
+        let strict = *clocks
+            .iter()
+            .find(|&&clock| LOOSENESS.offset(clock) < 0.0)
+            .unwrap();
+        let loose = *clocks
+            .iter()
+            .find(|&&clock| LOOSENESS.offset(clock) > 0.8)
+            .unwrap();
+        let params = Params {
+            form: 0.7,
+            ..Params::default()
+        };
+        let ticks = |clock, seed| {
+            run_at(
+                &mut conductor(seed),
+                &params,
+                &Controls::default(),
+                clock,
+                40.0,
+            )
+            .ticks
+        };
+        let exact = ticks(strict, 1);
+        assert!(exact > 50, "{exact}");
+        assert_eq!(exact, ticks(strict, 2), "no chance involved while strict");
+        let loose = [ticks(loose, 1), ticks(loose, 2)];
+        assert!(
+            loose.iter().all(|&count| count != exact),
+            "{exact} vs {loose:?}"
+        );
+        assert!(loose[0] != loose[1]);
+    }
+
+    #[test]
+    fn breaks_rest_the_low_end_and_drop_back_in_with_a_throw() {
+        use crate::instruments::fathom;
+        let palettes = [palette()];
+        let mut conductor =
+            Conductor::new(RATE, Harmony::from_palette(&palettes[0]), fathom::SCORE, 1);
+        let params = Params {
+            form: 0.8,
+            ..Params::default()
+        };
+        let mut signals = Signals::new(conductor.harmony);
+        // Kicks and bass notes per phrase, and the phrase of every thrown stab.
+        let mut low = [0; 10];
+        let mut throws = Vec::new();
+        let phrase_steps = (PHRASE * BAR) as u64;
+        for frame in 0.. {
+            if frame % BLOCK == 0 {
+                conductor.update_block(&params, &Controls::default(), 0.0, &palettes, &mut signals);
+            }
+            let now = conductor.next();
+            let Some(step) = now.step else { continue };
+            let phrase = (step / phrase_steps) as usize;
+            if phrase == low.len() {
+                break;
+            }
+            low[phrase] += (now.hits.kick > 0.0) as usize + (now.hits.bass > 0.0) as usize;
+            if now.hits.throw.is_some() {
+                throws.push(phrase);
+            }
+        }
+        let breaks = fathom::SCORE.breaks as usize;
+        for (phrase, &count) in low.iter().enumerate() {
+            assert_eq!(count == 0, phrase + 1 == breaks, "phrase {phrase}: {count}");
+        }
+        // Every stab in the break is thrown, and the first one after it.
+        assert!(
+            throws
+                .iter()
+                .filter(|&&phrase| phrase == breaks - 1)
+                .count()
+                > 4
+        );
+        assert!(throws.contains(&breaks), "{throws:?}");
     }
 }

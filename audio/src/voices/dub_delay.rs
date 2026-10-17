@@ -1,4 +1,5 @@
-//! The dub delay: a tempo-synced ping-pong (a dotted eighth) with a band-pass, gentle
+//! The dub delay: a tempo-synced ping-pong (a dotted eighth unless told otherwise) with a
+//! band-pass, gentle
 //! saturation and tape flutter in its loop; warmer means more feedback and darker repeats.
 //! A boost throws it: more feedback, darker and more saturated repeats, as when a dub
 //! engineer pushes the echo for a moment. The echoes start on the left unless told to start
@@ -78,14 +79,14 @@ impl DubDelay {
         self.start_target = side.clamp(0.0, 1.0);
     }
 
-    /// `boost` from 0 throws the delay: it adds feedback (up to `MAX_FEEDBACK`), lowers the
-    /// high cut by two octaves per unit and drives the loop harder.
-    pub fn update_block(&mut self, tempo: f32, heat: f32, boost: f32) {
+    /// `sixteenths` is the time in 16ths; a new time glides in, like a tape delay, bending the
+    /// repeats. `boost` from 0 throws the delay: it adds feedback (up to `MAX_FEEDBACK`),
+    /// lowers the high cut by two octaves per unit and drives the loop harder.
+    pub fn update_block(&mut self, tempo: f32, sixteenths: f32, heat: f32, boost: f32) {
         let settings = &self.settings;
         let block_seconds = BLOCK as f32 / self.sample_rate;
         self.seconds += block_seconds;
-        // A dotted eighth: three 16ths.
-        let target = 3.0 * 15.0 / tempo * self.sample_rate;
+        let target = sixteenths * 15.0 / tempo * self.sample_rate;
         if self.time == 0.0 {
             self.time = target;
         }
@@ -146,7 +147,7 @@ mod tests {
         let frames = (seconds * rate) as usize;
         for frame in 0..frames {
             if frame % BLOCK == 0 {
-                delay.update_block(100.0, heat, boost);
+                delay.update_block(100.0, 3.0, heat, boost);
             }
             let input = if frame < 1600 {
                 rng.range(-1.0, 1.0)
@@ -183,7 +184,7 @@ mod tests {
             let mut energy = [0.0_f32; 2];
             for frame in 0..(0.8 * rate) as usize {
                 if frame % BLOCK == 0 {
-                    delay.update_block(100.0, 0.5, 0.0);
+                    delay.update_block(100.0, 3.0, 0.5, 0.0);
                 }
                 let input = if (1000..1100).contains(&frame) {
                     1.0
