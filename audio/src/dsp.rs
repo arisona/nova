@@ -54,16 +54,43 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-/// A transfer curve through points `[x, y]`, in order of x, eased between each pair: flat
-/// at every point, so plateaus and soft shoulders come for free, and never beyond the
-/// values of its points. Before the first point and after the last it holds their values.
+/// `frequency` moved by octaves into the range from `low` to `high`, which spans an octave
+/// or more: up until it reaches `low`, then down until it lies below `high`.
+pub fn fold(mut frequency: f32, low: f32, high: f32) -> f32 {
+    while frequency < low {
+        frequency *= 2.0;
+    }
+    while frequency >= high {
+        frequency *= 0.5;
+    }
+    frequency
+}
+
+/// A transfer curve through points `[x, y]`, eased between each pair: flat at every point,
+/// so plateaus and soft shoulders come for free, and never beyond the values of its points.
+/// Before the first point and after the last it holds their values.
 #[derive(Clone, Copy, Debug)]
-pub struct Curve(pub &'static [[f32; 2]]);
+pub struct Curve(&'static [[f32; 2]]);
 
 impl Curve {
     /// 0 and 1 everywhere, for answers that stay off or neutral.
-    pub const ZERO: Self = Self(&[[0.0, 0.0]]);
-    pub const ONE: Self = Self(&[[0.0, 1.0]]);
+    pub const ZERO: Self = Self::new(&[[0.0, 0.0]]);
+    pub const ONE: Self = Self::new(&[[0.0, 1.0]]);
+
+    /// A curve through `points`, at least one, in strictly increasing order of x; a curve
+    /// defined as a constant is checked when the code compiles.
+    pub const fn new(points: &'static [[f32; 2]]) -> Self {
+        assert!(!points.is_empty(), "a curve has points");
+        let mut index = 1;
+        while index < points.len() {
+            assert!(
+                points[index][0] > points[index - 1][0],
+                "a curve's points follow each other along x"
+            );
+            index += 1;
+        }
+        Self(points)
+    }
 
     pub fn at(&self, x: f32) -> f32 {
         let points = self.0;
@@ -413,12 +440,6 @@ pub fn resonance(decibels: f32) -> f32 {
     (10.0_f32.powf(decibels / 20.0) * std::f32::consts::SQRT_2 - 1.0).max(0.0)
 }
 
-/// Whether `step` (of `steps`) is a hit in the Euclidean pattern that spreads `pulses`
-/// as evenly as possible, rotated left by `rotation`.
-pub fn euclidean(pulses: usize, steps: usize, rotation: usize, step: usize) -> bool {
-    pulses > 0 && ((step + rotation) % steps * pulses) % steps < pulses
-}
-
 /// Approximate magnitude of the K-weighting of loudness measurement (ITU-R BS.1770) at
 /// `frequency`: a high-pass around 38 Hz and a +4 dB shelf above about 1.5 kHz.
 pub fn k_weight(frequency: f32) -> f32 {
@@ -435,8 +456,9 @@ mod tests {
 
     #[test]
     fn curves_pass_their_points_and_stay_within_them() {
-        let bump = Curve(&[[0.0, 0.0], [0.1, 1.0], [0.5, 1.0], [1.0, 0.0]]);
-        for [x, y] in bump.0 {
+        const POINTS: &[[f32; 2]] = &[[0.0, 0.0], [0.1, 1.0], [0.5, 1.0], [1.0, 0.0]];
+        let bump = Curve::new(POINTS);
+        for [x, y] in POINTS {
             assert_eq!(bump.at(*x), *y);
         }
         assert_eq!((bump.at(-1.0), bump.at(0.3), bump.at(2.0)), (0.0, 1.0, 0.0));
@@ -482,17 +504,14 @@ mod tests {
     }
 
     #[test]
-    fn euclidean_patterns_spread_pulses_evenly() {
-        let pattern = |pulses, steps, rotation| -> Vec<usize> {
-            (0..steps)
-                .filter(|&step| euclidean(pulses, steps, rotation, step))
-                .collect()
-        };
-        assert_eq!(pattern(4, 16, 0), [0, 4, 8, 12]);
-        assert_eq!(pattern(4, 16, 2), [2, 6, 10, 14]);
-        assert_eq!(pattern(3, 8, 0), [0, 3, 6]);
-        assert_eq!(pattern(0, 16, 0), Vec::<usize>::new());
-        assert_eq!(pattern(5, 12, 0).len(), 5);
+    fn frequencies_fold_by_octaves_into_their_range() {
+        assert_eq!(fold(55.0, 40.0, 80.0), 55.0);
+        assert_eq!(fold(27.5, 40.0, 80.0), 55.0);
+        assert_eq!(fold(440.0, 40.0, 80.0), 55.0);
+        assert_eq!(fold(80.0, 40.0, 80.0), 40.0);
+        // Over two octaves, a tone keeps the octave it reaches first.
+        assert_eq!(fold(100.0, 180.0, 720.0), 200.0);
+        assert_eq!(fold(1000.0, 180.0, 720.0), 500.0);
     }
 
     #[test]

@@ -18,7 +18,9 @@
 //! their echoes.
 
 use crate::BLOCK;
-use crate::dsp::{Contour, Curve, Drift, Rng, coefficient, lerp, resonance, smooth, smoothstep};
+use crate::dsp::{
+    Contour, Curve, Drift, Rng, coefficient, fold, lerp, resonance, smooth, smoothstep,
+};
 use crate::harmony::{CROSSFADE_SECONDS, Harmony};
 use crate::params::Params;
 use crate::signals::{Now, Signals};
@@ -107,7 +109,7 @@ impl Settings {
         attack: [0.0015, 0.005],
         hold: [0.25, 0.45],
         release: [0.07, 0.16],
-        length: Curve(&[[0.0, 2.5], [0.5, 1.0], [1.0, 0.45]]),
+        length: Curve::new(&[[0.0, 2.5], [0.5, 1.0], [1.0, 0.45]]),
         swell: [0.5, 4.0, 1.2],
         ride: 0.8,
         height: 1.0,
@@ -119,7 +121,7 @@ impl Settings {
 
 /// The chord's gains at one sample.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct Stab {
+pub struct Gains {
     /// For the chord between stabs, which follows the drone's dip.
     pub residual: f32,
     /// For the stab, on top of the residual.
@@ -239,16 +241,7 @@ impl Chord {
         let [low, high] = self.register;
         self.lowest_target = harmony.tones()[1..]
             .iter()
-            .map(|tone| {
-                let mut frequency = tone.frequency;
-                while frequency < low {
-                    frequency *= 2.0;
-                }
-                while frequency >= high {
-                    frequency *= 0.5;
-                }
-                frequency
-            })
+            .map(|tone| fold(tone.frequency, low, high))
             .fold(high, f32::min);
         if snap {
             self.lowest = self.lowest_target;
@@ -323,7 +316,7 @@ impl Chord {
         let morph = self.morph;
         let floor = (settings.floor * (self.lowest / 240.0).sqrt()).clamp(200.0, 450.0);
         let offset = lerp(settings.drone_offset[0], settings.drone_offset[1], warmth);
-        let height = settings.height * (params.image.height - 0.5);
+        let height = settings.height * (params.light.height - 0.5);
         let base = floor * 2.0_f32.powf(offset * (1.0 - morph) + settings.ride * ride + height);
         let opening = lerp(
             settings.swell_opening,
@@ -372,11 +365,11 @@ impl Chord {
         self.send_level =
             lerp(settings.send[0], settings.send[1], warmth) * (0.75 + 0.5 * params.void);
         // Sparse light fills the space, a complement rather than a mirror.
-        self.sparseness = ((0.5 - params.image.density) * 2.0).clamp(0.0, 1.0);
+        self.sparseness = params.light.sparseness();
         self.space = settings.sparse * self.sparseness;
         // Echoes answer the light across the room.
         if let Some(threshold) = settings.echo_side {
-            let balance = params.image.balance;
+            let balance = params.light.balance;
             if balance < -threshold {
                 self.echo_right = true;
             } else if balance > threshold {
@@ -436,7 +429,7 @@ impl Chord {
         );
         self.reach = 1.0 - VARIATION * self.rng.unit();
         self.velocity = velocity
-            * (0.85 + 0.3 * self.params.activity)
+            * (0.85 + 0.3 * self.params.liveliness)
             * (1.0 - 0.5 * VARIATION * self.rng.unit())
             * if self.thrown { 1.15 } else { 1.0 };
         let start = current / (self.velocity * self.stab_level).max(1e-6);
@@ -446,7 +439,7 @@ impl Chord {
     }
 
     #[inline]
-    pub fn next(&mut self, now: &Now) -> Stab {
+    pub fn next(&mut self, now: &Now) -> Gains {
         if now.hits.stab > 0.0 {
             self.trigger(now.hits.stab, now.hits.throw);
         }
@@ -454,7 +447,7 @@ impl Chord {
         self.send += (self.send_target - self.send) * self.send_slew;
         let stab = self.velocity * envelope * self.rest;
         let dry = 1.0 - (1.0 - DISSOLVED_DRY) * self.params.dissolve;
-        Stab {
+        Gains {
             residual: self.residual,
             dry: stab * self.stab_level * dry,
             send: stab * self.send,
@@ -493,7 +486,7 @@ mod tests {
 
     /// Plays the chord on the conductor's grid for `seconds`, with half the voxels lit;
     /// returns the stabs, the thrown stabs, the largest boost and the latest gains.
-    fn play(rhythm: f32, flow: f32, throws: Throws, seconds: f32) -> (u64, u64, f32, Stab) {
+    fn play(rhythm: f32, flow: f32, throws: Throws, seconds: f32) -> (u64, u64, f32, Gains) {
         play_away(rhythm, flow, throws, seconds, None, 0.5)
     }
 
@@ -506,7 +499,7 @@ mod tests {
         seconds: f32,
         away: Option<bool>,
         density: f32,
-    ) -> (u64, u64, f32, Stab) {
+    ) -> (u64, u64, f32, Gains) {
         let palettes: [Palette; 1] = [palette()];
         let harmony = Harmony::from_palette(&palettes[0]);
         // Every stab of the patterns, not only the strongest of each bar.
@@ -531,13 +524,13 @@ mod tests {
             rhythm,
             flow,
             flow_setting: flow,
-            image: Features {
+            light: Features {
                 density,
-                ..Features::default()
+                ..Features::NEUTRAL
             },
             ..Params::default()
         };
-        let (mut thrown, mut boost, mut stab) = (0, 0.0_f32, Stab::default());
+        let (mut thrown, mut boost, mut stab) = (0, 0.0_f32, Gains::default());
         for frame in 0..(seconds * RATE) as usize {
             if frame % BLOCK == 0 {
                 conductor.update_block(&params, &Controls::default(), 0.0, &palettes, &mut signals);

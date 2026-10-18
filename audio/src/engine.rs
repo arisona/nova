@@ -28,9 +28,9 @@ use master::Master;
 /// on the first phrase start past halfway.
 const MIX_SECONDS: f32 = 5.0;
 
-/// How strongly the image shapes the sound: 0 ignores it (the sound hears neutral light,
+/// How strongly the light shapes the sound: 0 ignores it (the sound hears neutral light,
 /// `Features::NEUTRAL`, and no onsets), 1 answers it fully, more exaggerates it.
-const IMAGE_WEIGHT: f32 = 1.0;
+const LIGHT_WEIGHT: f32 = 1.0;
 
 /// Range of visual activity the sound follows, on a logarithmic scale: calm content (about
 /// 0.005) still differs, busy content (about 0.2) does not all sound the same.
@@ -150,7 +150,7 @@ impl Engine {
             palettes,
             controls: Controls::default(),
             clock: 0.0,
-            light: Features::default(),
+            light: Features::NEUTRAL,
             params: Params::default(),
             activity: Activity::default(),
             conductor: Conductor::new(sample_rate, harmony, presets[first].score(), seed),
@@ -198,12 +198,12 @@ impl Engine {
 
     fn update_block(&mut self) {
         let block_rate = self.sample_rate / BLOCK as f32;
-        let light = Features::NEUTRAL.towards(&self.light, IMAGE_WEIGHT);
+        let light = Features::NEUTRAL.towards(&self.light, LIGHT_WEIGHT);
         let controls = if self.primed {
             coefficient(0.08, block_rate)
         } else {
             self.primed = true;
-            self.params.image = light;
+            self.params.light = light;
             1.0
         };
         let target = tides::effective(&self.controls, self.clock);
@@ -216,25 +216,11 @@ impl Engine {
         // The tempo follows the Flow slider without its tide, so it does not wobble.
         params.flow_setting += (self.controls.flow - params.flow_setting) * controls;
 
-        let image = coefficient(2.5, block_rate);
-        let (smoothed, features) = (&mut params.image, &light);
-        for (smoothed, target) in [
-            (&mut smoothed.level, features.level),
-            (&mut smoothed.balance, features.balance),
-            (&mut smoothed.width, features.width),
-            (&mut smoothed.height, features.height),
-            (&mut smoothed.density, features.density),
-            (&mut smoothed.activity, features.activity),
-        ] {
-            *smoothed += (target - *smoothed) * image;
-        }
-        for (smoothed, &target) in smoothed.hues.iter_mut().zip(&features.hues) {
-            *smoothed += (target - *smoothed) * image;
-        }
-        let (activity, onset) = self
+        params.light = params.light.towards(&light, coefficient(2.5, block_rate));
+        let (liveliness, onset) = self
             .activity
             .update(light.activity.max(0.0), 1.0 / block_rate);
-        params.activity = activity;
+        params.liveliness = liveliness;
         self.signals.onset = onset;
 
         // The mix: start one to the instrument asked for, or turn back to the one fading

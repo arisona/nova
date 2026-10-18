@@ -52,7 +52,7 @@ fn main() {
             .inspect_err(|error| {
                 log::error!("Cannot start the sound: {error}");
                 bus.report(
-                    Part::Sound,
+                    Part::Audio,
                     Status::Err(format!("Audio service unavailable: {error}")),
                 );
             })

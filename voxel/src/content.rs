@@ -62,12 +62,10 @@ pub fn advance_seconds(phase: &mut f64, state: &RenderState, delta: f32) -> f32 
 
 #[cfg(test)]
 mod tests {
-
-    use nova_core::Controls;
-    use nova_core::palettes::PALETTES;
-
     use super::*;
     use glam::Vec3;
+    use nova_core::Controls;
+    use nova_core::palettes::PALETTES;
 
     #[test]
     fn content_is_in_alphabetical_order() {

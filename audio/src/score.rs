@@ -1,5 +1,5 @@
-//! The score: an instrument's rhythm as data, which the conductor plays (see the rhythm in
-//! `doc/audio_concept.md`).
+//! The score: an instrument's rhythm as data, which the conductor plays (see Audio in the
+//! README).
 //!
 //! A pattern gives every 16th a weight from 1 to 9, how essential the step is, written as a
 //! string: `"9... 5... 7... 5..."` is a kick that plays once per bar, then twice, then four

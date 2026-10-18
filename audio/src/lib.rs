@@ -1,12 +1,14 @@
 //! The sound of the Nova voxel display: an engine for drone and ambient sound, played with
-//! the same controls as the light (see `doc/audio_concept.md`).
+//! the same controls as the light (see Audio in the README, and `doc/audio_concept.md` for
+//! what is open).
 //!
 //! It knows nothing of the host that runs it, nor of the display: it plays from the bus
 //! (`nova_core::Bus`), which carries the controls, the tide clock and the features of the
 //! light, and leaves its status there. Layered by role, each layer using only those before
 //! it:
 //!
-//! - `dsp`: building blocks (oscillators, filters, delay lines, a limiter)
+//! - `dsp`: building blocks (transfer curves, oscillators, filters, envelopes, delay lines,
+//!   a limiter)
 //! - `voices`: sound sources and effects (bed, air, thump, tick, stab, sub, bell, dub delay,
 //!   reverb)
 //! - `instruments`: voices played together, with their character as a preset

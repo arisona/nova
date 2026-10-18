@@ -15,7 +15,7 @@
 //! echoes.
 
 use crate::BLOCK;
-use crate::dsp::{Envelope, Rng, coefficient, lerp, smooth, smoothstep};
+use crate::dsp::{Envelope, Rng, coefficient, fold, lerp, smooth, smoothstep};
 use crate::harmony::Harmony;
 use crate::params::Params;
 use crate::signals::{BAR, Hits, Now, Signals};
@@ -186,26 +186,17 @@ impl Pulse {
 
     /// Takes over a harmony at once.
     pub fn adopt(&mut self, harmony: &Harmony) {
-        fn fold(mut frequency: f32, low: f32) -> f32 {
-            while frequency < low {
-                frequency *= 2.0;
-            }
-            while frequency >= 2.0 * low {
-                frequency *= 0.5;
-            }
-            frequency
-        }
         self.root = harmony.root();
-        let base = fold(self.root, 110.0);
+        let base = fold(self.root, 110.0, 220.0);
         let colors = &harmony.tones()[1..];
         self.chord = [
             base,
             colors
                 .first()
-                .map_or(base * 1.5, |tone| fold(tone.frequency, 180.0)),
+                .map_or(base * 1.5, |tone| fold(tone.frequency, 180.0, 360.0)),
             colors
                 .get(1)
-                .map_or(base * 2.0, |tone| fold(tone.frequency, 180.0)),
+                .map_or(base * 2.0, |tone| fold(tone.frequency, 180.0, 360.0)),
         ];
     }
 
@@ -305,7 +296,7 @@ impl Pulse {
         }
         if hits.tick > 0.0 {
             let breath = 0.85 + 0.15 * (std::f32::consts::TAU * self.seconds / 11.0).sin();
-            let velocity = 0.8 * hits.tick * (0.75 + 0.5 * params.activity) * breath;
+            let velocity = 0.8 * hits.tick * (0.75 + 0.5 * params.liveliness) * breath;
             let pan = if even { -0.35 } else { 0.35 } + self.rng.range(-0.1, 0.1);
             self.tick.trigger(velocity, pan, params.heat);
             self.counts[1] += 1;

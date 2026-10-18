@@ -42,7 +42,7 @@ pub struct Script<'a> {
     flow: f32,
     form: f32,
     void: f32,
-    image: Features,
+    light: Features,
 }
 
 impl Script<'_> {
@@ -77,27 +77,27 @@ impl Script<'_> {
 
     /// Where the light sits, from 0 at the bottom to 1 at the top.
     pub fn set_height(&mut self, value: f32) {
-        self.image.height = value;
+        self.light.height = value;
     }
 
     /// The share of lit voxels.
     pub fn set_density(&mut self, value: f32) {
-        self.image.density = value;
+        self.light.density = value;
     }
 
     /// How far the light spreads from left to right, from 0 in one column to 1.
     pub fn set_width(&mut self, value: f32) {
-        self.image.width = value;
+        self.light.width = value;
     }
 
     /// The mean luminance, which over the share of lit voxels is the glow.
     pub fn set_level(&mut self, value: f32) {
-        self.image.level = value;
+        self.light.level = value;
     }
 
     /// Where the light sits, from −1 on the left to 1 on the right.
     pub fn set_balance(&mut self, value: f32) {
-        self.image.balance = value;
+        self.light.balance = value;
     }
 }
 
@@ -138,7 +138,7 @@ pub fn script(names: &[String], seconds: f32, set: impl Fn(f32, &mut Script)) ->
         flow: 0.5,
         form: 0.5,
         void: 0.5,
-        image: Features::NEUTRAL,
+        light: Features::NEUTRAL,
     };
     let mut clock = 0.0;
     (0..count)
@@ -157,7 +157,7 @@ pub fn script(names: &[String], seconds: f32, set: impl Fn(f32, &mut Script)) ->
                     ..loud()
                 },
                 clock,
-                light: script.image,
+                light: script.light,
             }
         })
         .collect()
@@ -256,25 +256,25 @@ pub fn all(names: &[String]) -> Vec<Scenario> {
 
 /// Strata's scripted scenarios, named `strata_…`.
 fn strata_scenarios(palettes: usize) -> Vec<Spec> {
-    let euclidean = Preset::Strata(strata::Preset::DEFAULT);
+    let score = Preset::Strata(strata::Preset::DEFAULT);
     let polymeter = Preset::Strata(strata::Preset::POLYMETER);
     vec![
         scenario(
             "strata_01_cold_to_warm",
             "Pure drone (Void 0), Heat from 0 to 1",
             90.0,
-            euclidean,
+            score,
             |t, state| {
                 state.set_void(0.0);
                 state.set_heat(t);
             },
         ),
         scenario(
-            "strata_02_rhythm_euclidean",
+            "strata_02_rhythm",
             "Void from 0 to 1: the rhythm builds up by 0.1, plays fully until 0.5 and dissolves \
-             into the distance; Euclidean patterns on a 16-step bar",
+             into the distance, on a bar of 16 steps",
             120.0,
-            euclidean,
+            score,
             |t, state| state.set_void(t),
         ),
         scenario(
@@ -289,14 +289,14 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "Void from 0.5 to 1: the rhythm loosens, its stabs move into the echoes, a distant \
              heartbeat stays longest",
             90.0,
-            euclidean,
+            score,
             |t, state| state.set_void(0.5 + 0.5 * t),
         ),
         scenario(
             "strata_05_flow_sweep",
             "Flow from 0 to 1 (Void 0.3)",
             60.0,
-            euclidean,
+            score,
             |t, state| {
                 state.set_void(0.3);
                 state.set_flow(t);
@@ -306,7 +306,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "strata_06_palettes",
             "Every palette for 10 s (Void 0.75, the rhythm dissolving)",
             10.0 * palettes as f32,
-            euclidean,
+            score,
             |t, state| {
                 let count = state.palettes();
                 state.palette = ((t * count as f32) as usize).min(count - 1);
@@ -317,7 +317,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "strata_07_cold_ambient",
             "Antarctica Freeze, Heat 0.1, Flow 0.4, Void 0.95: far away, the rhythm dissolved",
             60.0,
-            euclidean,
+            score,
             |_, state| {
                 state.set_palette("Antarctica Freeze");
                 state.set_heat(0.1);
@@ -329,7 +329,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "strata_08_warm_ambient",
             "Sahara Drift, Heat 0.9, Flow 0.4, Void 0: close and dense, without rhythm",
             60.0,
-            euclidean,
+            score,
             |_, state| {
                 state.set_palette("Sahara Drift");
                 state.set_heat(0.9);
@@ -339,9 +339,9 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
         ),
         scenario(
             "strata_09_cold_rhythmic",
-            "Kiruna Glow, Heat 0.15, Void 0.3, Flow 0.6 (Euclidean)",
+            "Kiruna Glow, Heat 0.15, Void 0.3, Flow 0.6",
             60.0,
-            euclidean,
+            score,
             |_, state| {
                 state.set_palette("Kiruna Glow");
                 state.set_heat(0.15);
@@ -366,7 +366,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "Belize Ripple, Heat 0.6, Void 0.8, Flow 0.6 for 10 minutes: the bass moves about \
              every minute, a chord tone changes its octave halfway",
             600.0,
-            euclidean,
+            score,
             |_, state| {
                 state.set_palette("Belize Ripple");
                 state.set_heat(0.6);
@@ -378,7 +378,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "strata_12_height_sweep",
             "The light from the bottom to the top (Void 0.8)",
             60.0,
-            euclidean,
+            score,
             |t, state| {
                 state.set_void(0.8);
                 state.set_height(t);
@@ -389,7 +389,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "Form from 0 to 1 (Void 0.8): still layers, then the chord breaks into grains and \
              the air into dust",
             90.0,
-            euclidean,
+            score,
             |t, state| {
                 state.set_void(0.8);
                 state.set_form(t);
@@ -400,7 +400,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "From all voxels lit to none (Void 0.8): sparse light fills the space with air \
              and hall",
             60.0,
-            euclidean,
+            score,
             |t, state| {
                 state.set_void(0.8);
                 state.set_density(1.0 - t);
@@ -411,7 +411,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "strata_15_width_sweep",
             "From light spread out to light in one column (Void 0.8): a narrower image",
             60.0,
-            euclidean,
+            score,
             |t, state| {
                 state.set_void(0.8);
                 state.set_width(1.0 - t);
@@ -421,7 +421,7 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             "strata_16_glow_sweep",
             "From dim to glowing lit voxels (Void 0.8): the hall brightens",
             60.0,
-            euclidean,
+            score,
             |t, state| {
                 state.set_void(0.8);
                 state.set_level(0.5 * t);

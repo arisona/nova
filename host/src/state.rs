@@ -112,6 +112,10 @@ impl State {
     /// content and palette names fall back to defaults.
     fn from_saved(saved: State) -> Self {
         let mut settings = Self::default();
+        // The links first, so selecting the content puts its own instrument on the bus.
+        for (content, instrument) in &saved.instruments {
+            settings.set_instrument(content, instrument);
+        }
         settings.set_enabled_content(&saved.enabled_content);
         settings.set_selected_content(&saved.selected_content);
         settings.set_brightness(saved.brightness);
@@ -157,9 +161,6 @@ impl State {
         settings.set_webserver_port(saved.webserver_port);
         settings.simulator = saved.simulator;
         settings.audio = saved.audio;
-        for (content, instrument) in &saved.instruments {
-            settings.set_instrument(content, instrument);
-        }
         settings.publish();
         settings
     }
@@ -453,7 +454,7 @@ impl State {
     /// Whether audio is enabled and its output has not failed. Volume is only
     /// adjustable in the web app while this holds.
     pub fn audio_available(&self) -> bool {
-        self.audio && !matches!(self.bus.status(Part::Sound), Status::Err(_))
+        self.audio && !matches!(self.bus.status(Part::Audio), Status::Err(_))
     }
 
     pub fn dim(&self) -> (usize, usize, usize) {
@@ -687,7 +688,7 @@ mod tests {
         state.set_instrument(&first, "Shoal");
         state
             .bus()
-            .report(Part::Sound, Status::Ok("Audio ready".into()));
+            .report(Part::Audio, Status::Ok("Audio ready".into()));
         state.restore_defaults();
         // A single module is reset completely; its address can be set in the web app.
         assert_eq!(state.heat(), 0.5);
@@ -701,7 +702,7 @@ mod tests {
         assert!(state.audio());
         assert_eq!(state.instrument(), "Shoal");
         assert_eq!(
-            state.bus().status(Part::Sound),
+            state.bus().status(Part::Audio),
             Status::Ok("Audio ready".into())
         );
 
@@ -806,11 +807,11 @@ mod tests {
         assert!(state.audio_available());
         state
             .bus()
-            .report(Part::Sound, Status::Ok("Audio ready".into()));
+            .report(Part::Audio, Status::Ok("Audio ready".into()));
         assert!(state.audio_available());
         state
             .bus()
-            .report(Part::Sound, Status::Err("Audio unavailable".into()));
+            .report(Part::Audio, Status::Err("Audio unavailable".into()));
         assert!(!state.audio_available());
     }
 

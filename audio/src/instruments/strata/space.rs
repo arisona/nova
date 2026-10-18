@@ -14,7 +14,7 @@ use crate::voices::{DubDelay, Reverb, dub_delay};
 
 /// How far the dry highs reach over Void, in octaves above 3 kHz: about 8 kHz when close
 /// at Void 0, so the dense, dry sound does not ring, 6 kHz in the middle, 3 kHz far away.
-const REACH: Curve = Curve(&[[0.0, 1.4], [0.5, 1.0], [1.0, 0.0]]);
+const REACH: Curve = Curve::new(&[[0.0, 1.4], [0.5, 1.0], [1.0, 0.0]]);
 
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
@@ -118,7 +118,7 @@ impl Space {
             filter.set(cutoff, 0.6, self.sample_rate);
         }
         // The glow of what is lit, once something is.
-        let light = &params.image;
+        let light = &params.light;
         let lit = smoothstep(0.0, 0.05, light.density);
         let glow = (2.0 * light.glow() - 1.0).clamp(-1.0, 1.0) * lit;
         let damping = self.settings.reverb_damping * 2.0_f32.powf(self.settings.glow * glow);

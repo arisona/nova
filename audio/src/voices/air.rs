@@ -3,13 +3,13 @@
 //! ring the resonators like grains of sand on glass, turns the breath into a crackle.
 
 use crate::BLOCK;
-use crate::dsp::{Curve, Drift, Rng, Svf, coefficient, lerp, smooth};
+use crate::dsp::{Curve, Drift, Rng, Svf, coefficient, fold, lerp, smooth};
 use crate::harmony::{Harmony, MAX_TONES};
 use crate::params::Params;
 
 /// How narrow the resonators are over Void, as a factor of their Q: broader when close, so
 /// the dry air does not whistle.
-const NARROW: Curve = Curve(&[[0.0, 0.6], [0.5, 1.0]]);
+const NARROW: Curve = Curve::new(&[[0.0, 0.6], [0.5, 1.0]]);
 
 /// Impulses per second of the dust.
 const DUST_RATE: f32 = 150.0;
@@ -60,13 +60,7 @@ impl Air {
     pub fn change(&mut self, harmony: &Harmony) {
         // Resonators keep gliding from where they are; new ones start at their target.
         for (index, tone) in harmony.tones().iter().enumerate() {
-            let mut frequency = tone.frequency;
-            while frequency < 500.0 {
-                frequency *= 2.0;
-            }
-            while frequency >= 4000.0 {
-                frequency *= 0.5;
-            }
+            let frequency = fold(tone.frequency, 500.0, 4000.0);
             self.targets[index] = frequency;
             if index >= self.count {
                 self.frequencies[index] = frequency;

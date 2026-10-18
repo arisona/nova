@@ -167,8 +167,8 @@ fn presence_band(samples: &[f32], sample_rate: f32) -> Vec<f64> {
         .collect()
 }
 
-/// The value at `fraction` of sorted `values`, in dB.
-fn percentile_of(values: &[f64], fraction: f64) -> f32 {
+/// The value at `fraction` of sorted `values`, in dB; −200 dB for an empty list.
+fn percentile(values: &[f64], fraction: f64) -> f32 {
     values
         .get(((values.len() as f64 - 1.0) * fraction).round() as usize)
         .map_or(-200.0, |&power| decibels(power))
@@ -218,7 +218,7 @@ pub fn analyse(left: &[f32], right: &[f32], sample_rate: f32) -> Analysis {
     let (integrated, _) = gated_loudness(&momentary, -10.0);
     let mut sorted = momentary.clone();
     sorted.sort_by(f64::total_cmp);
-    let momentary_loud = -0.691 + percentile_of(&sorted, 0.95);
+    let momentary_loud = -0.691 + percentile(&sorted, 0.95);
     let (band_left, band_right) = (
         presence_band(left, sample_rate),
         presence_band(right, sample_rate),
@@ -229,11 +229,6 @@ pub fn analyse(left: &[f32], right: &[f32], sample_rate: f32) -> Analysis {
     let short_term = window_powers(&k_left, &k_right, rate * 3, rate);
     let (_, mut gated) = gated_loudness(&short_term, -20.0);
     gated.sort_by(f64::total_cmp);
-    let percentile = |fraction: f64| {
-        gated
-            .get(((gated.len() as f64 - 1.0) * fraction).round() as usize)
-            .map_or(0.0, |&power| decibels(power))
-    };
 
     let peak = left
         .iter()
@@ -301,12 +296,9 @@ pub fn analyse(left: &[f32], right: &[f32], sample_rate: f32) -> Analysis {
 
     Analysis {
         loudness: (-0.691 + decibels(integrated) as f64) as f32,
-        range: percentile(0.95) - percentile(0.10),
+        range: percentile(&gated, 0.95) - percentile(&gated, 0.10),
         momentary: momentary_loud,
-        presence: [
-            percentile_of(&presence, 0.5),
-            percentile_of(&presence, 0.95),
-        ],
+        presence: [percentile(&presence, 0.5), percentile(&presence, 0.95)],
         peak: decibels((peak as f64).powi(2)),
         crest: decibels((peak as f64).powi(2) / mean_square.max(1e-30)),
         bands,

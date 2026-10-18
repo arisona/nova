@@ -1,4 +1,4 @@
-//! Fathom: the bed's chord played as dub stabs (see `doc/audio_concept.md`).
+//! Fathom: the bed's chord played as dub stabs (see Audio in the README).
 //!
 //! The chord of the bed, folded into a compact register, is played as off-beat stabs
 //! through a resonant low-pass that opens and closes with every hit (see `fathom/chord.rs`).
@@ -9,7 +9,7 @@
 pub mod chord;
 
 use crate::BLOCK;
-use crate::dsp::{Rng, Svf, coefficient, lerp, smooth};
+use crate::dsp::{Rng, Svf, coefficient, fold, lerp, smooth};
 use crate::harmony::Harmony;
 use crate::instruments::strata::pulse::{self, Pulse};
 use crate::instruments::strata::space::{self, Space};
@@ -229,17 +229,6 @@ pub struct Fathom {
     taken: f32,
 }
 
-/// `frequency` folded by octaves into 40 to 80 Hz.
-fn sub_octave(mut frequency: f32) -> f32 {
-    while frequency < 40.0 {
-        frequency *= 2.0;
-    }
-    while frequency >= 80.0 {
-        frequency *= 0.5;
-    }
-    frequency
-}
-
 impl Fathom {
     /// Starts from `harmony` until the conductor loads the first one.
     pub fn new(sample_rate: f32, preset: &Preset, harmony: &Harmony, seed: u64) -> Self {
@@ -267,7 +256,7 @@ impl Fathom {
             sub: Sub::new(sample_rate),
             line: preset.line,
             line_hold: preset.line_hold,
-            root: sub_octave(harmony.root()),
+            root: fold(harmony.root(), 40.0, 80.0),
             tempo: 100.0,
             heat: 0.5,
             since_line: f32::INFINITY,
@@ -300,7 +289,7 @@ impl Fathom {
             Some(Change::Voice) => self.bed.move_voice(),
             None => {}
         }
-        self.root = sub_octave(signals.harmony.root());
+        self.root = fold(signals.harmony.root(), 40.0, 80.0);
         self.tempo = signals.tempo.max(1.0);
         self.heat = params.heat;
         // The line takes over from the bed's bass over a bar, and gives it back a bar after

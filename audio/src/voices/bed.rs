@@ -24,7 +24,7 @@ use nova_core::HUES;
 
 use crate::BLOCK;
 use crate::dsp::{
-    Curve, Drift, Rng, Rotor, Svf, coefficient, k_weight, lerp, resonant_lowpass, smooth,
+    Curve, Drift, Rng, Rotor, Svf, coefficient, fold, k_weight, lerp, resonant_lowpass, smooth,
     smoothstep,
 };
 use crate::harmony::{CROSSFADE_SECONDS, Harmony, MAX_TONES, Tone};
@@ -272,13 +272,7 @@ impl Set {
         if let Some([low, high]) = register {
             for index in 1..self.count {
                 let frequency = self.tones[index].frequency;
-                let mut octave = 1.0;
-                while frequency * octave < low {
-                    octave *= 2.0;
-                }
-                while frequency * octave >= high {
-                    octave *= 0.5;
-                }
+                let mut octave = fold(frequency, low, high) / frequency;
                 // A tone that lands on another moves an octave within the register.
                 let taken = |octave: f32| {
                     (1..index).any(|other| {
@@ -514,8 +508,8 @@ impl Bed {
         // Tones above the root lean up when cold and down when warm.
         let tilt = lerp(0.15, -0.3, warmth);
         // The height of the light tilts the chord, as an exponent of the frequency.
-        let lift = settings.height_tilt * 2.0 * (params.image.height - 0.5) / 6.02;
-        let depth = (0.45 + 0.35 * params.activity + 0.15 * warmth).min(0.95)
+        let lift = settings.height_tilt * 2.0 * (params.light.height - 0.5) / 6.02;
+        let depth = (0.45 + 0.35 * params.liveliness + 0.15 * warmth).min(0.95)
             * settings.motion.at(params.form);
         let partial_rate = (0.02 + 0.2 * params.flow) * (1.0 + warmth) * block_seconds;
         let tone_rate = (0.01 + 0.08 * params.flow) * block_seconds;
@@ -574,7 +568,7 @@ impl Bed {
             }
             let voicing = Voicing::new(
                 &set.tones[..set.count],
-                &params.image.hues,
+                &params.light.hues,
                 settings.voicing,
             );
             for tone_index in 0..set.count {

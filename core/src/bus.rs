@@ -1,6 +1,7 @@
 //! The bus: what the parts share while Nova plays. The host puts the controls on it as the
-//! user sets them, and the instrument the selected content plays; the display adds the tide clock and the features of its light with every
-//! frame; the sound reads all of it. Each part also leaves its status there for the host.
+//! user sets them, and the instrument the selected content plays; the display adds the tide
+//! clock and the features of its light with every frame; the sound reads all of it. Each
+//! part also leaves its status there for the host.
 //!
 //! Lock-free for the values, so the audio callback can read them; values may come from
 //! different moments, which the readers' smoothing hides. Statuses change rarely and are
@@ -25,8 +26,8 @@ pub enum Status {
 pub enum Part {
     /// The voxel display, on the hardware or in the simulator.
     Display,
-    /// The sound.
-    Sound,
+    /// The sound, on the native audio output.
+    Audio,
 }
 
 #[derive(Debug, Default)]
@@ -61,15 +62,16 @@ pub struct Bus {
     activity: Float,
     hues: [Float; HUES],
     display: Mutex<Status>,
-    sound: Mutex<Status>,
+    audio: Mutex<Status>,
 }
 
 impl Bus {
-    /// A bus with the given controls, the tide clock at 0 and the light of a dark image.
+    /// A bus with the given controls, the tide clock at 0 and neutral light, until the
+    /// display measures its own.
     pub fn new(controls: &Controls) -> Self {
         let bus = Self::default();
         bus.set_controls(controls);
-        bus.set_light(&Features::default());
+        bus.set_light(&Features::NEUTRAL);
         bus
     }
 
@@ -152,7 +154,7 @@ impl Bus {
     fn slot(&self, part: Part) -> &Mutex<Status> {
         match part {
             Part::Display => &self.display,
-            Part::Sound => &self.sound,
+            Part::Audio => &self.audio,
         }
     }
 }
@@ -178,7 +180,7 @@ mod tests {
         assert_eq!(bus.instrument(), 0);
         bus.set_instrument(2);
         assert_eq!(bus.instrument(), 2);
-        assert_eq!(bus.light(), Features::default());
+        assert_eq!(bus.light(), Features::NEUTRAL);
         bus.set_clock(1_234.567_891_234);
         assert_eq!(bus.clock(), 1_234.567_891_234);
         let mut light = Features {
@@ -190,9 +192,9 @@ mod tests {
         light.hues[3] = 1.0;
         bus.set_light(&light);
         assert_eq!(bus.light(), light);
-        assert_eq!(bus.status(Part::Sound), Status::Unknown);
-        bus.report(Part::Sound, Status::Ok("Audio ready".into()));
-        assert_eq!(bus.status(Part::Sound), Status::Ok("Audio ready".into()));
+        assert_eq!(bus.status(Part::Audio), Status::Unknown);
+        bus.report(Part::Audio, Status::Ok("Audio ready".into()));
+        assert_eq!(bus.status(Part::Audio), Status::Ok("Audio ready".into()));
         assert_eq!(bus.status(Part::Display), Status::Unknown);
     }
 }

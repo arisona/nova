@@ -1,4 +1,4 @@
-//! Offline sketches of the instruments (see `doc/audio_concept.md`).
+//! Offline sketches of the instruments (see Audio output in `doc/development.md`).
 //!
 //! `cargo run --release -p nova-audio --example sketches -- [filter]` renders
 //! every scenario whose name contains the filter to a 32-bit float WAV and a spectrogram,
@@ -128,7 +128,7 @@ fn main() {
 fn sketches(directory: &Path, names: &[String], filter: &str) {
     let mut report = String::from(
         "# Audio sketches\n\nRendered by the `sketches` example of `nova-audio` (see \
-         `doc/audio_concept.md`). Loudness per ITU-R BS.1770 (LUFS) with a simplified \
+         `doc/development.md`). Loudness per ITU-R BS.1770 (LUFS) with a simplified \
          loudness range (LRA), the 95th percentile of the momentary loudness (M95), \
          the median and 95th percentile of the level between 1 and 4 kHz over 50 ms \
          (presence, where hits stand out from the gaps), sample peak, crest factor (peak to \

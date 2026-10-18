@@ -1,4 +1,4 @@
-//! The features that describe the light (see `doc/audio_concept.md`).
+//! The features that describe the light, for the sound (see Audio in the README).
 
 /// Hues in `Features::hues`, 30° apart.
 pub const HUES: usize = 12;
@@ -67,6 +67,12 @@ impl Features {
         }
     }
 
+    /// How sparse the light is, from 0 with half the voxels lit or more to 1 when all are
+    /// dark: what instruments answer as a complement, filling the space.
+    pub fn sparseness(&self) -> f32 {
+        ((0.5 - self.density) * 2.0).clamp(0.0, 1.0)
+    }
+
     /// `self` moved towards `other` by `amount`, from 0 (itself) to 1 (`other`).
     pub fn towards(&self, other: &Self, amount: f32) -> Self {
         let lerp = |a: f32, b: f32| a + (b - a) * amount;
@@ -112,6 +118,11 @@ mod tests {
         // Void by rank darkens voxels, not what stays lit.
         assert_eq!(light(0.1, 0.2).glow(), 0.5);
         assert_eq!(light(0.0, 0.0).glow(), 0.0);
+        assert_eq!(Features::NEUTRAL.sparseness(), 0.0);
+        assert_eq!(
+            (light(0.0, 0.25).sparseness(), light(0.0, 0.0).sparseness()),
+            (0.5, 1.0)
+        );
         let towards = Features::default().towards(&Features::NEUTRAL, 0.5);
         assert_eq!((towards.density, towards.height), (0.25, 0.5));
     }

@@ -1,4 +1,4 @@
-//! Shoal: the chord played by bells, as a gamelan would (see `doc/audio_concept.md`).
+//! Shoal: the chord played by bells, as a gamelan would (see Audio in the README).
 //!
 //! Struck bars in beating pairs (see `voices/bell.rs`) play the palette's chord, its degrees
 //! written in the score. Cold, they run an arpeggio of 12 steps against the bar; warmer,
@@ -11,7 +11,7 @@
 //! light ring forward, like the bed's chord tones. Bed, air,
 //! pulse and space are shared with Strata.
 
-use crate::dsp::{Rng, lerp, smooth, smoothstep};
+use crate::dsp::{Rng, fold, lerp, smooth, smoothstep};
 use crate::harmony::{Harmony, MAX_TONES, Tone};
 use crate::instruments::strata::pulse::{self, Pulse};
 use crate::instruments::strata::space::{self, Space};
@@ -144,7 +144,7 @@ pub struct Shoal {
     root: f32,
     heat: f32,
     form: f32,
-    activity: f32,
+    liveliness: f32,
     drone: f32,
     rings: u64,
 }
@@ -167,7 +167,7 @@ impl Shoal {
             root: 0.0,
             heat: 0.5,
             form: 0.5,
-            activity: 0.5,
+            liveliness: 0.5,
             drone: 1.0,
             rings: 0,
         };
@@ -178,15 +178,6 @@ impl Shoal {
     /// Folds the chord into the bells' lowest octave, and the root into the gong's.
     fn tune(&mut self, harmony: &Harmony) {
         let [low, high] = self.preset.register;
-        let fold = |mut frequency: f32, low: f32, high: f32| {
-            while frequency < low {
-                frequency *= 2.0;
-            }
-            while frequency >= high {
-                frequency *= 0.5;
-            }
-            frequency
-        };
         self.count = 0;
         for tone in harmony.tones() {
             let frequency = fold(tone.frequency, low, high);
@@ -239,10 +230,10 @@ impl Shoal {
         }
         self.heat = params.heat;
         self.form = params.form;
-        self.activity = params.activity;
+        self.liveliness = params.liveliness;
         let voicing = Voicing::new(
             &self.tones[..self.count],
-            &params.image.hues,
+            &params.light.hues,
             self.preset.voicing,
         );
         for (lean, tone) in self.leans.iter_mut().zip(&self.tones[..self.count]) {
@@ -267,7 +258,7 @@ impl Shoal {
                 // Even and odd 16ths interlock from either side.
                 let pan = if step.is_multiple_of(2) { -0.45 } else { 0.45 };
                 let (frequency, lean) = self.degree(hits.degree);
-                let strike = 1.0 + self.preset.strike * (2.0 * self.activity - 1.0);
+                let strike = 1.0 + self.preset.strike * (2.0 * self.liveliness - 1.0);
                 self.bells.trigger(Strike {
                     velocity: hits.bell * strike * lean,
                     frequency,

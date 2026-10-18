@@ -232,10 +232,8 @@ impl Content for OrionsBelt {
 
 #[cfg(test)]
 mod tests {
-
-    use nova_core::palettes::PALETTES;
-
     use super::*;
+    use nova_core::palettes::PALETTES;
 
     /// Bug-checking only (live evaluation is on the display). Renders a form sweep
     /// for every palette to a PPM contact sheet.

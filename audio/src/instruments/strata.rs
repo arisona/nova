@@ -1,4 +1,4 @@
-//! Strata: a drone bed with air above it, a pulse and a space (see `doc/audio_concept.md`).
+//! Strata: a drone bed with air above it, a pulse and a space (see Audio in the README).
 //!
 //! The bed and the air follow the conductor's harmony; the pulse plays on its grid; the
 //! drone (chord, air and reverb) follows the pulse sample by sample; the space adds the dub
@@ -75,13 +75,13 @@ impl Preset {
         score: SCORE,
         bed: bed::Settings {
             // Still layers, and grains above the middle.
-            motion: Curve(&[[0.0, 0.35], [0.5, 1.0]]),
-            grains: Curve(&[[0.5, 0.0], [1.0, 0.85]]),
+            motion: Curve::new(&[[0.0, 0.35], [0.5, 1.0]]),
+            grains: Curve::new(&[[0.5, 0.0], [1.0, 0.85]]),
             ..bed::Settings::DEFAULT
         },
         pulse: pulse::Settings::DEFAULT,
         space: space::Settings::DEFAULT,
-        dust: Curve(&[[0.5, 0.0], [1.0, 0.75]]),
+        dust: Curve::new(&[[0.5, 0.0], [1.0, 0.75]]),
         sparse: 3.0,
         level: -0.6,
     };
@@ -158,8 +158,7 @@ impl Strata {
         self.bed.update_block(params, signals);
         self.air.update_block(params, self.dust.at(params.form));
         // Sparse light fills the space, a complement rather than a mirror.
-        let sparseness = ((0.5 - params.image.density) * 2.0).clamp(0.0, 1.0);
-        self.air_gain = 10.0_f32.powf(self.sparse * sparseness / 20.0);
+        self.air_gain = 10.0_f32.powf(self.sparse * params.light.sparseness() / 20.0);
         self.space
             .set_reverb_level(self.reverb_level * self.air_gain);
         self.pulse.update_block(params, signals);

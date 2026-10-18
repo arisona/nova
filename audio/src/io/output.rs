@@ -135,8 +135,8 @@ impl Output {
                             }
                         }
                     }
-                    if bus.status(Part::Sound) != status {
-                        bus.report(Part::Sound, status.clone());
+                    if bus.status(Part::Audio) != status {
+                        bus.report(Part::Audio, status.clone());
                     }
                     thread::park_timeout(Duration::from_millis(20));
                 }

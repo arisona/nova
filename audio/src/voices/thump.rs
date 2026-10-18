@@ -1,7 +1,7 @@
 //! The thump: a sine tuned to the root, folded into 40 to 80 Hz, with a short downward pitch
 //! sweep and, when warm, gentle saturation.
 
-use crate::dsp::{Envelope, lerp, smooth};
+use crate::dsp::{Envelope, fold, lerp, smooth};
 
 pub struct Thump {
     sample_rate: f32,
@@ -28,14 +28,7 @@ impl Thump {
 
     pub fn trigger(&mut self, velocity: f32, root: f32, heat: f32) {
         let warmth = smooth(heat);
-        let mut frequency = root;
-        while frequency < 40.0 {
-            frequency *= 2.0;
-        }
-        while frequency >= 80.0 {
-            frequency *= 0.5;
-        }
-        self.frequency = frequency;
+        self.frequency = fold(root, 40.0, 80.0);
         self.drop = lerp(2.6, 1.8, warmth);
         self.decay = lerp(0.16, 0.42, warmth);
         self.drive = lerp(1.0, 2.5, warmth);

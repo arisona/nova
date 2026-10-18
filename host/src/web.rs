@@ -130,7 +130,7 @@ async fn get_status(data: web::Data<Arc<Mutex<State>>>) -> impl Responder {
         Status::Unknown => (false, String::new()),
     };
     let (ok, message) = report(Part::Display);
-    let (audio_ok, audio_message) = report(Part::Sound);
+    let (audio_ok, audio_message) = report(Part::Audio);
     HttpResponse::Ok().json(serde_json::json!({
         "status-ok": ok,
         "status-message": message,
@@ -579,7 +579,7 @@ mod tests {
             .lock()
             .unwrap()
             .bus()
-            .report(Part::Sound, Status::Err("Audio unavailable".into()));
+            .report(Part::Audio, Status::Err("Audio unavailable".into()));
         assert_eq!(get("/api/get-state").await["volume"], -1.0);
         assert_eq!(state.lock().unwrap().volume(), 0.42);
         let response = get("/api/get-status").await;

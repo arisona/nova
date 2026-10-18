@@ -72,10 +72,10 @@ pub struct Conductor {
     /// The score to play from the next phrase start, when the instrument changes.
     next_score: Option<Score>,
     rng: Rng,
-    /// The rhythm, Flow as set and the share of lit voxels, from the latest block.
+    /// The rhythm, Flow as set and how sparse the light is, from the latest block.
     rhythm: f32,
     flow_setting: f32,
-    lit: f32,
+    sparse: f32,
     /// The current bar, and whether the bass was away at its start.
     bar: u64,
     bar_away: bool,
@@ -120,7 +120,7 @@ impl Conductor {
             rng: Rng::new(seed),
             rhythm: 0.5,
             flow_setting: 0.5,
-            lit: 0.5,
+            sparse: 0.0,
             bar: 0,
             bar_away: false,
             density: [0; 6],
@@ -163,7 +163,7 @@ impl Conductor {
             (LOOSENESS.offset(clock).max(0.0) + LOOSE_DISSOLVED * params.dissolve).min(1.0);
         self.rhythm = params.rhythm;
         self.flow_setting = params.flow_setting;
-        self.lit = params.image.density;
+        self.sparse = params.light.sparseness();
         let throws = self.score.throws;
         if signals.onset && throws.onsets && self.density[2] >= 2 {
             self.armed = Some(throws.section);
@@ -292,11 +292,10 @@ impl Conductor {
 
         // Throws begin once the stabs play more than their first step.
         let throws = score.throws;
-        let sparse = ((0.5 - self.lit) * 2.0).clamp(0.0, 1.0);
         if self.density[2] < 2 {
             self.armed = None;
         } else if self.armed.is_none()
-            && self.rng.unit() < throws.loose * self.looseness + throws.sparse * sparse
+            && self.rng.unit() < throws.loose * self.looseness + throws.sparse * self.sparse
         {
             self.armed = Some(throws.phrase);
         }
