@@ -3,6 +3,7 @@ name = "nova-core"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
+license = "MIT"
 description = "What the light and the sound of the Nova voxel display share: controls, palettes, tides and features of the light"
 
 [dependencies]

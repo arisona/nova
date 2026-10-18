@@ -3,6 +3,7 @@ name = "nova-host"
 version = "3.0.0"
 edition = "2024"
 rust-version = "1.94"
+license = "MIT"
 description = "The host of the Nova voxel display: runs the light and the sound with the settings and the web app"
 
 [[bin]]

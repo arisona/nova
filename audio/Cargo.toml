@@ -3,6 +3,7 @@ name = "nova-audio"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
+license = "MIT"
 description = "The sound of the Nova voxel display: DSP, voices, instruments and native output"
 
 [dependencies]

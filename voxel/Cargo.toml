@@ -3,6 +3,7 @@ name = "nova-voxel"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
+license = "MIT"
 description = "The light of the Nova voxel display: content, rendering, calibration, the hardware driver and the simulator"
 
 [dependencies]
