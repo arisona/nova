@@ -33,7 +33,7 @@ pub const SCORE: Score = Score {
     stabs: BAR,
     bass: Patterns::NONE,
     basses: &[],
-    bell: Patterns::NONE,
+    melody: Patterns::NONE,
     gate: Patterns {
         from: 0.25,
         list: &[Pattern::new(".9.6 .8.. .9.5 .7.4")],

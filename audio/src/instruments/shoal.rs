@@ -50,7 +50,7 @@ pub const SCORE: Score = Score {
         )],
     },
     gate: Patterns::NONE,
-    bell: Patterns {
+    melody: Patterns {
         from: 0.2,
         list: &[
             // An arpeggio rising over three beats, against the bar.
@@ -229,13 +229,13 @@ impl Shoal {
     pub fn next(&mut self, now: &Now) -> [f32; 2] {
         if let Some(step) = now.step {
             let hits = &now.hits;
-            if hits.bell > 0.0 {
+            if hits.melody > 0.0 {
                 // Even and odd 16ths interlock from either side.
                 let pan = if step.is_multiple_of(2) { -0.45 } else { 0.45 };
                 let (frequency, lean) = self.degree(hits.degree);
                 let strike = 1.0 + self.preset.strike * (2.0 * self.liveliness - 1.0);
                 self.bells.trigger(Strike {
-                    velocity: hits.bell * strike * lean,
+                    velocity: hits.melody * strike * lean,
                     frequency,
                     pan,
                     heat: self.heat,

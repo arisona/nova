@@ -8,7 +8,8 @@
 //! key's registration is normalized by its K-weighted level, so Heat keeps the loudness, and
 //! footages above `ceiling` roll off by 24 dB per octave, so the reed never buzzes
 //! piercingly. Keys the chord keeps go on sounding; new ones speak and old ones fade over
-//! the time the change asks for.
+//! the time the change asks for. Each key can lean forward or back, as the colors of the
+//! light ask, while the chord keeps its level.
 
 use crate::dsp::{Rotor, coefficient, k_weight, lerp, smooth};
 use crate::harmony::{MAX_TONES, Tone};
@@ -58,6 +59,8 @@ struct Key {
     rate: f32,
     footages: [f32; FOOTAGES],
     pan: [f32; 2],
+    /// Gain from the colors of the light.
+    lean: f32,
 }
 
 impl Key {
@@ -86,6 +89,7 @@ impl Organ {
             rate: 0.0,
             footages: [0.0; FOOTAGES],
             pan: [std::f32::consts::FRAC_1_SQRT_2; 2],
+            lean: 1.0,
         });
         Self {
             sample_rate,
@@ -129,12 +133,23 @@ impl Organ {
                     let pan = ((tone.frequency / 400.0).log2() * 0.25).clamp(-0.4, 0.4);
                     let angle = (0.5 + 0.5 * pan) * std::f32::consts::FRAC_PI_2;
                     key.pan = [angle.cos(), angle.sin()];
+                    key.lean = 1.0;
                     index
                 }
             };
             let key = &mut self.keys[index];
             key.target = tone.level.max(1e-3);
             key.rate = rate;
+        }
+    }
+
+    /// Leans the key that plays `frequency` forward or back by `gain`, as the colors of the
+    /// light ask (see `bed::Voicing`).
+    pub fn lean(&mut self, frequency: f32, gain: f32) {
+        for key in &mut self.keys {
+            if key.target > 0.0 && (key.frequency / frequency - 1.0).abs() < 0.005 {
+                key.lean = gain;
+            }
         }
     }
 
@@ -217,6 +232,7 @@ impl Organ {
                 .map(|((_, sine), level)| sine * level)
                 .sum::<f32>()
                 * key.gain
+                * key.lean
                 * self.norm;
             output[0] += sample * key.pan[0];
             output[1] += sample * key.pan[1];
@@ -287,124 +303,5 @@ mod tests {
             change < 1.5 * held && level > 0.5 * levels[2],
             "{held}, {change}"
         );
-    }
-
-    // TEMPORARY: listening excerpts of the organ, alone and with the pluck, removed after
-    // listening.
-    #[test]
-    #[ignore]
-    fn render_organ_excerpts() {
-        use crate::dsp::Rng;
-        use crate::voices::{Pick, Pluck, Reverb, pluck};
-        use std::io::Write;
-        let rate = 48_000.0;
-        let directory = std::path::PathBuf::from(std::env::var("HOME").unwrap())
-            .join("nova-sketches/bayou-organ");
-        std::fs::create_dir_all(&directory).unwrap();
-        // Home (A minor) and away (the fourth below's color), in just intonation.
-        let chords = [[220.0, 264.0, 330.0], [220.0, 293.3, 352.0]];
-        let rolls = [
-            [110.0, 165.0, 220.0, 264.0, 220.0, 165.0],
-            [146.7, 220.0, 293.3, 352.0, 293.3, 220.0],
-        ];
-        let accents = [1.0, 0.7, 0.8, 0.9, 0.7, 0.75];
-        let sixteenth = 60.0 / 80.0 / 4.0;
-        // Name, seconds, seconds per chord, Heat from and to, with the pluck.
-        let scenes: [(&str, f32, f32, [f32; 2], bool); 4] = [
-            ("1_cold_organ", 16.0, 4.0, [0.0, 0.0], false),
-            ("2_warm_organ", 16.0, 4.0, [1.0, 1.0], false),
-            ("3_heat_sweep", 24.0, 6.0, [0.0, 1.0], false),
-            ("4_bayou_preview", 36.0, 9.0, [0.7, 0.7], true),
-        ];
-        for (name, seconds, per_chord, [heat_from, heat_to], with_pluck) in scenes {
-            let frames = (seconds * rate) as usize;
-            let mut organ = Organ::new(rate, Settings::COMBO);
-            let mut strings = Pluck::new(rate, pluck::Settings::GUITAR, Rng::new(7));
-            let mut reverb = Reverb::new(rate);
-            reverb.set_decay(4.0);
-            let mut samples = Vec::new();
-            let (mut chord_index, mut next_step) = (usize::MAX, 0);
-            for frame in 0..frames {
-                let time = frame as f32 / rate;
-                let heat = lerp(heat_from, heat_to, time / seconds);
-                let index = (time / per_chord) as usize % 2;
-                if index != chord_index {
-                    chord_index = index;
-                    let tones: Vec<Tone> = chords[index]
-                        .iter()
-                        .map(|&frequency| Tone {
-                            frequency,
-                            level: 1.0,
-                            hue: None,
-                        })
-                        .collect();
-                    organ.play(&tones, 0.25);
-                }
-                if with_pluck && time >= next_step as f32 * sixteenth && time > 2.0 {
-                    let step = next_step % 6;
-                    let frequency = rolls[chord_index][step];
-                    strings.trigger(Pick {
-                        velocity: accents[step],
-                        frequency,
-                        pan: (frequency / 165.0_f32).log2() * 0.4,
-                        heat,
-                        form: 0.35,
-                    });
-                }
-                if with_pluck && time >= next_step as f32 * sixteenth {
-                    next_step += 1;
-                }
-                if frame % 32 == 0 {
-                    organ.update_block(heat, 32);
-                    strings.settle();
-                    reverb.update_block();
-                }
-                // The organ swells over every chord.
-                let swell = if with_pluck {
-                    lerp(0.6, 1.0, smooth((time % per_chord) / per_chord))
-                } else {
-                    1.0
-                };
-                let [left, right] = organ.next().map(|sample| sample * swell);
-                let [string_left, string_right] = strings.next().map(|sample| 0.25 * sample);
-                let dry = [left + string_left, right + string_right];
-                let wet = reverb.process(dry);
-                let mix = if with_pluck { 0.35 } else { 0.2 };
-                samples.push([dry[0] + mix * wet[0], dry[1] + mix * wet[1]]);
-            }
-            let peak = samples
-                .iter()
-                .flatten()
-                .fold(0.0_f32, |a, b| a.max(b.abs()));
-            let rms = (samples.iter().flatten().map(|s| s * s).sum::<f32>()
-                / (2 * samples.len()) as f32)
-                .sqrt();
-            println!(
-                "{name}: peak {:.1} dBFS, rms {:.1} dB",
-                20.0 * peak.log10(),
-                20.0 * rms.log10()
-            );
-            let path = directory.join(format!("{name}.wav"));
-            let mut file = std::io::BufWriter::new(std::fs::File::create(path).unwrap());
-            let data = samples.len() as u32 * 8;
-            file.write_all(b"RIFF").unwrap();
-            file.write_all(&(36 + data).to_le_bytes()).unwrap();
-            file.write_all(b"WAVEfmt ").unwrap();
-            file.write_all(&16_u32.to_le_bytes()).unwrap();
-            for value in [3_u16, 2] {
-                file.write_all(&value.to_le_bytes()).unwrap();
-            }
-            for value in [rate as u32, rate as u32 * 8] {
-                file.write_all(&value.to_le_bytes()).unwrap();
-            }
-            for value in [8_u16, 32] {
-                file.write_all(&value.to_le_bytes()).unwrap();
-            }
-            file.write_all(b"data").unwrap();
-            file.write_all(&data.to_le_bytes()).unwrap();
-            for sample in samples.iter().flatten() {
-                file.write_all(&sample.to_le_bytes()).unwrap();
-            }
-        }
     }
 }

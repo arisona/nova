@@ -96,8 +96,8 @@ pub struct Hits {
     /// A note of the bass line, and its frequency ratio to the root.
     pub bass: f32,
     pub note: f32,
-    /// A bell, and the degree of the chord it plays, from 1.
-    pub bell: f32,
+    /// A note of the melody, and the degree of the chord it plays, from 1.
+    pub melody: f32,
     pub degree: u8,
     /// The chord gate closes.
     pub gate: f32,

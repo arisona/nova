@@ -4,7 +4,7 @@ Where the sound is heading and what is still open. What it does now is in the [R
 
 ## Direction
 
-- **One instrument, played with the sliders**, not a sound per module: drone and ambient after Biosphere, from the cold spaces of _Substrata_ to the pulses of _Microgravity_. Strata, Fathom and Shoal share one world (the harmony, the conductor, the controls); each content module plays one of them.
+- **One instrument, played with the sliders**, not a sound per module: drone and ambient after Biosphere, from the cold spaces of _Substrata_ to the pulses of _Microgravity_. Strata, Fathom, Shoal and Bayou share one world (the harmony, the conductor, the controls); each content module plays one of them.
 - **One meaning per control**, shared with the light: Heat is color (glassy to round, straight to syncopated), Flow is time (tempo, evolution, sections), Form is texture (continuous to granular), Void is gaps (in time the rhythm, in space distance and a thinner spectrum). Brightness stays out of the sound.
 - **Structure, not chance**: the rhythm comes from scores of weighted steps after dub techno, ambient music and gamelan, and varies with the harmony's sections, fills, breaks and tides. Instruments give the hits their sound and never decide where steps fall.
 - **A subtle coupling to the light**: the sound answers slow, smoothed features that describe the light, each answer a setting with 0 to ignore it, rarely one to one. Nothing is triggered voxel by voxel, and modules have no hints of their own. A listener should sense that sound and light belong together, not hear the image being played.
@@ -29,6 +29,7 @@ Questions for the target system:
 - **Flow**: The tempo runs linearly from 40 to 120 BPM, so the middle is 80 BPM: right, or should a curve keep about 95 there?
 - **Fathom**: Does the space carry the groove with one stab a bar, and do the second head's irregular echoes feel intended? Do the cold pings ring without getting sharp? How often should it throw, for short and for long listening (`Throws::SHORT`, `Throws::LONG`)? Do the three bass lines vary enough? Is its dark drone a good counterpart to Strata's?
 - **Shoal**: Do the bells shimmer without sounding out of tune, and is their ceiling of 2.5 kHz right? Should the highest degrees, up to about 2.4 kHz, fold down an octave? Do the interlocking parts read as one stream, and the arpeggio against the bar as intended? Is the gong a frame or a disturbance?
+- **Bayou**: Does the organ stand still and pure next to the breathing bed, and is the warm reed reedy without buzzing? Does the roll against the bar feel hypnotic rather than off, and do the tresillo and the syncopated figure keep the atmosphere? Are the tremolo, the breakup and the swells right, and do the strings carry into the echoes as the rhythm dissolves? It measures a little brighter between 1 and 4 kHz than Shoal (95th percentile −24 dB against −28 dB at Heat sweep).
 - **Ticks**: Cold ticks ring at 7 kHz with a Q of 9: too sharp?
 - **The light**: Do height, density, balance, glow, width and Shoal's strike and voicing feel related without being heard as the image played? Is `LIGHT_WEIGHT` 1 right?
 

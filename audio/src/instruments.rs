@@ -5,6 +5,7 @@
 //! Instruments are an enum rather than trait objects: plain code that stays fast in debug
 //! builds, where the audio has to keep up in real time too.
 
+pub mod bayou;
 pub mod drone;
 pub mod fathom;
 pub mod pulse;
@@ -16,6 +17,7 @@ use crate::harmony::Harmony;
 use crate::params::Params;
 use crate::score::Score;
 use crate::signals::{Now, Signals};
+use bayou::Bayou;
 use fathom::Fathom;
 use shoal::Shoal;
 use strata::Strata;
@@ -25,13 +27,15 @@ use strata::Strata;
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug)]
 pub enum Preset {
+    Bayou(bayou::Preset),
     Strata(strata::Preset),
     Fathom(fathom::Preset),
     Shoal(shoal::Preset),
 }
 
 /// The instruments to choose from, by name, in alphabetical order.
-pub const INSTRUMENTS: [(&str, Preset); 3] = [
+pub const INSTRUMENTS: [(&str, Preset); 4] = [
+    ("Bayou", Preset::Bayou(bayou::Preset::DEFAULT)),
     ("Fathom", Preset::Fathom(fathom::Preset::DEFAULT)),
     ("Shoal", Preset::Shoal(shoal::Preset::DEFAULT)),
     ("Strata", Preset::Strata(strata::Preset::DEFAULT)),
@@ -50,6 +54,7 @@ impl Preset {
     /// Its rhythm, which the conductor plays.
     pub fn score(&self) -> Score {
         match self {
+            Self::Bayou(preset) => preset.score,
             Self::Strata(preset) => preset.score,
             Self::Fathom(preset) => preset.score,
             Self::Shoal(preset) => preset.score,
@@ -59,6 +64,7 @@ impl Preset {
     /// Its output gain, as a factor.
     pub fn gain(&self) -> f32 {
         let level = match self {
+            Self::Bayou(preset) => preset.level,
             Self::Strata(preset) => preset.level,
             Self::Fathom(preset) => preset.level,
             Self::Shoal(preset) => preset.level,
@@ -77,6 +83,7 @@ impl Preset {
 
 /// Boxed, since instruments are large.
 pub enum Instrument {
+    Bayou(Box<Bayou>),
     Strata(Box<Strata>),
     Fathom(Box<Fathom>),
     Shoal(Box<Shoal>),
@@ -87,6 +94,9 @@ impl Instrument {
     /// details.
     pub fn new(preset: &Preset, sample_rate: f32, harmony: &Harmony, seed: u64) -> Self {
         match preset {
+            Preset::Bayou(preset) => {
+                Self::Bayou(Box::new(Bayou::new(sample_rate, preset, harmony, seed)))
+            }
             Preset::Strata(preset) => {
                 Self::Strata(Box::new(Strata::new(sample_rate, preset, harmony, seed)))
             }
@@ -103,6 +113,7 @@ impl Instrument {
     /// follow.
     pub fn update_block(&mut self, params: &Params, signals: &mut Signals) {
         match self {
+            Self::Bayou(bayou) => bayou.update_block(params, signals),
             Self::Strata(strata) => strata.update_block(params, signals),
             Self::Fathom(fathom) => fathom.update_block(params, signals),
             Self::Shoal(shoal) => shoal.update_block(params, signals),
@@ -113,15 +124,17 @@ impl Instrument {
     #[inline]
     pub fn next(&mut self, now: &Now) -> [f32; 2] {
         match self {
+            Self::Bayou(bayou) => bayou.next(now),
             Self::Strata(strata) => strata.next(now),
             Self::Fathom(fathom) => fathom.next(now),
             Self::Shoal(shoal) => shoal.next(now),
         }
     }
 
-    /// Steps played so far: thumps, ticks and stabs (bells for Shoal).
+    /// Steps played so far: thumps, ticks and stabs (bells for Shoal, plucks for Bayou).
     pub fn steps(&self) -> [u64; 3] {
         match self {
+            Self::Bayou(bayou) => bayou.steps(),
             Self::Strata(strata) => strata.steps(),
             Self::Fathom(fathom) => fathom.steps(),
             Self::Shoal(shoal) => shoal.steps(),
@@ -140,6 +153,7 @@ mod tests {
             Some(Preset::Strata(_))
         ));
         assert!(matches!(Preset::named("Fathom"), Some(Preset::Fathom(_))));
+        assert!(matches!(Preset::named("Bayou"), Some(Preset::Bayou(_))));
         assert!(Preset::named("Theremin").is_none());
     }
 }

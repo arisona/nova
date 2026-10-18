@@ -82,7 +82,7 @@ impl Pattern {
 
     /// With notes: `notes` is a step string beside `steps`. For a bass line they are
     /// intervals above the root, `1` the root, `5` the fifth, `8` the octave, and `.` plays
-    /// the root; for bells, degrees of the chord, `1` its lowest tone.
+    /// the root; for a melody, degrees of the chord, `1` its lowest tone.
     pub const fn with_notes(steps: &str, notes: &str) -> Self {
         let (weights, len) = read(steps);
         let (notes, count) = read(notes);
@@ -263,8 +263,9 @@ pub struct Score {
     /// Other bass lines, each from cold to warm like `bass`: the conductor plays them in
     /// turn, one section of the harmony each, so the low end varies over minutes.
     pub basses: &'static [&'static [Pattern]],
-    /// Bells, with degrees of the chord as notes.
-    pub bell: Patterns,
+    /// A melody of the chord's tones, such as bells or an arpeggio, with degrees of the
+    /// chord as notes.
+    pub melody: Patterns,
     /// The steps on which the chord gate closes.
     pub gate: Patterns,
     /// Time of the dub delay in 16ths, one per section of the harmony in turn: the first

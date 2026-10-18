@@ -79,7 +79,7 @@ pub struct Conductor {
     /// The current bar, and whether the bass was away at its start.
     bar: u64,
     bar_away: bool,
-    /// Density of kick, ticks, stabs, bass, gate and bells for the current bar, and where
+    /// Density of kick, ticks, stabs, bass, gate and melody for the current bar, and where
     /// they play in their patterns.
     density: [u8; 6],
     position: [f32; 6],
@@ -252,7 +252,7 @@ impl Conductor {
             score.stab,
             self.bass(),
             score.gate,
-            score.bell,
+            score.melody,
         ];
         for (part, patterns) in parts.iter().enumerate() {
             self.density[part] = if resting {
@@ -327,18 +327,18 @@ impl Conductor {
         }
         let score = self.score;
         let line = self.bass();
-        let [mut kick, mut tick, stab, mut bass, gate, bell] = self.density;
+        let [mut kick, mut tick, stab, mut bass, gate, melody] = self.density;
         if self.breaking {
             (kick, tick, bass) = (0, 0, 0);
         }
-        let [at_kick, at_tick, at_stab, at_bass, at_gate, at_bell] = self.position;
+        let [at_kick, at_tick, at_stab, at_bass, at_gate, at_melody] = self.position;
         let away = self.bar_away;
         let mut hits = Hits {
             kick: score.kick.hit(at_kick, kick, step).unwrap_or(0.0),
             bass: line.hit(at_bass, bass, step).unwrap_or(0.0),
             note: line.source(at_bass, step).note(step),
-            bell: score.bell.hit(at_bell, bell, step).unwrap_or(0.0),
-            degree: score.bell.source(at_bell, step).digit(step).max(1),
+            melody: score.melody.hit(at_melody, melody, step).unwrap_or(0.0),
+            degree: score.melody.source(at_melody, step).digit(step).max(1),
             gate: score.gate.hit(at_gate, gate, step).unwrap_or(0.0),
             ..Hits::default()
         };

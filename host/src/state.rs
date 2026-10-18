@@ -21,7 +21,7 @@ const CONTENT_INSTRUMENTS: [(&str, &str); 6] = [
     ("Oort Cloud", "Strata"),
     ("Orion's Belt", "Shoal"),
     ("Pleiades", "Shoal"),
-    ("Tannhäuser Gate", "Fathom"),
+    ("Tannhäuser Gate", "Bayou"),
 ];
 
 /// The host's state: the settings, saved in `nova_settings.json`, and what only lives while
