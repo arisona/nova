@@ -54,6 +54,8 @@ impl Hardware {
         loop {
             let mut interface;
             let responding_modules_at_reset;
+            // The latest failure to open the interface, logged only when it changes
+            let mut failure = None;
 
             // Retry loop for opening the interface
             loop {
@@ -84,7 +86,11 @@ impl Hardware {
                         self.report(Status::Err(format!(
                             "Cannot open interface {interface_name}.",
                         )));
-                        log::warn!("Failed to open interface {interface_name}: {err}. Retrying...");
+                        let message = format!("Failed to open interface {interface_name}: {err}.");
+                        if failure.as_ref() != Some(&message) {
+                            log::warn!("{message} Retrying...");
+                            failure = Some(message);
+                        }
                         std::thread::sleep(INTERFACE_RETRY_PERIOD);
                     }
                 }
