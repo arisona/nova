@@ -5,6 +5,7 @@ use nova_core::tides::{self, TideClock};
 use nova_core::{Bus, Controls};
 
 use crate::calibration::Pattern;
+use crate::content::common::ease;
 use crate::content::{Content, all_content};
 use crate::host::Settings;
 use crate::light::Meter;
@@ -13,6 +14,13 @@ use crate::voxel_image::VoxelImage;
 /// Longest frame step the renderer passes on, so a stalled frame never makes content or
 /// tides jump.
 const MAX_FRAME_DELTA_SECONDS: f32 = 0.25;
+
+/// Seconds a content or palette change takes: the old one fades out through Void, the new
+/// one fades in from the dark, each over half of it. Zero cuts.
+const CONTENT_FADE_SECONDS: f32 = 5.0;
+const PALETTE_FADE_SECONDS: f32 = 2.0;
+/// How far a fade takes Void towards 1 at its darkest point: 1 is completely dark.
+const FADE_DEPTH: f32 = 0.5;
 
 /// What content renders from: the controls after the tides, the tide clock, and whether to
 /// start over. It only carries values; content interprets them.
@@ -75,7 +83,12 @@ impl RenderState {
 pub struct Renderer {
     bus: Arc<Bus>,
     content: Vec<Box<dyn Content>>,
+    /// The module and palette rendering, which during a fade are still the old ones until
+    /// it is dark.
     selected_content_index: usize,
+    palette: usize,
+    /// Progress of a fade, from 0 to 1: dark at 0.5, done at 1.
+    fade: f32,
 
     next: VoxelImage,
     output: VoxelImage,
@@ -91,6 +104,8 @@ impl Renderer {
             bus,
             content: all_content(),
             selected_content_index: usize::MAX,
+            palette: 0,
+            fade: 1.0,
 
             next: VoxelImage::new(dim),
             output: VoxelImage::new(dim),
@@ -135,11 +150,39 @@ impl Renderer {
         let mut state = RenderState::new(&tides::effective(&controls, seconds));
         state.tide_seconds = seconds;
         let selected_index = settings.content.min(self.content.len() - 1);
-        if selected_index != self.selected_content_index {
-            self.selected_content_index = selected_index;
-            state.set_reset(true);
-            self.next.clear();
+        let content_changes = selected_index != self.selected_content_index;
+        let changes = content_changes || controls.palette != self.palette;
+        let fade_seconds = if content_changes {
+            CONTENT_FADE_SECONDS
+        } else {
+            PALETTE_FADE_SECONDS
+        };
+        if self.selected_content_index == usize::MAX || fade_seconds <= 0.0 {
+            self.fade = 1.0;
+        } else {
+            // A change of mind turns the fade around, from the darkness it has reached.
+            let fading_out = self.fade < 0.5;
+            if fading_out != changes {
+                self.fade = 1.0 - self.fade;
+            }
+            let before = self.fade;
+            self.fade = (before + delta / fade_seconds).min(1.0);
+            if before < 0.5 && self.fade >= 0.5 {
+                // Swap at the darkest point; the new module or palette starts from there.
+                self.fade = 0.5;
+            }
         }
+        if self.fade >= 0.5 {
+            if content_changes {
+                self.selected_content_index = selected_index;
+                state.set_reset(true);
+                self.next.clear();
+            }
+            self.palette = controls.palette;
+        }
+        state.palette = self.palette;
+        let darkness = ease(1.0 - (2.0 * self.fade - 1.0).abs());
+        state.void += (1.0 - state.void) * FADE_DEPTH * darkness;
 
         self.content[self.selected_content_index].render(&state, delta, &mut self.next);
 
@@ -198,5 +241,67 @@ mod tests {
         };
         renderer.render_step(&pattern, 0.04);
         assert_eq!((bus.clock(), bus.light()), (clock, light));
+    }
+
+    fn total(image: &VoxelImage) -> f32 {
+        let (dx, dy, dz) = image.dim();
+        (0..dx)
+            .flat_map(|x| (0..dy).flat_map(move |y| (0..dz).map(move |z| (x, y, z))))
+            .map(|(x, y, z)| image.get(x, y, z).element_sum())
+            .sum()
+    }
+
+    /// A content change swaps the modules where the old one has faded to dark, turns
+    /// around when the selection changes back, and ends on the selected module; a palette
+    /// change fades the same way.
+    #[test]
+    fn changes_fade_through_the_dark() {
+        let bus = Arc::new(Bus::new(&Controls::default()));
+        let dim = (MODULE_X_RES, MODULE_Y_RES, MODULE_Z_RES);
+        let mut renderer = Renderer::new(dim, Arc::clone(&bus));
+        let step = 0.04;
+        let frames = (CONTENT_FADE_SECONDS / step).ceil() as usize;
+        let mut settings = Settings::default();
+        renderer.render_step(&settings, step);
+        assert!(
+            total(renderer.image()) > 0.0,
+            "the first module shows at once"
+        );
+
+        settings.content = 1;
+        for _ in 0..frames / 4 {
+            renderer.render_step(&settings, step);
+        }
+        assert_eq!(renderer.selected_content_index, 0);
+        settings.content = 0;
+        for _ in 0..frames {
+            renderer.render_step(&settings, step);
+        }
+        assert_eq!((renderer.selected_content_index, renderer.fade), (0, 1.0));
+
+        settings.content = 1;
+        let lit = total(renderer.image());
+        let mut darkest = f32::INFINITY;
+        for _ in 0..frames + 1 {
+            renderer.render_step(&settings, step);
+            darkest = darkest.min(total(renderer.image()));
+        }
+        assert!(darkest < lit, "the swap happens in the dark");
+        assert_eq!((renderer.selected_content_index, renderer.fade), (1, 1.0));
+        assert!(total(renderer.image()) > 0.0);
+
+        bus.set_controls(&Controls {
+            palette: 1,
+            ..Controls::default()
+        });
+        let frames = (PALETTE_FADE_SECONDS / step).ceil() as usize;
+        for _ in 0..frames / 4 {
+            renderer.render_step(&settings, step);
+        }
+        assert_eq!(renderer.palette, 0);
+        for _ in 0..frames {
+            renderer.render_step(&settings, step);
+        }
+        assert_eq!((renderer.palette, renderer.fade), (1, 1.0));
     }
 }
