@@ -18,8 +18,8 @@
 //! life:    every 2.5 s a random voxel and its neighbours are disturbed, so patterns
 //!          keep reshaping instead of freezing
 //! void:    by rank of A: exactly the void fraction stays dark (see `void_by_rank`)
-//! color:   u = rank of A in [0, 1);  q = ρ·T + 1.5·u   palette colors (like the
-//!          Java hue mapping of A, but through the palette); heat = saturation
+//! color:   u = rank of A among the lit voxels, in [0, 1);  q = ρ·T + 1.5·u   palette
+//!          colors (like the Java hue mapping of A, but through the palette); heat = saturation
 //! ```
 
 use glam::Vec3;
@@ -192,10 +192,13 @@ impl Content for Pleiades {
 
         self.values.copy_from_slice(&self.a);
         void_by_rank(&mut self.values, &mut self.order, state.void(), VOID_FADE);
-        // Color by rank too, so the palette spreads evenly whatever the range of A.
+        // Color by rank among the lit voxels, so the palette spreads evenly whatever the
+        // range of A and whatever Void leaves dark.
         let n = self.order.len() as f32;
+        let void = state.void();
+        let lit = (1.0 - void).max(1e-3);
         for (position, &index) in self.order.iter().enumerate() {
-            self.ranks[index as usize] = position as f32 / n;
+            self.ranks[index as usize] = ((position as f32 / n - void) / lit).clamp(0.0, 1.0);
         }
 
         let len = self.palette.len() as f64;
