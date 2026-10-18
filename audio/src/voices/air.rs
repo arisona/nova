@@ -3,9 +3,13 @@
 //! ring the resonators like grains of sand on glass, turns the breath into a crackle.
 
 use crate::BLOCK;
-use crate::dsp::{Drift, Rng, Svf, coefficient, lerp, smooth};
+use crate::dsp::{Curve, Drift, Rng, Svf, coefficient, lerp, smooth};
 use crate::harmony::{Harmony, MAX_TONES};
 use crate::params::Params;
+
+/// How narrow the resonators are over Void, as a factor of their Q: broader when close, so
+/// the dry air does not whistle.
+const NARROW: Curve = Curve(&[[0.0, 0.6], [0.5, 1.0]]);
 
 /// Impulses per second of the dust.
 const DUST_RATE: f32 = 150.0;
@@ -76,7 +80,7 @@ impl Air {
         let block_seconds = BLOCK as f32 / self.sample_rate;
         let glide = coefficient(2.0, self.sample_rate / BLOCK as f32);
         let warmth = smooth(params.heat);
-        let q = lerp(20.0, 10.0, warmth);
+        let q = lerp(20.0, 10.0, warmth) * NARROW.at(params.void);
         // Narrower bands pass less noise: keep the power independent of Q.
         let normalization = (q / 10.0).sqrt();
         let gust_rate = (0.04 + 0.25 * params.flow) * block_seconds;

@@ -3,7 +3,11 @@
 //! saturation and tape flutter in its loop; warmer means more feedback and darker repeats.
 //! A boost throws it: more feedback, darker and more saturated repeats, as when a dub
 //! engineer pushes the echo for a moment. The echoes start on the left unless told to start
-//! on the right; the input glides between the two over a few milliseconds.
+//! on the right; the input glides between the two over a few milliseconds. A second head,
+//! as on a tape echo, can read further along the tape, so the echoes follow irregularly.
+
+/// Longest delay in seconds: a dotted quarter and a second head two 16ths beyond, at 40 BPM.
+const LONGEST: f32 = 3.2;
 
 use crate::BLOCK;
 use crate::dsp::{DelayLine, OnePole, Svf, coefficient, lerp, smooth};
@@ -23,6 +27,9 @@ pub struct Settings {
     pub low_cut: [f32; 2],
     /// Drive of the saturation in the loop.
     pub drive: [f32; 2],
+    /// A second head: how many 16ths beyond the first it reads, and its level; at 0 there
+    /// is none. Both feed back, so the echoes fall into an irregular rhythm.
+    pub second_head: [f32; 2],
 }
 
 impl Settings {
@@ -31,6 +38,7 @@ impl Settings {
         high_cut: [3500.0, 1600.0],
         low_cut: [250.0, 250.0],
         drive: [1.3, 1.3],
+        second_head: [2.0, 0.0],
     };
 }
 
@@ -40,7 +48,9 @@ pub struct DubDelay {
     lines: [DelayLine; 2],
     low_cut: [OnePole; 2],
     high_cut: [Svf; 2],
+    /// Delay of the first and the second head, in samples.
     time: f32,
+    far: f32,
     feedback: f32,
     drive: f32,
     flutter: f32,
@@ -58,12 +68,13 @@ impl DubDelay {
             sample_rate,
             settings,
             lines: [
-                DelayLine::new(1.5, sample_rate),
-                DelayLine::new(1.5, sample_rate),
+                DelayLine::new(LONGEST, sample_rate),
+                DelayLine::new(LONGEST, sample_rate),
             ],
             low_cut: [OnePole::new(settings.low_cut[0], sample_rate); 2],
             high_cut: [Svf::new(3000.0, 0.7, sample_rate); 2],
             time: 0.0,
+            far: 0.0,
             feedback: 0.5,
             drive: 1.0,
             flutter: 0.0,
@@ -86,11 +97,16 @@ impl DubDelay {
         let settings = &self.settings;
         let block_seconds = BLOCK as f32 / self.sample_rate;
         self.seconds += block_seconds;
-        let target = sixteenths * 15.0 / tempo * self.sample_rate;
+        let sixteenth = 15.0 / tempo.max(1.0) * self.sample_rate;
+        let longest = (LONGEST - 0.01) * self.sample_rate;
+        let target = (sixteenths * sixteenth).min(longest);
+        let far = ((sixteenths + settings.second_head[0]) * sixteenth).min(longest);
         if self.time == 0.0 {
-            self.time = target;
+            (self.time, self.far) = (target, far);
         }
-        self.time += (target - self.time) * coefficient(1.5, 1.0 / block_seconds);
+        let glide = coefficient(1.5, 1.0 / block_seconds);
+        self.time += (target - self.time) * glide;
+        self.far += (far - self.far) * glide;
         let warmth = smooth(heat);
         let boost = boost.max(0.0);
         self.feedback =
@@ -123,10 +139,18 @@ impl DubDelay {
         let glide = 1.0 / (START_SECONDS * self.sample_rate);
         self.start += (self.start_target - self.start).clamp(-glide, glide);
         let time = self.time + self.flutter;
-        let left = self.lines[0].read(time);
-        let right = self.lines[1].read(time);
-        let into_right = self.shape(left, 0);
-        let into_left = self.shape(right, 1);
+        let mut left = self.lines[0].read(time);
+        let mut right = self.lines[1].read(time);
+        let second = self.settings.second_head[1];
+        if second > 0.0 {
+            let far = self.far + self.flutter;
+            left += second * self.lines[0].read(far);
+            right += second * self.lines[1].read(far);
+        }
+        // The heads together feed back no more than one would.
+        let heads = 1.0 / (1.0 + second);
+        let into_right = self.shape(left * heads, 0);
+        let into_left = self.shape(right * heads, 1);
         self.lines[0].write(input * (1.0 - self.start) + into_left * self.feedback);
         self.lines[1].write(input * self.start + into_right * self.feedback);
         [left, right]

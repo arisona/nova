@@ -17,7 +17,7 @@ use crate::instruments::strata::pulse::{self, Pulse};
 use crate::instruments::strata::space::{self, Space};
 use crate::params::Params;
 use crate::score::{Pattern, Patterns, Score, Throws};
-use crate::signals::{Change, Now, Signals};
+use crate::signals::{BAR, Change, Now, Signals};
 use crate::voices::bed::Voicing;
 use crate::voices::{Air, Bed, Bell, Strike, bed, bell};
 
@@ -40,6 +40,8 @@ pub const SCORE: Score = Score {
         ],
     },
     stab: Patterns::NONE,
+    stabs: BAR,
+    basses: &[],
     bass: Patterns {
         from: 0.1,
         list: &[Pattern::with_notes(

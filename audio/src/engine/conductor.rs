@@ -25,8 +25,8 @@ use crate::score::{GHOST, Patterns, Score};
 use crate::signals::{BAR, Change, Hits, Now, PHRASE, Signals};
 
 /// Tempo range in beats per minute, over the Flow slider.
-const SLOWEST: f32 = 80.0;
-const FASTEST: f32 = 110.0;
+const SLOWEST: f32 = 40.0;
+const FASTEST: f32 = 120.0;
 
 /// Swing when cold and warm: where the second 16th of a pair starts, as a share of the pair.
 const SWING: [f32; 2] = [0.5, 0.57];
@@ -85,8 +85,10 @@ pub struct Conductor {
     position: [f32; 6],
     /// Whether the current bar is in a break: kick, ticks and bass rest.
     breaking: bool,
-    /// Stabs in the current bar, and the step of its last one.
+    /// Stabs in the current bar, the steps of the bar they play on, and the step of the
+    /// last one.
     stabs: usize,
+    stab_steps: u16,
     last_stab: u64,
     /// A throw waiting for the next stab.
     armed: Option<[f32; 3]>,
@@ -125,6 +127,7 @@ impl Conductor {
             position: [0.0; 6],
             breaking: false,
             stabs: 0,
+            stab_steps: 0,
             last_stab: 0,
             armed: None,
         }
@@ -244,7 +247,12 @@ impl Conductor {
         let fill = score.fills > 0 && (self.bar + 1).is_multiple_of(score.fills);
         let moves = self.bar_away as usize + fill as usize;
         let parts = [
-            score.kick, score.tick, score.stab, score.bass, score.gate, score.bell,
+            score.kick,
+            score.tick,
+            score.stab,
+            self.bass(),
+            score.gate,
+            score.bell,
         ];
         for (part, patterns) in parts.iter().enumerate() {
             self.density[part] = if resting {
@@ -263,15 +271,24 @@ impl Conductor {
         if was_breaking && !self.breaking && score.throws.sections {
             self.armed = Some(score.throws.section);
         }
-        let (mut stabs, mut last) = (0, 0);
+        // The bar's strongest stabs, as many as the score lets play, the earlier first among
+        // equals.
+        let mut stabs = [(0.0_f32, 0_u64); BAR];
+        let mut count = 0;
         for step in step..step + BAR as u64 {
             if self.plays(&score.stab, 2, step) {
-                stabs += 1;
-                last = step;
+                stabs[count] = (score.stab.weight(self.position[2], step), step);
+                count += 1;
             }
         }
-        self.stabs = stabs;
-        self.last_stab = last;
+        let stabs = &mut stabs[..count];
+        stabs.sort_unstable_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
+        let kept = &stabs[..count.min(score.stabs)];
+        self.stab_steps = kept
+            .iter()
+            .fold(0, |steps, &(_, step)| steps | 1 << (step % BAR as u64));
+        self.stabs = kept.len();
+        self.last_stab = kept.iter().map(|&(_, step)| step).max().unwrap_or(0);
 
         // Throws begin once the stabs play more than their first step.
         let throws = score.throws;
@@ -282,6 +299,18 @@ impl Conductor {
             && self.rng.unit() < throws.loose * self.looseness + throws.sparse * sparse
         {
             self.armed = Some(throws.phrase);
+        }
+    }
+
+    /// The bass line of the current section: the score's lines in turn.
+    fn bass(&self) -> Patterns {
+        let score = &self.score;
+        match self.progression % (1 + score.basses.len()) {
+            0 => score.bass,
+            line => Patterns {
+                list: score.basses[line - 1],
+                ..score.bass
+            },
         }
     }
 
@@ -298,6 +327,7 @@ impl Conductor {
             self.new_bar(step);
         }
         let score = self.score;
+        let line = self.bass();
         let [mut kick, mut tick, stab, mut bass, gate, bell] = self.density;
         if self.breaking {
             (kick, tick, bass) = (0, 0, 0);
@@ -306,8 +336,8 @@ impl Conductor {
         let away = self.bar_away;
         let mut hits = Hits {
             kick: score.kick.hit(at_kick, kick, step).unwrap_or(0.0),
-            bass: score.bass.hit(at_bass, bass, step).unwrap_or(0.0),
-            note: score.bass.source(at_bass, step).note(step),
+            bass: line.hit(at_bass, bass, step).unwrap_or(0.0),
+            note: line.source(at_bass, step).note(step),
             bell: score.bell.hit(at_bell, bell, step).unwrap_or(0.0),
             degree: score.bell.source(at_bell, step).digit(step).max(1),
             gate: score.gate.hit(at_gate, gate, step).unwrap_or(0.0),
@@ -326,7 +356,8 @@ impl Conductor {
             None if tick > 0 && loose > 0.0 && self.rng.unit() < score.ghost * loose => GHOST,
             None => 0.0,
         };
-        if let Some(velocity) = score.stab.hit(at_stab, stab, step) {
+        let kept = self.stab_steps & 1 << bar_step != 0;
+        if let Some(velocity) = score.stab.hit(at_stab, stab, step).filter(|_| kept) {
             hits.stab = velocity;
             if stab >= 2 {
                 // The last stab of every few bars, twice as often while the bass is away.
@@ -458,8 +489,8 @@ mod tests {
                     .enumerate()
                     .all(|(i, &(_, step))| step == i as u64)
             );
-            // 110 BPM: a pair of 16ths every 60 / 110 / 2 s.
-            let pair = 60.0 / 110.0 / 2.0 * RATE;
+            // 120 BPM: a pair of 16ths every 60 / 120 / 2 s.
+            let pair = 60.0 / 120.0 / 2.0 * RATE;
             let (start, end) = (steps[0].0, steps[steps.len() - 1].0);
             let pairs = (end - start) as f32 / pair;
             assert!(
@@ -548,11 +579,64 @@ mod tests {
     }
 
     #[test]
+    fn bars_keep_their_strongest_stabs_and_sections_turn_the_bass_line() {
+        use crate::instruments::fathom;
+        let palettes = [palette()];
+        let harmony = Harmony::from_palette(&palettes[0]);
+        let params = Params {
+            rhythm: 0.8,
+            ..Params::default()
+        };
+        let mut signals = Signals::new(harmony);
+        for most in [1, 2] {
+            let score = Score {
+                stabs: most,
+                ..fathom::SCORE
+            };
+            let mut conductor = Conductor::new(RATE, harmony, score, 1);
+            let mut per_bar = [0; 8];
+            for frame in 0.. {
+                if frame % BLOCK == 0 {
+                    conductor.update_block(
+                        &params,
+                        &Controls::default(),
+                        0.0,
+                        &palettes,
+                        &mut signals,
+                    );
+                }
+                let now = conductor.next();
+                let Some(step) = now.step else { continue };
+                let bar = (step / BAR as u64) as usize;
+                if bar == per_bar.len() {
+                    break;
+                }
+                per_bar[bar] += (now.hits.stab > 0.0) as usize;
+            }
+            assert!(per_bar.iter().all(|&count| count == most), "{per_bar:?}");
+        }
+        // Each section plays the next line.
+        let mut conductor = Conductor::new(RATE, harmony, fathom::SCORE, 1);
+        let lines = 1 + fathom::SCORE.basses.len();
+        let firsts: Vec<_> = (0..lines + 1)
+            .map(|progression| {
+                conductor.progression = progression;
+                conductor.bass().list[0]
+            })
+            .collect();
+        assert!(firsts[0] != firsts[1] && firsts[0] == firsts[lines]);
+    }
+
+    #[test]
     fn breaks_rest_the_low_end_and_drop_back_in_with_a_throw() {
         use crate::instruments::fathom;
         let palettes = [palette()];
-        let mut conductor =
-            Conductor::new(RATE, Harmony::from_palette(&palettes[0]), fathom::SCORE, 1);
+        // Every stab of the patterns, not only the strongest of each bar.
+        let score = Score {
+            stabs: BAR,
+            ..fathom::SCORE
+        };
+        let mut conductor = Conductor::new(RATE, Harmony::from_palette(&palettes[0]), score, 1);
         let params = Params {
             rhythm: 0.8,
             ..Params::default()

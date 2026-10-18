@@ -73,6 +73,35 @@ pub const SCORE: Score = Score {
             ),
         ],
     },
+    // One stab a bar, so a groove of them does not tire: the strongest step of each bar,
+    // with the echoes of two heads following it. 4 plays every off-beat, the skank.
+    stabs: 1,
+    basses: &[
+        // Climbing: the fifth on the third off-beat, the octave and the seventh leading on.
+        &[
+            Pattern::with_notes("..9. ..6. ..8. ..5.", "..1. ..1. ..5. ..1."),
+            Pattern::with_notes(
+                "..9. ..6. ..8. ..5. ..9. ..6. ..8. .54.",
+                "..1. ..1. ..5. ..1. ..1. ..1. ..5. .87.",
+            ),
+            Pattern::with_notes(
+                "9... ..6. .7.. ..5. 9... ..6. .7.5 ..4.",
+                "1... ..5. .8.. ..7. 1... ..3. .4.5 ..1.",
+            ),
+        ],
+        // Spacious: two notes a bar, the fifth answering the root.
+        &[
+            Pattern::with_notes("..9. .... ..8. ....", "..1. .... ..5. ...."),
+            Pattern::with_notes(
+                "..9. .... ..8. ..5. ..9. .... ..8. ....",
+                "..1. .... ..8. ..5. ..1. .... ..4. ....",
+            ),
+            Pattern::with_notes(
+                "9... .... 7..5 .... 9... ..6. 7... ....",
+                "1... .... 8..5 .... 1... ..7. 5... ....",
+            ),
+        ],
+    ],
     gate: Patterns::NONE,
     bell: Patterns::NONE,
     echo: &[3.0, 4.0, 3.0, 6.0],
@@ -157,6 +186,8 @@ impl Preset {
                 high_cut: [3200.0, 1400.0],
                 low_cut: [320.0, 220.0],
                 drive: [1.2, 1.8],
+                // A second head two 16ths further: the echoes fall irregularly.
+                second_head: [2.0, 0.6],
             },
             ..space::Settings::DEFAULT
         },

@@ -548,7 +548,7 @@ mod tests {
             assert!((engine.signals().tempo - previous).abs() < 1.0);
             previous = engine.signals().tempo;
         }
-        assert!(slow < 82.0 && previous > 108.0, "{slow} → {previous}");
+        assert!(slow < 42.0 && previous > 118.0, "{slow} → {previous}");
     }
 
     #[test]

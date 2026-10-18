@@ -13,7 +13,7 @@ use crate::dsp::{Curve, Rng};
 use crate::harmony::Harmony;
 use crate::params::Params;
 use crate::score::{Pattern, Patterns, Score, Throws};
-use crate::signals::{Change, Now, Signals};
+use crate::signals::{BAR, Change, Now, Signals};
 use crate::voices::{Air, Bed};
 use pulse::Pulse;
 use space::Space;
@@ -35,7 +35,9 @@ pub const SCORE: Score = Score {
         from: 0.45,
         list: &[Pattern::new(".... ..6. ..3. ..9.")],
     },
+    stabs: BAR,
     bass: Patterns::NONE,
+    basses: &[],
     bell: Patterns::NONE,
     gate: Patterns {
         from: 0.25,

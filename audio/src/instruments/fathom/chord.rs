@@ -470,6 +470,7 @@ mod tests {
     use crate::harmony::tests::palette;
     use crate::instruments::fathom::SCORE;
     use crate::score::{Score, Throws};
+    use crate::signals::BAR;
     use nova_core::Controls;
     use nova_core::Features;
 
@@ -508,7 +509,12 @@ mod tests {
     ) -> (u64, u64, f32, Stab) {
         let palettes: [Palette; 1] = [palette()];
         let harmony = Harmony::from_palette(&palettes[0]);
-        let score = Score { throws, ..SCORE };
+        // Every stab of the patterns, not only the strongest of each bar.
+        let score = Score {
+            throws,
+            stabs: BAR,
+            ..SCORE
+        };
         let mut conductor = Conductor::new(RATE, harmony, score, 1);
         if let Some(away) = away {
             conductor.hold_away(away);
@@ -650,7 +656,7 @@ mod tests {
     fn phrases_throw_the_delay_tunably() {
         let (stabs, short, boost, _) = play(0.9, 0.5, Throws::SHORT, 60.0);
         let (_, long, _, _) = play(0.9, 0.5, Throws::LONG, 60.0);
-        // About 23 bars a minute at 95 BPM: a throw every four bars, or every sixteen.
+        // About 20 bars a minute at 80 BPM: a throw every four bars, or every sixteen.
         assert!((4..=8).contains(&short), "{short} of {stabs}");
         assert!(long < short && long >= 1, "{long}");
         assert!(

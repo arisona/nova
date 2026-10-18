@@ -255,8 +255,14 @@ pub struct Score {
     pub kick: Patterns,
     pub tick: Patterns,
     pub stab: Patterns,
+    /// Most stabs a bar plays: beyond it the weakest leave, as if the rhythm were thinner
+    /// for the stabs alone.
+    pub stabs: usize,
     /// A bass line, with notes.
     pub bass: Patterns,
+    /// Other bass lines, each from cold to warm like `bass`: the conductor plays them in
+    /// turn, one section of the harmony each, so the low end varies over minutes.
+    pub basses: &'static [&'static [Pattern]],
     /// Bells, with degrees of the chord as notes.
     pub bell: Patterns,
     /// The steps on which the chord gate closes.

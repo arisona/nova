@@ -8,9 +8,13 @@
 
 use super::pulse::PulseOut;
 use crate::BLOCK;
-use crate::dsp::{Svf, lerp, smoothstep};
+use crate::dsp::{Curve, Svf, lerp, smoothstep};
 use crate::params::Params;
 use crate::voices::{DubDelay, Reverb, dub_delay};
+
+/// How far the dry highs reach over Void, in octaves above 3 kHz: about 8 kHz when close
+/// at Void 0, so the dense, dry sound does not ring, 6 kHz in the middle, 3 kHz far away.
+const REACH: Curve = Curve(&[[0.0, 1.4], [0.5, 1.0], [1.0, 0.0]]);
 
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
@@ -109,7 +113,7 @@ impl Space {
         self.dry_step = (lerp(1.0, 0.45, distance) - self.dry) / BLOCK as f32;
         self.wet_step =
             (lerp(0.35, 1.0, distance) * self.settings.reverb_level - self.wet) / BLOCK as f32;
-        let cutoff = 12_000.0 * (3000.0_f32 / 12_000.0).powf(distance);
+        let cutoff = 3000.0 * 2.0_f32.powf(REACH.at(distance));
         for filter in &mut self.damping {
             filter.set(cutoff, 0.6, self.sample_rate);
         }

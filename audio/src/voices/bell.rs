@@ -35,6 +35,9 @@ pub struct Settings {
     /// How hard the mallet strikes over Form: each mode above the first by this factor more,
     /// brighter at the grain.
     pub mallet: Curve,
+    /// Modes above this frequency in Hz roll off by 24 dB per octave, so high notes and
+    /// bright palettes never ring piercingly, whatever the mallet.
+    pub ceiling: f32,
 }
 
 impl Settings {
@@ -49,6 +52,7 @@ impl Settings {
         attack: 0.0015,
         ring: Curve(&[[0.0, 2.0], [0.5, 1.0], [1.0, 0.25]]),
         mallet: Curve(&[[0.0, 0.7], [0.5, 1.0], [1.0, 1.5]]),
+        ceiling: 2500.0,
     };
 
     /// A gong: nearly harmonic, slow to speak, ringing for seconds, beating slowly.
@@ -63,6 +67,7 @@ impl Settings {
         // The gong frames the phrases whatever the texture.
         ring: Curve::ONE,
         mallet: Curve::ONE,
+        ceiling: 2500.0,
     };
 }
 
@@ -152,8 +157,9 @@ impl Bell {
                 rotor.set_frequency((frequency + twin as f32 * beat) * ratio, sample_rate);
             }
             let level = lerp(settings.cold[mode], settings.warm[mode], warmth);
-            // Soft notes are darker, a hard mallet brighter.
-            let softness = velocity.powf(mode as f32 * 0.5) * mallet.powi(mode as i32);
+            // Soft notes are darker, a hard mallet brighter, and nothing rings high.
+            let softness = velocity.powf(mode as f32 * 0.5) * mallet.powi(mode as i32)
+                / (1.0 + (frequency * ratio / settings.ceiling).powi(4));
             note.levels[mode] = if frequency * ratio < top {
                 0.5 * velocity * level * softness
             } else {
