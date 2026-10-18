@@ -47,7 +47,7 @@ Offset  Len  Field           Value / Meaning
 1. **Reset**: 4 rounds of UDP `UDP_CMD_RESET (0x00)`, 200 ms between rounds
 2. **Auto-ID**: 1 round of UDP `UDP_CMD_AUTOID (0x70)`, 200 ms after
 
-After power-on, a module answers status polls but shows nothing until it has received this sequence. The hardware driver runs it for the responding modules, those that answer status polls, when it opens the interface and again before it exits, so the display stays dark. Whenever the responding modules change, because one started or restarted, stopped answering, or the configuration changed, the server reopens the interface and resets the responding modules again. A reset requested from the web app also reopens the interface.
+After power-on, a module answers status polls but shows nothing until it has received this sequence. The hardware driver runs it for the responding modules, those that answer status polls, when it opens the interface and again before it exits, so the display stays dark. Whenever the responding modules change, because one started or restarted, stopped answering, or the configuration changed, the driver reopens the interface and resets the responding modules again. A reset requested from the web app also reopens the interface.
 
 _All use the same UDP payload format ([data packet](#data-packet-ethertype-0x0800--udp-3210)) with `sequence=0`, `shift=false`._
 

@@ -16,7 +16,7 @@ import { useDelayedSend } from './CycleButton';
 import { PaletteSelector } from './PaletteSelector';
 import { CalibrationPattern, apiGetState, apiSet, apiSetValue } from './api';
 
-// Mirror GAMMA_RANGE and GAIN_RANGE in server/src/calibration.rs.
+// Mirror GAMMA_RANGE and GAIN_RANGE in voxel/src/calibration.rs.
 const GAMMA = { min: 1, max: 3, step: 0.05 };
 const GAIN = { min: 0.2, max: 1, step: 0.01 };
 

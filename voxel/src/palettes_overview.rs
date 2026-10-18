@@ -41,7 +41,7 @@ fn palettes_overview_svg() {
 <defs><radialGradient id="voxel"><stop offset="0.45" stop-opacity="0"/><stop offset="1" stop-opacity="0.6"/></radialGradient></defs>
 <rect width="100%" height="100%" fill="#F3F2EE"/>
 <text x="{MARGIN}" y="{y1}" font-size="30" font-weight="700" fill="#1C1B19">Nova palettes</text>
-<text x="{MARGIN}" y="{y2}" font-size="15" fill="#6D6A62">{count} palettes in alphabetical order · colors in OKLCh, kelvin or sRGB · generated from server/nova-core/src/palettes.rs</text>
+<text x="{MARGIN}" y="{y2}" font-size="15" fill="#6D6A62">{count} palettes in alphabetical order · colors in OKLCh, kelvin or sRGB · generated from core/src/palettes.rs</text>
 <text x="{MARGIN}" y="{y3}" font-size="15" fill="#6D6A62">Below each palette: its colors as light on black, blended as on the display, previewed at gamma {PREVIEW_GAMMA}</text>
 "##,
         y1 = MARGIN + 8,

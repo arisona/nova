@@ -28,14 +28,14 @@ webapp/src/       # React + Material UI control interface
 
 The terms, held to in code and docs:
 
-| Term           | Means                                                                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **Host**       | The application that runs the parts: `nova-host`, the binary `nova`. `nova_voxel::Host` is the host as the display sees it.          |
-| **Renderer**   | Turns the bus into light or sound and describes its output back onto it: `nova-voxel` (hardware or simulator) and `nova-audio`.      |
-| **Controller** | Where people play the instrument: the web app and its API.                                                                           |
-| **Bus**        | What the parts share (`nova_core::Bus`): the controls as set, the tide clock, the features of the light, and a status for each part. |
-| **Settings**   | What is saved, in `nova_settings.json`.                                                                                              |
-| **State**      | The host's settings plus what only lives while Nova runs: the bus, requests, the test pattern.                                       |
+| Term           | Means                                                                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Host**       | The application that runs the parts: `nova-host`, the binary `nova`. `nova_voxel::Host` is the host as the display sees it.             |
+| **Renderer**   | Turns the bus into light or sound: `nova-voxel` (hardware or simulator), which also describes its light back onto it, and `nova-audio`. |
+| **Controller** | Where people play the instrument: the web app and its API.                                                                              |
+| **Bus**        | What the parts share (`nova_core::Bus`): the controls as set, the tide clock, the features of the light, and a status for each part.    |
+| **Settings**   | What is saved, in `nova_settings.json`.                                                                                                 |
+| **State**      | The host's settings plus what only lives while Nova runs: the bus, requests, the test pattern.                                          |
 
 The crates depend in one direction: `nova-voxel` and `nova-audio` build on `nova-core` and never on each other (only the audio sketches use `nova-voxel`, as a dev-dependency), and the host builds on all three. The host puts the controls on the bus whenever they change; the display renders with them and adds the tide clock and the features of its light with every frame; the sound plays from all of it; both leave their status there. Only the display asks the host for more, through `nova_voxel::Host`: what to show and how, and the requests to reset or shut down. `cargo build` and `cargo test` in the repository root cover every crate; `-p nova-voxel` and the like pick one. The parts follow one convention:
 
@@ -113,13 +113,13 @@ cargo test native_audio_output_smoke -- --ignored --nocapture
 
 The first command runs the audio crate's tests, the second every test about audio across the crates. The smoke test needs an output device and stays muted.
 
-The sketches render the instruments offline and need no device (see [Audio concept](audio_concept.md#sketches)), from the repository root:
+The sketches render the instruments offline and need no device, from the repository root:
 
 ```sh
 cargo run --release -p nova-audio --example sketches -- fathom
 ```
 
-They write WAV files, spectrograms and `report.md` to `nova-audio-sketches` in the OS temporary directory, or to `NOVA_AUDIO_DIR`; the argument renders only scenarios whose name contains it, such as `void`, `fathom` or `module`, and without one, all. `… --example sketches -- ducking 0.5 0.5` prints how Strata's drone dips with the thumps at the given Heat and Flow, `… -- features` what every content module hands to the sound.
+They write WAV files, spectrograms and `report.md` to `nova-audio-sketches` in the OS temporary directory, or to `NOVA_AUDIO_DIR`; the argument renders only scenarios whose name contains it, such as `void`, `fathom` or `module`, and without one, all. Scripted scenarios (`audio/sounddesign/sketches/scenarios.rs`) move the controls as the sliders would, with the global tides, and hand over neutral light or sweep one feature of it; the module scenarios render each content module through the real renderer with every control at 0.5. The report lists, per scenario, the integrated loudness (ITU-R BS.1770) and loudness range, the 95th percentile of the momentary loudness, the median and 95th percentile of the level between 1 and 4 kHz (how far hits stand out from the gaps), peak and crest factor, the energy per band and per octave, the side-to-mid ratio below 80 Hz (the mono check for subwoofers), the speed relative to real time, the visual activity and the steps each part played. They catch technical problems; listening decides. `… --example sketches -- ducking 0.5 0.5` prints how Strata's drone dips with the thumps at the given Heat and Flow, `… -- features` what every content module hands to the sound.
 
 ## Adding content
 
