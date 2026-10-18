@@ -11,9 +11,10 @@
 //! Throws push the delay for a moment, on the stabs the conductor throws (see
 //! `score::Throws`).
 //!
-//! Below the first pattern, Form gives a pure drone through the low-pass, as loud as
-//! Strata's; above it, swells every second bar, which turn into stabs. Like the pulse, the
-//! chord rests towards Flow 0.
+//! Below the first pattern, the rhythm (from Void) gives a pure drone through the low-pass,
+//! as loud as Strata's; above it, swells every second bar, which turn into stabs. Like the
+//! pulse, the chord rests towards Flow 0, and as the rhythm dissolves, the stabs move into
+//! their echoes.
 
 use crate::BLOCK;
 use crate::dsp::{Contour, Drift, Rng, coefficient, lerp, resonance, smooth, smoothstep};
@@ -28,6 +29,10 @@ const MAX_CUTOFF: f32 = 4500.0;
 /// Seconds the delay boost takes to rise.
 const BOOST_RISE: f32 = 0.05;
 
+/// Share of a stab's dry sound left once the rhythm has dissolved: the rest of it is heard
+/// only in its echoes.
+const DISSOLVED_DRY: f32 = 0.3;
+
 /// Each pair when cold and warm.
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
@@ -35,7 +40,7 @@ pub struct Settings {
     /// longer. Swells, which sit on the full drone, rise only by `swell_level`.
     pub stab_level: [f32; 2],
     pub swell_level: f32,
-    /// Level of the chord between stabs at high Form, relative to the drone.
+    /// Level of the chord between stabs at a full rhythm, relative to the drone.
     pub residual: f32,
     /// Lowest cutoff in Hz for a chord whose lowest tone is at 240 Hz; it follows the chord
     /// by half its interval.
@@ -253,7 +258,7 @@ impl Chord {
         self.boost + self.space
     }
 
-    /// From the drone (0) to stabs (1), following Form slowly.
+    /// From the drone (0) to stabs (1), following the rhythm slowly.
     pub fn morph(&self) -> f32 {
         self.morph
     }
@@ -277,11 +282,11 @@ impl Chord {
 
         // Drone to stabs, slewed over a bar; towards Flow 0 the chord rests, like the pulse.
         self.rest = smoothstep(0.0, 0.15, params.flow_setting);
-        let morph = smoothstep(0.2, 0.42, params.form) * self.rest;
+        let morph = smoothstep(0.2, 0.42, params.rhythm) * self.rest;
         let residual = lerp(
             1.0,
             settings.residual,
-            smoothstep(0.2, 0.6, params.form) * self.rest,
+            smoothstep(0.2, 0.6, params.rhythm) * self.rest,
         );
         let slew = if self.primed {
             coefficient(bar_seconds, block_rate)
@@ -431,9 +436,10 @@ impl Chord {
         let envelope = self.contour.next();
         self.send += (self.send_target - self.send) * self.send_slew;
         let stab = self.velocity * envelope * self.rest;
+        let dry = 1.0 - (1.0 - DISSOLVED_DRY) * self.params.dissolve;
         Stab {
             residual: self.residual,
-            dry: stab * self.stab_level,
+            dry: stab * self.stab_level * dry,
             send: stab * self.send,
         }
     }
@@ -469,14 +475,14 @@ mod tests {
 
     /// Plays the chord on the conductor's grid for `seconds`, with half the voxels lit;
     /// returns the stabs, the thrown stabs, the largest boost and the latest gains.
-    fn play(form: f32, flow: f32, throws: Throws, seconds: f32) -> (u64, u64, f32, Stab) {
-        play_away(form, flow, throws, seconds, None, 0.5)
+    fn play(rhythm: f32, flow: f32, throws: Throws, seconds: f32) -> (u64, u64, f32, Stab) {
+        play_away(rhythm, flow, throws, seconds, None, 0.5)
     }
 
     /// Like `play`, with the bass held away from home or at home if given, and the given
     /// share of lit voxels.
     fn play_away(
-        form: f32,
+        rhythm: f32,
         flow: f32,
         throws: Throws,
         seconds: f32,
@@ -499,7 +505,7 @@ mod tests {
             Rng::new(1),
         );
         let params = Params {
-            form,
+            rhythm,
             flow,
             flow_setting: flow,
             image: Features {
@@ -528,9 +534,9 @@ mod tests {
     }
 
     #[test]
-    fn form_and_flow_decide_whether_stabs_play() {
+    fn rhythm_and_flow_decide_whether_stabs_play() {
         let (stabs, _, _, stab) = play(0.05, 0.5, Throws::SHORT, 20.0);
-        assert_eq!(stabs, 0, "a drone at low Form");
+        assert_eq!(stabs, 0, "a drone without rhythm");
         assert!((stab.residual - 1.0).abs() < 1e-3);
         let (stabs, _, _, stab) = play(0.9, 0.0, Throws::SHORT, 20.0);
         assert_eq!(stabs, 0, "resting at Flow 0");
@@ -546,7 +552,7 @@ mod tests {
 
     #[test]
     fn stabs_take_over_from_each_other_without_steps() {
-        // Right after Form jumps up, the stabs still have long holds and overlap, and their
+        // Right after the rhythm jumps up, the stabs still have long holds and overlap, and their
         // velocities alternate.
         let rate = 48_000.0;
         let palettes: [Palette; 1] = [palette()];
@@ -563,7 +569,7 @@ mod tests {
         let (mut peak, mut steepest, mut previous) = (0.0_f32, 0.0_f32, 0.0_f32);
         for frame in 0..(rate as usize * 12) {
             let params = Params {
-                form: if frame < rate as usize * 4 { 0.1 } else { 0.9 },
+                rhythm: if frame < rate as usize * 4 { 0.1 } else { 0.9 },
                 heat: 1.0,
                 ..Params::default()
             };

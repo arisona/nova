@@ -2,7 +2,8 @@
 //!
 //! The bed and the air follow the conductor's harmony; the pulse plays on its grid; the
 //! drone (chord, air and reverb) follows the pulse sample by sample; the space adds the dub
-//! delay, the reverb and distance. Form moves it from ambient to rhythmic.
+//! delay, the reverb and distance. Void moves it from ambient to rhythmic and back into
+//! the distance.
 
 pub mod pulse;
 pub mod space;
@@ -18,8 +19,8 @@ use space::Space;
 
 pub use crate::voices::bed;
 
-/// Strata's rhythm: thumps from Form 0.2, ticks from 0.35, stabs from 0.45 and the chord
-/// gate from 0.25, each growing denser towards Form 1; no throws.
+/// Strata's rhythm: thumps from a rhythm of 0.2, ticks from 0.35, stabs from 0.45 and the
+/// chord gate from 0.25, each growing denser towards the full rhythm; no throws.
 pub const SCORE: Score = Score {
     kick: Patterns {
         from: 0.2,

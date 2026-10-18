@@ -80,10 +80,6 @@ impl Script<'_> {
         self.flow = value;
     }
 
-    pub fn set_form(&mut self, value: f32) {
-        self.form = value;
-    }
-
     pub fn set_void(&mut self, value: f32) {
         self.void = value;
     }
@@ -264,129 +260,126 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
     vec![
         scenario(
             "strata_01_cold_to_warm",
-            "Pure drone (Form 0.05), Heat from 0 to 1",
+            "Pure drone (Void 0), Heat from 0 to 1",
             90.0,
             euclidean,
             |t, state| {
-                state.set_form(0.05);
+                state.set_void(0.0);
                 state.set_heat(t);
             },
         ),
         scenario(
-            "strata_02_ambient_to_rhythmic_euclidean",
-            "Form from 0 to 1, Euclidean patterns on a 16-step bar",
+            "strata_02_rhythm_euclidean",
+            "Void from 0 to 1: the rhythm builds up by 0.1, plays fully until 0.5 and dissolves \
+             into the distance; Euclidean patterns on a 16-step bar",
             120.0,
             euclidean,
-            |t, state| state.set_form(t),
+            |t, state| state.set_void(t),
         ),
         scenario(
-            "strata_03_ambient_to_rhythmic_polymeter",
-            "Form from 0 to 1, loops of 16, 12 and 7 steps",
+            "strata_03_rhythm_polymeter",
+            "Void from 0 to 1, loops of 16, 12 and 7 steps",
             120.0,
             polymeter,
-            |t, state| state.set_form(t),
+            |t, state| state.set_void(t),
         ),
         scenario(
-            "strata_04_void_sweep",
-            "Void from 0 to 1 (Form 0.3)",
-            60.0,
+            "strata_04_dissolve",
+            "Void from 0.5 to 1: the rhythm loosens, its stabs move into the echoes, a distant \
+             heartbeat stays longest",
+            90.0,
             euclidean,
-            |t, state| {
-                state.set_form(0.3);
-                state.set_void(t);
-            },
+            |t, state| state.set_void(0.5 + 0.5 * t),
         ),
         scenario(
             "strata_05_flow_sweep",
-            "Flow from 0 to 1 (Form 0.6)",
+            "Flow from 0 to 1 (Void 0.3)",
             60.0,
             euclidean,
             |t, state| {
-                state.set_form(0.6);
+                state.set_void(0.3);
                 state.set_flow(t);
             },
         ),
         scenario(
             "strata_06_palettes",
-            "Every palette for 10 s (Form 0.35)",
+            "Every palette for 10 s (Void 0.75, the rhythm dissolving)",
             10.0 * palettes as f32,
             euclidean,
             |t, state| {
                 let count = state.palettes();
                 state.palette = ((t * count as f32) as usize).min(count - 1);
-                state.set_form(0.35);
+                state.set_void(0.75);
             },
         ),
         scenario(
             "strata_07_cold_ambient",
-            "Antarctica Freeze, Heat 0.1, Form 0.1, Flow 0.4, Void 0.6",
+            "Antarctica Freeze, Heat 0.1, Flow 0.4, Void 0.95: far away, the rhythm dissolved",
             60.0,
             euclidean,
             |_, state| {
                 state.set_palette("Antarctica Freeze");
                 state.set_heat(0.1);
-                state.set_form(0.1);
                 state.set_flow(0.4);
-                state.set_void(0.6);
+                state.set_void(0.95);
             },
         ),
         scenario(
             "strata_08_warm_ambient",
-            "Sahara Drift, Heat 0.9, Form 0.1, Flow 0.4, Void 0.4",
+            "Sahara Drift, Heat 0.9, Flow 0.4, Void 0: close and dense, without rhythm",
             60.0,
             euclidean,
             |_, state| {
                 state.set_palette("Sahara Drift");
                 state.set_heat(0.9);
-                state.set_form(0.1);
                 state.set_flow(0.4);
-                state.set_void(0.4);
+                state.set_void(0.0);
             },
         ),
         scenario(
             "strata_09_cold_rhythmic",
-            "Kiruna Glow, Heat 0.15, Form 0.8, Flow 0.6 (Euclidean)",
+            "Kiruna Glow, Heat 0.15, Void 0.3, Flow 0.6 (Euclidean)",
             60.0,
             euclidean,
             |_, state| {
                 state.set_palette("Kiruna Glow");
                 state.set_heat(0.15);
-                state.set_form(0.8);
+                state.set_void(0.3);
                 state.set_flow(0.6);
             },
         ),
         scenario(
             "strata_10_warm_rhythmic",
-            "Shenzhen Lantern Flicker, Heat 0.85, Form 0.8, Flow 0.55 (polymeter)",
+            "Shenzhen Lantern Flicker, Heat 0.85, Void 0.3, Flow 0.55 (polymeter)",
             60.0,
             polymeter,
             |_, state| {
                 state.set_palette("Shenzhen Lantern Flicker");
                 state.set_heat(0.85);
-                state.set_form(0.8);
+                state.set_void(0.3);
                 state.set_flow(0.55);
             },
         ),
         scenario(
             "strata_11_harmonic_motion",
-            "Belize Ripple, Heat 0.6, Form 0.3, Flow 0.6 for 10 minutes: the bass moves about \
+            "Belize Ripple, Heat 0.6, Void 0.8, Flow 0.6 for 10 minutes: the bass moves about \
              every minute, a chord tone changes its octave halfway",
             600.0,
             euclidean,
             |_, state| {
                 state.set_palette("Belize Ripple");
                 state.set_heat(0.6);
-                state.set_form(0.3);
+                state.set_void(0.8);
                 state.set_flow(0.6);
             },
         ),
         scenario(
             "strata_12_height_sweep",
-            "The light from the bottom to the top (Form 0.3)",
+            "The light from the bottom to the top (Void 0.8)",
             60.0,
             euclidean,
             |t, state| {
-                state.set_form(0.3);
+                state.set_void(0.8);
                 state.set_height(t);
             },
         ),
@@ -399,55 +392,55 @@ fn shoal_scenarios() -> Vec<Spec> {
     vec![
         scenario(
             "shoal_01_cold_to_warm",
-            "Bells (Form 0.7), Heat from 0 to 1: arpeggio, interlocking parts, syncopation",
+            "Bells (Void 0.3), Heat from 0 to 1: arpeggio, interlocking parts, syncopation",
             90.0,
             shoal,
             |t, state| {
-                state.set_form(0.7);
+                state.set_void(0.3);
                 state.set_heat(t);
             },
         ),
         scenario(
-            "shoal_02_ambient_to_rhythmic",
-            "Form from 0 to 1: drone and gong, bells in quarters, eighths, 16ths, then kick",
+            "shoal_02_rhythm",
+            "Void from 0 to 1: drone and gong, bells in quarters, eighths, 16ths, then kick, \
+             and back down to the gong in the distance",
             120.0,
             shoal,
-            |t, state| state.set_form(t),
+            |t, state| state.set_void(t),
         ),
         scenario(
             "shoal_03_cold_ambient",
-            "Antarctica Freeze, Heat 0.15, Form 0.35, Void 0.6",
+            "Antarctica Freeze, Heat 0.15, Void 0.75",
             60.0,
             shoal,
             |_, state| {
                 state.set_palette("Antarctica Freeze");
                 state.set_heat(0.15);
-                state.set_form(0.35);
-                state.set_void(0.6);
+                state.set_void(0.75);
             },
         ),
         scenario(
             "shoal_04_warm_rhythmic",
-            "Tikal Humm, Heat 0.85, Form 0.8, Flow 0.55",
+            "Tikal Humm, Heat 0.85, Void 0.3, Flow 0.55",
             60.0,
             shoal,
             |_, state| {
                 state.set_palette("Tikal Humm");
                 state.set_heat(0.85);
-                state.set_form(0.8);
+                state.set_void(0.3);
                 state.set_flow(0.55);
             },
         ),
         scenario(
             "shoal_05_harmonic_motion",
-            "Belize Ripple, Heat 0.5, Form 0.6, Flow 0.6 for 10 minutes: new melodies from the \
+            "Belize Ripple, Heat 0.5, Void 0.65, Flow 0.6 for 10 minutes: new melodies from the \
              same patterns with every bass move",
             600.0,
             shoal,
             |_, state| {
                 state.set_palette("Belize Ripple");
                 state.set_heat(0.5);
-                state.set_form(0.6);
+                state.set_void(0.65);
                 state.set_flow(0.6);
             },
         ),
@@ -461,152 +454,148 @@ fn fathom_scenarios(palettes: usize) -> Vec<Spec> {
     vec![
         scenario(
             "fathom_01_cold_to_warm",
-            "Stabs (Form 0.75), Heat from 0 to 1",
+            "Stabs (Void 0.3), Heat from 0 to 1",
             90.0,
             fathom,
             |t, state| {
-                state.set_form(0.75);
+                state.set_void(0.3);
                 state.set_heat(t);
             },
         ),
         scenario(
-            "fathom_02_ambient_to_rhythmic",
-            "Form from 0 to 1: drone, swells, stabs, then the kick",
+            "fathom_02_rhythm",
+            "Void from 0 to 1: drone, swells, stabs, then the kick, and back into the echoes",
             120.0,
             fathom,
-            |t, state| state.set_form(t),
+            |t, state| state.set_void(t),
         ),
         scenario(
-            "fathom_03_void_sweep",
-            "Void from 0 to 1 (Form 0.75)",
-            60.0,
+            "fathom_03_dissolve",
+            "Void from 0.5 to 1: the kick leaves, the stabs move into their echoes, then swells \
+             and the drone",
+            90.0,
             fathom,
-            |t, state| {
-                state.set_form(0.75);
-                state.set_void(t);
-            },
+            |t, state| state.set_void(0.5 + 0.5 * t),
         ),
         scenario(
             "fathom_04_flow_sweep",
-            "Flow from 0 to 1 (Form 0.75)",
+            "Flow from 0 to 1 (Void 0.3)",
             60.0,
             fathom,
             |t, state| {
-                state.set_form(0.75);
+                state.set_void(0.3);
                 state.set_flow(t);
             },
         ),
         scenario(
             "fathom_05_palettes",
-            "Every palette for 10 s (Form 0.6)",
+            "Every palette for 10 s (Void 0.65)",
             10.0 * palettes as f32,
             fathom,
             |t, state| {
                 let count = state.palettes();
                 state.palette = ((t * count as f32) as usize).min(count - 1);
-                state.set_form(0.6);
+                state.set_void(0.65);
             },
         ),
         scenario(
             "fathom_06_cold_ambient",
-            "Antarctica Freeze, Heat 0.1, Form 0.1, Flow 0.4, Void 0.6",
+            "Antarctica Freeze, Heat 0.1, Flow 0.4, Void 0.95: far away, the rhythm dissolved",
             60.0,
             fathom,
             |_, state| {
                 state.set_palette("Antarctica Freeze");
                 state.set_heat(0.1);
-                state.set_form(0.1);
                 state.set_flow(0.4);
-                state.set_void(0.6);
+                state.set_void(0.95);
             },
         ),
         scenario(
             "fathom_07_warm_ambient",
-            "Sahara Drift, Heat 0.9, Form 0.1, Flow 0.4, Void 0.4",
+            "Sahara Drift, Heat 0.9, Flow 0.4, Void 0: close and dense, without rhythm",
             60.0,
             fathom,
             |_, state| {
                 state.set_palette("Sahara Drift");
                 state.set_heat(0.9);
-                state.set_form(0.1);
                 state.set_flow(0.4);
-                state.set_void(0.4);
+                state.set_void(0.0);
             },
         ),
         scenario(
             "fathom_08_cold_rhythmic",
-            "Kiruna Glow, Heat 0.15, Form 0.8, Flow 0.6",
+            "Kiruna Glow, Heat 0.15, Void 0.3, Flow 0.6",
             60.0,
             fathom,
             |_, state| {
                 state.set_palette("Kiruna Glow");
                 state.set_heat(0.15);
-                state.set_form(0.8);
+                state.set_void(0.3);
                 state.set_flow(0.6);
             },
         ),
         scenario(
             "fathom_09_warm_rhythmic",
-            "Shenzhen Lantern Flicker, Heat 0.85, Form 0.8, Flow 0.55",
+            "Shenzhen Lantern Flicker, Heat 0.85, Void 0.3, Flow 0.55",
             60.0,
             fathom,
             |_, state| {
                 state.set_palette("Shenzhen Lantern Flicker");
                 state.set_heat(0.85);
-                state.set_form(0.8);
+                state.set_void(0.3);
                 state.set_flow(0.55);
             },
         ),
         scenario(
             "fathom_10_harmonic_motion",
-            "Belize Ripple, Heat 0.6, Form 0.6, Flow 0.6 for 10 minutes: the bass moves about \
+            "Belize Ripple, Heat 0.6, Void 0.65, Flow 0.6 for 10 minutes: the bass moves about \
              every minute and throws the stabs, the filter opens while it is away",
             600.0,
             fathom,
             |_, state| {
                 state.set_palette("Belize Ripple");
                 state.set_heat(0.6);
-                state.set_form(0.6);
+                state.set_void(0.65);
                 state.set_flow(0.6);
             },
         ),
         scenario(
             "fathom_11_long_listening",
-            "Throws for long listening: Belize Ripple, Form 0.75, Flow 0.5 for 3 minutes",
+            "Throws for long listening: Belize Ripple, Void 0.3, Flow 0.5 for 3 minutes",
             180.0,
             long,
             |_, state| {
                 state.set_palette("Belize Ripple");
-                state.set_form(0.75);
+                state.set_void(0.3);
             },
         ),
         scenario(
             "fathom_12_height_sweep",
-            "The light from the bottom to the top (Form 0.75)",
+            "The light from the bottom to the top (Void 0.3)",
             60.0,
             fathom,
             |t, state| {
-                state.set_form(0.75);
+                state.set_void(0.3);
                 state.set_height(t);
             },
         ),
         scenario(
             "fathom_13_density_sweep",
-            "From all voxels lit to none (Form 0.75)",
+            "From all voxels lit to none (Void 0.3)",
             60.0,
             fathom,
             |t, state| {
-                state.set_form(0.75);
+                state.set_void(0.3);
                 state.set_density(1.0 - t);
             },
         ),
         scenario(
             "fathom_14_balance_sweep",
-            "The light from the left to the right (Form 0.75)",
+            "The light from the left to the right (Void 0.3)",
             60.0,
             fathom,
             |t, state| {
-                state.set_form(0.75);
+                state.set_void(0.3);
                 state.set_balance(2.0 * t - 1.0);
             },
         ),

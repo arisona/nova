@@ -54,6 +54,28 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
+/// A transfer curve through points `[x, y]`, in order of x, eased between each pair: flat
+/// at every point, so plateaus and soft shoulders come for free, and never beyond the
+/// values of its points. Before the first point and after the last it holds their values.
+#[derive(Clone, Copy, Debug)]
+pub struct Curve(pub &'static [[f32; 2]]);
+
+impl Curve {
+    pub fn at(&self, x: f32) -> f32 {
+        let points = self.0;
+        if x <= points[0][0] {
+            return points[0][1];
+        }
+        for pair in points.windows(2) {
+            let [[x0, y0], [x1, y1]] = [pair[0], pair[1]];
+            if x <= x1 {
+                return lerp(y0, y1, smoothstep(x0, x1, x));
+            }
+        }
+        points[points.len() - 1][1]
+    }
+}
+
 /// One-pole coefficient for a time constant, at a given update rate.
 pub fn coefficient(seconds: f32, rate: f32) -> f32 {
     1.0 - (-1.0 / (seconds * rate).max(1e-6)).exp()
@@ -406,6 +428,19 @@ pub fn k_weight(frequency: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn curves_pass_their_points_and_stay_within_them() {
+        let bump = Curve(&[[0.0, 0.0], [0.1, 1.0], [0.5, 1.0], [1.0, 0.0]]);
+        for [x, y] in bump.0 {
+            assert_eq!(bump.at(*x), *y);
+        }
+        assert_eq!((bump.at(-1.0), bump.at(0.3), bump.at(2.0)), (0.0, 1.0, 0.0));
+        assert_eq!(bump.at(0.75), 0.5);
+        // Flat at the points: a small step away barely moves it.
+        assert!(bump.at(0.505) > 0.999 && bump.at(0.005) < 0.01);
+        assert!((0..=100).all(|i| (0.0..=1.0).contains(&bump.at(i as f32 / 100.0))));
+    }
 
     #[test]
     fn rotor_keeps_frequency_and_amplitude() {

@@ -3,8 +3,8 @@
 //!
 //! A pattern gives every 16th a weight from 1 to 9, how essential the step is, written as a
 //! string: `"9... 5... 7... 5..."` is a kick that plays once per bar, then twice, then four
-//! to the floor; `.` rests, spaces only separate the beats. Density, from Form, decides how
-//! much of a pattern plays: the steps whose weight clears a threshold, so a pattern grows by
+//! to the floor; `.` rests, spaces only separate the beats. Density, from the rhythm (which
+//! Void sets, see `params::RHYTHM`), decides how much of a pattern plays: the steps whose weight clears a threshold, so a pattern grows by
 //! adding steps, never by moving them. The weight also sets how hard a step plays.
 //!
 //! Each part's patterns run from straight (cold) to syncopated (warm); Heat picks where
@@ -15,7 +15,7 @@
 /// Longest pattern in steps: four bars.
 pub const MAX_STEPS: usize = 64;
 
-/// How far Form must cross a threshold before the density changes, either way.
+/// How far the rhythm must cross a threshold before the density changes, either way.
 const HYSTERESIS: f32 = 0.02;
 
 /// Velocity of a step of weight 1 and of weight 9.
@@ -113,7 +113,7 @@ impl Pattern {
 /// The patterns of the kick, the ticks, the stabs or the gate.
 #[derive(Clone, Copy, Debug)]
 pub struct Patterns {
-    /// Form at which the first steps play; an infinite one leaves them out.
+    /// Rhythm at which the first steps play; an infinite one leaves them out.
     pub from: f32,
     /// In order from straight (cold) to syncopated (warm).
     pub list: &'static [Pattern],
@@ -125,10 +125,10 @@ impl Patterns {
         list: &[Pattern::new(".")],
     };
 
-    /// How many weights play at `form`, from 0 (none) to 9 (every step), changing from
+    /// How many weights play at `rhythm`, from 0 (none) to 9 (every step), changing from
     /// `current` only beyond the hysteresis: a step of weight 9 plays from `from` on, a step
-    /// of weight 1 only near Form 1.
-    pub fn density(&self, form: f32, current: u8) -> u8 {
+    /// of weight 1 only near a rhythm of 1, beyond the full one.
+    pub fn density(&self, rhythm: f32, current: u8) -> u8 {
         if !self.from.is_finite() {
             return 0;
         }
@@ -140,7 +140,7 @@ impl Patterns {
             } else {
                 HYSTERESIS
             };
-            if form >= threshold + margin {
+            if rhythm >= threshold + margin {
                 density = level;
             }
         }
@@ -291,8 +291,8 @@ mod tests {
         list: &[Pattern::new("9... 5... 7... 5...")],
     };
 
-    fn steps(patterns: &Patterns, form: f32) -> Vec<u64> {
-        let density = patterns.density(form, 0);
+    fn steps(patterns: &Patterns, rhythm: f32) -> Vec<u64> {
+        let density = patterns.density(rhythm, 0);
         (0..16)
             .filter(|&step| patterns.hit(0.0, density, step).is_some())
             .collect()
@@ -316,7 +316,7 @@ mod tests {
 
     #[test]
     fn density_holds_near_a_threshold() {
-        // Weight 7 comes in at Form 0.533.
+        // Weight 7 comes in at a rhythm of 0.533.
         assert_eq!(KICK.density(0.54, 2), 2);
         assert_eq!(KICK.density(0.56, 2), 3);
         assert_eq!(KICK.density(0.52, 3), 3);

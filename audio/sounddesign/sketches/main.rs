@@ -249,8 +249,8 @@ fn sketches(directory: &Path, names: &[String], filter: &str) {
     println!("Wrote {}", directory.display());
 }
 
-/// Averages over all thumps of a minute of Strata at Form 0.8 (a thump on every beat), dry
-/// at Void 0, Belize Ripple: the drone's gain from the signals (once per block), and the
+/// Averages over all thumps of a minute of Strata at the full rhythm (a thump on every beat),
+/// nearly dry at Void 0.1, Belize Ripple: the drone's gain from the signals (once per block), and the
 /// rendered level of the chord band (300 to 1500 Hz) relative to its highest point, in
 /// 20 ms steps after the thump. Heat and Flow are 0.5 unless given.
 fn ducking(names: &[String], args: &[String]) {
@@ -265,8 +265,7 @@ fn ducking(names: &[String], args: &[String]) {
     let (heat, flow) = (setting(0), setting(1));
     let frames = scenarios::script(names, 60.0, |_, state| {
         state.set_palette("Belize Ripple");
-        state.set_form(0.8);
-        state.set_void(0.0);
+        state.set_void(0.1);
         state.set_heat(heat);
         state.set_flow(flow);
     });

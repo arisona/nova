@@ -2,8 +2,8 @@
 //!
 //! It plays from the controls as set, the instrument to play, the tide clock and the
 //! features of the light, as the bus carries them (`nova_core::Bus`). Once per block it moves
-//! Heat, Flow, Form and Void by the global tides, as the display does, smooths them and the
-//! light, lets the conductor move time and harmony, and lets the instrument read and write
+//! Heat, Flow, Form and Void by the global tides, as the display does, smooths them (Void
+//! also sets the rhythm, see `params::RHYTHM`) and the light, lets the conductor move time and harmony, and lets the instrument read and write
 //! the signals; every sample goes from the instrument through the master. A new instrument
 //! mixes in while the previous one fades out, both on the shared conductor. It plays
 //! in the audio callback, so it allocates only on construction: every instrument it can
@@ -207,6 +207,7 @@ impl Engine {
         params.flow += (target.flow - params.flow) * controls;
         params.form += (target.form - params.form) * controls;
         params.void += (target.void - params.void) * controls;
+        params.follow_void();
         // The tempo follows the Flow slider without its tide, so it does not wobble.
         params.flow_setting += (self.controls.flow - params.flow_setting) * controls;
 
@@ -439,28 +440,47 @@ mod tests {
     }
 
     #[test]
-    fn form_and_flow_gate_the_pulse_but_never_the_drone() {
+    fn void_and_flow_gate_the_pulse_but_never_the_drone() {
         for (name, preset) in presets() {
-            for (form, flow, pulses) in [(0.0, 0.5, false), (0.8, 0.0, false), (0.8, 0.5, true)] {
+            for (void, flow, pulses) in [
+                (0.0, 0.5, false),
+                (1.0, 0.5, false),
+                (0.3, 0.0, false),
+                (0.3, 0.5, true),
+            ] {
                 let mut engine = engine(5, &preset);
                 engine.set_controls(Controls {
-                    form,
+                    void,
                     flow,
                     ..loud()
                 });
                 let level = rms(&mut engine, 6.0);
                 let steps = engine.steps();
-                assert!(level > 0.01, "{name}, form {form}, flow {flow}: {level}");
+                assert!(level > 0.01, "{name}, void {void}, flow {flow}: {level}");
                 if pulses {
                     assert!(
                         steps.iter().all(|&count| count > 0),
-                        "{name}, form {form}, flow {flow}: {steps:?}"
+                        "{name}, void {void}, flow {flow}: {steps:?}"
                     );
                 } else {
-                    assert_eq!(steps, [0; 3], "{name}, form {form}, flow {flow}");
+                    assert_eq!(steps, [0; 3], "{name}, void {void}, flow {flow}");
                 }
             }
         }
+    }
+
+    #[test]
+    fn the_rhythm_dissolves_with_void_leaving_a_heartbeat() {
+        let steps = |void| {
+            let mut engine = engine(5, &Preset::default());
+            engine.set_controls(Controls { void, ..loud() });
+            rms(&mut engine, 12.0);
+            engine.steps()
+        };
+        let [full, dissolving] = [steps(0.3), steps(0.8)];
+        assert!(full.iter().all(|&count| count > 0), "{full:?}");
+        assert!(dissolving[0] > 0 && dissolving[0] < full[0], "{dissolving:?}");
+        assert_eq!(dissolving[1..], [0, 0], "ticks and stabs leave first");
     }
 
     #[test]
@@ -518,34 +538,29 @@ mod tests {
     #[test]
     fn void_thins_the_sound_but_never_silences_it() {
         for (name, preset) in presets() {
-            for form in [0.0, 0.8] {
-                let mut levels = Vec::new();
-                for void in [0.0, 0.5, 1.0] {
-                    let mut engine = engine(9, &preset);
-                    engine.set_controls(Controls {
-                        form,
-                        void,
-                        ..loud()
-                    });
-                    rms(&mut engine, 2.0);
-                    levels.push(rms(&mut engine, 4.0));
-                }
-                assert!(levels[2] > levels[1] * 0.4, "{name}, {form}: {levels:?}");
-                assert!(levels[0] < levels[1] * 2.5, "{name}, {form}: {levels:?}");
+            let mut levels = Vec::new();
+            for void in [0.0, 0.5, 1.0] {
+                let mut engine = engine(9, &preset);
+                engine.set_controls(Controls { void, ..loud() });
+                rms(&mut engine, 2.0);
+                levels.push(rms(&mut engine, 4.0));
             }
+            assert!(levels[2] > levels[1] * 0.4, "{name}: {levels:?}");
+            assert!(levels[0] < levels[1] * 2.5, "{name}: {levels:?}");
         }
     }
 
     #[test]
     fn heat_keeps_the_loudness() {
         for (name, preset) in presets() {
-            for form in [0.0, 0.8] {
+            // Without rhythm and with the full one.
+            for void in [0.0, 0.3] {
                 let levels: Vec<f32> = [0.0, 1.0]
                     .iter()
                     .map(|&heat| {
                         let mut engine = engine(4, &preset);
                         engine.set_controls(Controls {
-                            form,
+                            void,
                             heat,
                             ..loud()
                         });
@@ -555,7 +570,7 @@ mod tests {
                     .collect();
                 let ratio = 20.0 * (levels[1] / levels[0]).log10();
                 // Plain RMS, led by the bass and the kick, which warmth lengthens.
-                assert!(ratio.abs() < 5.0, "{name}, form {form}: {ratio} dB");
+                assert!(ratio.abs() < 5.0, "{name}, void {void}: {ratio} dB");
             }
         }
     }
@@ -565,7 +580,7 @@ mod tests {
         for (name, preset) in presets() {
             let mut engine = engine(11, &preset);
             engine.set_controls(Controls {
-                form: 0.0,
+                void: 0.0,
                 heat: 1.0,
                 ..loud()
             });
@@ -581,7 +596,7 @@ mod tests {
             for frame in 0..(RATE as usize * 9) {
                 if frame % (RATE as usize * 3) == 0 {
                     engine.set_controls(Controls {
-                        form: 0.0,
+                        void: 0.0,
                         heat: 1.0,
                         palette: frame / (RATE as usize * 3) + 1,
                         ..loud()

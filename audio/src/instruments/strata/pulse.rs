@@ -11,7 +11,8 @@
 //! it, the chord, the air and the reverb dip, and the chord's upper partials more, like
 //! a filter; hard and short when cold, rounder and darker when warm. The gate plays while
 //! the bass is away from home and fades out when it returns: tension and release. The dip,
-//! the gate and the accent go out as signals.
+//! the gate and the accent go out as signals. As the rhythm dissolves, stabs move into their
+//! echoes.
 
 use crate::BLOCK;
 use crate::dsp::{Envelope, Rng, coefficient, lerp, smooth, smoothstep};
@@ -28,7 +29,7 @@ pub struct Settings {
     pub tick_level: f32,
     pub stab_level: f32,
     /// How strongly the drone follows the pulse: 0 leaves it untouched, 1 pumps like dub.
-    /// Form scales it in from the first thumps.
+    /// The rhythm scales it in from the first thumps.
     pub coupling: f32,
     /// Deepest dip of the chord, air and reverb at full coupling, as a fraction: at 1, the
     /// coupling is the depth of the dip.
@@ -40,8 +41,9 @@ pub struct Settings {
     pub duck_shape: [[f32; 2]; 2],
     /// Seconds the dip takes to reach its depth.
     pub duck_attack: f32,
-    /// How far the drone dips on the closed steps of the chord gate at full Form; 0 keeps it
-    /// steady. Form scales it in from 0.25 to 0.7; the score closes more steps as it rises.
+    /// How far the drone dips on the closed steps of the chord gate at a rhythm of 0.7 and
+    /// more; 0 keeps it steady. The rhythm scales it in from 0.25; the score closes more
+    /// steps as it rises.
     pub chord_gate: f32,
     /// Ramp of the chord gate in seconds, and the share of an open step it stays open, when
     /// cold and warm: a hard trance gate, or a rounder one.
@@ -75,6 +77,10 @@ impl Settings {
     };
 }
 
+/// Share of a stab's dry sound left once the rhythm has dissolved: the rest of it is heard
+/// only in its echoes.
+const DISSOLVED_DRY: f32 = 0.2;
+
 /// What the pulse hands to the space: its dry signal and its sends.
 #[derive(Clone, Copy, Default)]
 pub struct PulseOut {
@@ -104,7 +110,7 @@ pub struct Pulse {
     accent: bool,
     duck: Duck,
     bass_accent: Envelope,
-    /// Coupling scaled in by Form, and the releases for the current tempo and Heat.
+    /// Coupling scaled in by the rhythm, and the releases for the current tempo and Heat.
     coupling: f32,
     /// Seconds between thumps, and the dip's shape for the current Heat.
     duck_gap: f32,
@@ -123,6 +129,8 @@ pub struct Pulse {
     chord_section: f32,
     chord_ramp: f32,
     chord_duty: f32,
+    /// Share of the stabs' dry sound, falling as the rhythm dissolves.
+    stab_dry: f32,
     seconds: f32,
     counts: [u64; 3],
     rng: Rng,
@@ -162,6 +170,7 @@ impl Pulse {
             chord_section: 0.0,
             chord_ramp: 1.0,
             chord_duty: 1.0,
+            stab_dry: 1.0,
             seconds: 0.0,
             counts: [0; 3],
             rng,
@@ -218,7 +227,7 @@ impl Pulse {
     }
 
     fn gate(params: &Params) -> f32 {
-        smoothstep(0.12, 0.3, params.form) * smoothstep(0.0, 0.15, params.flow_setting)
+        smoothstep(0.12, 0.3, params.rhythm) * smoothstep(0.0, 0.15, params.flow_setting)
     }
 
     /// Reads the tempo, whether the bass is away and onsets from the signals.
@@ -239,7 +248,8 @@ impl Pulse {
         self.level_step = (Self::gate(params) - self.level) * coefficient(1.0, 1.0 / block_seconds)
             / BLOCK as f32;
         let warmth = smooth(params.heat);
-        self.coupling = settings.coupling * smoothstep(0.2, 0.6, params.form);
+        self.coupling = settings.coupling * smoothstep(0.2, 0.6, params.rhythm);
+        self.stab_dry = 1.0 - (1.0 - DISSOLVED_DRY) * params.dissolve;
         // As if the thumps spread evenly over the bar.
         self.duck_gap = 240.0 / (self.tempo * self.thumps[1].max(1) as f32);
         let shape = settings.duck_shape;
@@ -249,7 +259,7 @@ impl Pulse {
         self.chord_section += (playing - self.chord_section).clamp(-fade, fade);
         // Like the pulse, the gate rests at Flow 0.
         self.chord_depth = settings.chord_gate
-            * smoothstep(0.25, 0.7, params.form)
+            * smoothstep(0.25, 0.7, params.rhythm)
             * self.chord_section
             * smoothstep(0.0, 0.15, params.flow_setting);
         let volume = settings.chord_gate_volume;
@@ -342,10 +352,11 @@ impl Pulse {
         self.bass_accent_value =
             self.bass_accent.next(0.004, self.bass_accent_release, step) * self.coupling;
         let level = self.level;
+        let dry = 0.5 * self.stab_dry * stab;
         PulseOut {
             dry: [
-                (thump + tick[0] + 0.5 * stab) * level,
-                (thump + tick[1] + 0.5 * stab) * level,
+                (thump + tick[0] + dry) * level,
+                (thump + tick[1] + dry) * level,
             ],
             delay_send: (stab + 0.12 * (tick[0] + tick[1])) * level,
             reverb_send: [
@@ -411,9 +422,9 @@ mod tests {
     const RATE: f32 = 8000.0;
     const ATTACK: f32 = Settings::DEFAULT.duck_attack;
 
-    fn params(form: f32) -> Params {
+    fn params(rhythm: f32) -> Params {
         Params {
-            form,
+            rhythm,
             ..Params::default()
         }
     }
@@ -480,11 +491,11 @@ mod tests {
     #[test]
     fn drone_dips_and_bass_accents_with_thumps() {
         let Settings { duck, coupling, .. } = Settings::DEFAULT;
-        for (form, coupled) in [(0.1, false), (0.8, true)] {
+        for (rhythm, coupled) in [(0.1, false), (0.8, true)] {
             let mut pulse = pulse(1);
             let (mut deepest, mut accent, mut released) = (0.0_f32, 0.0_f32, 0);
             let seconds = 20.0;
-            play(&mut pulse, &params(form), false, seconds, |pulse| {
+            play(&mut pulse, &params(rhythm), false, seconds, |pulse| {
                 deepest = deepest.max(pulse.duck_value);
                 accent = accent.max(pulse.bass_accent_value);
                 released += (pulse.duck_value < 0.5 * (duck * coupling).min(1.0)) as usize;
@@ -518,7 +529,7 @@ mod tests {
             chord_gate_away_only,
             ..
         } = Settings::DEFAULT;
-        for (form, heat, flow, away, choppy) in [
+        for (rhythm, heat, flow, away, choppy) in [
             (0.1, 0.0, 0.5, true, false),
             (0.8, 0.0, 0.5, false, !chord_gate_away_only),
             (0.8, 0.0, 0.0, true, false),
@@ -530,7 +541,7 @@ mod tests {
                 heat,
                 flow,
                 flow_setting: flow,
-                ..params(form)
+                ..params(rhythm)
             };
             let (mut deepest, mut steepest, mut previous) = (0.0_f32, 0.0_f32, 0.0_f32);
             play(&mut pulse, &params, away, 10.0, |pulse| {

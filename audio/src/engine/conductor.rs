@@ -8,8 +8,8 @@
 //! host's tide clock.
 //!
 //! The conductor plays the instrument's score (see `score.rs`): at every bar start it sets
-//! the density of each pattern from Form, and on every step it hands out the hits, with ghost
-//! ticks and dropped ones when the rhythm loosens, fills and breaks, and decides which stabs
+//! the density of each pattern from the rhythm (from Void), and on every step it hands out
+//! the hits, with ghost ticks and dropped ones when the rhythm loosens or dissolves, fills and breaks, and decides which stabs
 //! are thrown.
 //! Everything goes out as signals once per block, and the grid with its hits as `Now` once
 //! per sample.
@@ -33,6 +33,9 @@ const SWING: [f32; 2] = [0.5, 0.57];
 
 /// Extra swing when the rhythm is loose.
 const LOOSE_SWING: f32 = 0.025;
+
+/// How loose the rhythm is once it has dissolved, on top of the Looseness tide.
+const LOOSE_DISSOLVED: f32 = 0.6;
 
 /// Seconds per section of the harmony at Flow 0 and 1. The bass moves at every boundary,
 /// one chord tone changes its octave halfway.
@@ -69,8 +72,8 @@ pub struct Conductor {
     /// The score to play from the next phrase start, when the instrument changes.
     next_score: Option<Score>,
     rng: Rng,
-    /// Form, Flow as set and the share of lit voxels, from the latest block.
-    form: f32,
+    /// The rhythm, Flow as set and the share of lit voxels, from the latest block.
+    rhythm: f32,
     flow_setting: f32,
     lit: f32,
     /// The current bar, and whether the bass was away at its start.
@@ -113,7 +116,7 @@ impl Conductor {
             score,
             next_score: None,
             rng: Rng::new(seed),
-            form: 0.5,
+            rhythm: 0.5,
             flow_setting: 0.5,
             lit: 0.5,
             bar: 0,
@@ -153,8 +156,9 @@ impl Conductor {
         let change = (target - self.tempo) * coefficient(2.5, 1.0 / block_seconds);
         self.tempo += change.clamp(-8.0 * block_seconds, 8.0 * block_seconds);
         self.heat = params.heat;
-        self.looseness = LOOSENESS.offset(clock).max(0.0);
-        self.form = params.form;
+        self.looseness =
+            (LOOSENESS.offset(clock).max(0.0) + LOOSE_DISSOLVED * params.dissolve).min(1.0);
+        self.rhythm = params.rhythm;
         self.flow_setting = params.flow_setting;
         self.lit = params.image.density;
         let throws = self.score.throws;
@@ -246,7 +250,7 @@ impl Conductor {
             self.density[part] = if resting {
                 0
             } else {
-                patterns.density(self.form, self.density[part])
+                patterns.density(self.rhythm, self.density[part])
             };
             self.position[part] = patterns.position(self.heat, moves);
         }
@@ -519,7 +523,7 @@ mod tests {
             .find(|&&clock| LOOSENESS.offset(clock) > 0.8)
             .unwrap();
         let params = Params {
-            form: 0.7,
+            rhythm: 0.7,
             ..Params::default()
         };
         let ticks = |clock, seed| {
@@ -550,7 +554,7 @@ mod tests {
         let mut conductor =
             Conductor::new(RATE, Harmony::from_palette(&palettes[0]), fathom::SCORE, 1);
         let params = Params {
-            form: 0.8,
+            rhythm: 0.8,
             ..Params::default()
         };
         let mut signals = Signals::new(conductor.harmony);

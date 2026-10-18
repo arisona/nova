@@ -3,10 +3,11 @@
 //! Struck bars in beating pairs (see `voices/bell.rs`) play the palette's chord, its degrees
 //! written in the score. Cold, they run an arpeggio of 12 steps against the bar; warmer,
 //! the even and odd 16ths interlock from the left and the right like a gamelan's paired
-//! parts (kotekan); warm, a syncopated figure over two bars. Form doubles the elaboration,
-//! from one note per beat to eighths and 16ths, as a gamelan does between its levels of
-//! density. A gong closes every phrase, and its fifth marks the half. The bed's drone sinks
-//! below the bells as they grow; from higher Form a soft kick and ticks join. Bed, air,
+//! parts (kotekan); warm, a syncopated figure over two bars. The rhythm (from Void) doubles
+//! the elaboration, from one note per beat to eighths and 16ths, as a gamelan does between
+//! its levels of density. A gong closes every phrase, and its fifth marks the half. The
+//! bed's drone sinks below the bells as they grow; with a fuller rhythm a soft kick and
+//! ticks join. Bed, air,
 //! pulse and space are shared with Strata.
 
 use crate::dsp::{Rng, lerp, smooth, smoothstep};
@@ -18,7 +19,7 @@ use crate::score::{Pattern, Patterns, Score, Throws};
 use crate::signals::{Change, Now, Signals};
 use crate::voices::{Air, Bed, Bell, bed, bell};
 
-/// Shoal's rhythm. Bells from Form 0.2, from straight (cold) to syncopated (warm); a gong
+/// Shoal's rhythm. Bells from a rhythm of 0.2, from straight (cold) to syncopated (warm); a gong
 /// from 0.1 on every phrase, its fifth at the half from 0.4; a soft half-time kick from 0.6
 /// and off-beat ticks from 0.55. The last bar of every eighth is a fill.
 pub const SCORE: Score = Score {
@@ -213,7 +214,7 @@ impl Shoal {
         }
         self.heat = params.heat;
         let [below, under] = self.preset.drone;
-        self.drone = lerp(below, under, smoothstep(0.2, 0.6, params.form));
+        self.drone = lerp(below, under, smoothstep(0.2, 0.6, params.rhythm));
         self.bells.normalize();
         self.gong.normalize();
         self.bed.update_block(params, signals);

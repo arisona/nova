@@ -3,8 +3,8 @@
 //! The chord of the bed, folded into a compact register, is played as off-beat stabs
 //! through a resonant low-pass that opens and closes with every hit (see `fathom/chord.rs`).
 //! Only the stab goes into the dub delay, so the echoes and a dark hall carry the groove;
-//! a deep sub bass and a soft kick stay underneath. At low Form it sinks into a dark,
-//! filtered drone. Bed, air, kick, ticks and space are shared with Strata.
+//! a deep sub bass and a soft kick stay underneath. Without rhythm (Void near 0 or 1) it
+//! sinks into a dark, filtered drone. Bed, air, kick, ticks and space are shared with Strata.
 
 pub mod chord;
 
@@ -24,10 +24,10 @@ pub use crate::score::Throws;
 /// Fathom's rhythm, from straight (cold) to syncopated (warm); while the bass is away, one
 /// pattern warmer. Stabs on the off-beat eighths when cold (even 16ths, so swing never moves
 /// them, and never the downbeat, which belongs to the kick): swells on the second off-beat of
-/// every second bar from Form 0.15, which turn into stabs, then on the second off-beat of
+/// every second bar from a rhythm of 0.15, which turn into stabs, then on the second off-beat of
 /// every bar, growing to all four, the skank. Warmer, the third stab pushes into the fourth
 /// beat, and then the second bar answers the first, with a stab right after the kick and one
-/// leading into the next bar. The kick from Form 0.4, half time and then four to the floor,
+/// leading into the next bar. The kick from a rhythm of 0.4, half time and then four to the floor,
 /// never three, which would land on the stabs; warmer, a ghost kick before the bar, and at
 /// the warmest a one drop, on the third beat only, until the kick fills in again. Ticks from
 /// 0.5, growing into off-beat hats; when warm, a shaker of 16ths. A bass line from 0.45:
@@ -396,7 +396,7 @@ mod tests {
     fn palette_changes_glide_the_filter() {
         for heat in [0.0, 1.0] {
             let controls = Controls {
-                form: 0.0,
+                void: 0.0,
                 heat,
                 volume: 1.0,
                 ..Controls::default()
@@ -427,16 +427,17 @@ mod tests {
     #[test]
     fn swells_stay_near_the_drone() {
         for heat in [0.0, 1.0] {
-            let loudness = |form: f32| {
+            let loudness = |void: f32| {
                 let mut engine = engine(Controls {
-                    form,
+                    void,
                     heat,
                     volume: 1.0,
                     ..Controls::default()
                 });
                 mean(&levels(&mut engine, 3.0, 12.0, |_, _| {}))
             };
-            let (drone, swells) = (loudness(0.05), loudness(0.22));
+            // Rhythms of about 0.05 and 0.22, on the way up.
+            let (drone, swells) = (loudness(0.015), loudness(0.035));
             assert!(
                 (swells - drone).abs() < 3.0,
                 "heat {heat}: drone {drone} dB, swells {swells} dB"
