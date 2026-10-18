@@ -59,6 +59,9 @@ pub struct Preset {
     pub space: space::Settings,
     /// How much of the air is dust over Form, from 0 to 1.
     pub dust: Curve,
+    /// Output level in dB, so the instruments meet at the same loudness (see the sketches'
+    /// report).
+    pub level: f32,
 }
 
 impl Preset {
@@ -73,6 +76,7 @@ impl Preset {
         pulse: pulse::Settings::DEFAULT,
         space: space::Settings::DEFAULT,
         dust: Curve(&[[0.5, 0.0], [1.0, 0.75]]),
+        level: -0.6,
     };
 
     /// Strata with ticks in loops of 12 steps and stabs in loops of 7, which phase against

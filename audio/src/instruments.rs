@@ -53,6 +53,16 @@ impl Preset {
         }
     }
 
+    /// Its output gain, as a factor.
+    pub fn gain(&self) -> f32 {
+        let level = match self {
+            Self::Strata(preset) => preset.level,
+            Self::Fathom(preset) => preset.level,
+            Self::Shoal(preset) => preset.level,
+        };
+        10.0_f32.powf(level / 20.0)
+    }
+
     /// The instrument of that name in `INSTRUMENTS`, if there is one.
     pub fn named(name: &str) -> Option<Self> {
         INSTRUMENTS

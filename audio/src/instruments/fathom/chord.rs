@@ -25,7 +25,11 @@ use crate::signals::{Now, Signals};
 use crate::voices::bed::Filter;
 
 /// Highest cutoff, so cold pings stay soft in the highs.
-const MAX_CUTOFF: f32 = 4500.0;
+const MAX_CUTOFF: f32 = 3000.0;
+
+/// How much stabs vary, so a groove of them does not tire the ear: each opens the filter up
+/// to this share less, and hits up to half of it softer.
+const VARIATION: f32 = 0.2;
 
 /// Seconds the delay boost takes to rise.
 const BOOST_RISE: f32 = 0.05;
@@ -89,16 +93,16 @@ pub struct Settings {
 
 impl Settings {
     pub const DEFAULT: Self = Self {
-        stab_level: [3.3, 2.6],
+        stab_level: [2.4, 2.0],
         swell_level: 0.5,
-        residual: 0.06,
+        residual: 0.14,
         floor: 300.0,
         drone_offset: [1.8, 1.0],
-        opening: [3.0, 2.2],
+        opening: [2.4, 1.9],
         swell_opening: 1.5,
         drone_resonance: [4.0, 2.0],
-        stab_resonance: [10.0, 4.0],
-        resonance_corner: 2500.0,
+        stab_resonance: [6.0, 3.0],
+        resonance_corner: 1800.0,
         follow: [1.0, 3.0],
         attack: [0.0015, 0.005],
         hold: [0.25, 0.45],
@@ -152,6 +156,8 @@ pub struct Chord {
     primed: bool,
     contour: Contour,
     velocity: f32,
+    /// How far this stab opens the filter, as a share of the full opening.
+    reach: f32,
     thrown: bool,
     stab_level: f32,
     morph: f32,
@@ -200,6 +206,7 @@ impl Chord {
             primed: false,
             contour: Contour::default(),
             velocity: 0.0,
+            reach: 1.0,
             thrown: false,
             stab_level: 0.0,
             morph: 0.0,
@@ -340,7 +347,7 @@ impl Chord {
         let tamed = |cutoff: f32| resonance(decibels) / (1.0 + (cutoff / corner).powi(2));
         let follow = lerp(settings.follow[0], settings.follow[1], warmth);
         let envelope = self.contour.value().powf(follow);
-        let lift = 0.6 + 0.4 * self.velocity;
+        let lift = (0.6 + 0.4 * self.velocity) * self.reach;
         let cutoff = (base * 2.0_f32.powf(opening * lift * envelope)).clamp(80.0, MAX_CUTOFF);
         // The chord keeps its loudness at the filter's most open state, a full stab; the
         // drone keeps it as the filter is, so its ride and its swells' opening only brighten
@@ -427,8 +434,11 @@ impl Chord {
             lerp(settings.stab_level[0], settings.stab_level[1], warmth) * density,
             morph,
         );
-        self.velocity =
-            velocity * (0.85 + 0.3 * self.params.activity) * if self.thrown { 1.15 } else { 1.0 };
+        self.reach = 1.0 - VARIATION * self.rng.unit();
+        self.velocity = velocity
+            * (0.85 + 0.3 * self.params.activity)
+            * (1.0 - 0.5 * VARIATION * self.rng.unit())
+            * if self.thrown { 1.15 } else { 1.0 };
         let start = current / (self.velocity * self.stab_level).max(1e-6);
         self.contour
             .trigger_from(start, attack, hold, release, self.sample_rate);
@@ -562,7 +572,13 @@ mod tests {
             let mut levels = Vec::new();
             for frame in 0..(RATE as usize * 12) {
                 if frame % BLOCK == 0 {
-                    conductor.update_block(&params, &Controls::default(), 0.0, &palettes, &mut signals);
+                    conductor.update_block(
+                        &params,
+                        &Controls::default(),
+                        0.0,
+                        &palettes,
+                        &mut signals,
+                    );
                     chord.update_block(&params, &signals);
                 }
                 levels.push(chord.next(&conductor.next()).dry);
@@ -592,7 +608,7 @@ mod tests {
             swells > 0 && stabs > 4 * swells,
             "{swells} swells, {stabs} stabs"
         );
-        assert!(stab.residual < 0.1);
+        assert!(stab.residual < 1.5 * Settings::DEFAULT.residual);
     }
 
     #[test]

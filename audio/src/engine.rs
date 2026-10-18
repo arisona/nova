@@ -262,8 +262,13 @@ impl Engine {
             self.scored = scored;
             self.conductor.set_score(self.presets[scored].score());
         }
+        // The mix, each instrument at its own level.
         let angle = self.mix * std::f32::consts::FRAC_PI_2;
-        self.gains = [angle.cos(), angle.sin()];
+        let incoming = self.incoming.unwrap_or(self.current);
+        self.gains = [
+            angle.cos() * self.presets[self.current].gain(),
+            angle.sin() * self.presets[incoming].gain(),
+        ];
 
         let params = self.params;
         self.conductor.update_block(
@@ -296,11 +301,12 @@ impl Engine {
         }
         self.position = (self.position + 1) % BLOCK;
         let now = self.conductor.next();
-        let mut mix = self.instruments[self.current].next(&now);
+        let mut mix = self.instruments[self.current]
+            .next(&now)
+            .map(|sample| sample * self.gains[0]);
         if let Some(incoming) = self.incoming {
             let other = self.instruments[incoming].next(&now);
-            let [current, incoming] = self.gains;
-            mix = [0, 1].map(|channel| mix[channel] * current + other[channel] * incoming);
+            mix = [0, 1].map(|channel| mix[channel] + other[channel] * self.gains[1]);
         }
         self.master.process(mix)
     }
@@ -479,7 +485,10 @@ mod tests {
         };
         let [full, dissolving] = [steps(0.3), steps(0.8)];
         assert!(full.iter().all(|&count| count > 0), "{full:?}");
-        assert!(dissolving[0] > 0 && dissolving[0] < full[0], "{dissolving:?}");
+        assert!(
+            dissolving[0] > 0 && dissolving[0] < full[0],
+            "{dissolving:?}"
+        );
         assert_eq!(dissolving[1..], [0, 0], "ticks and stabs leave first");
     }
 

@@ -88,6 +88,9 @@ pub struct Preset {
     pub reverb: f32,
     /// Level of the drone's chord below the bells and once they play fully.
     pub drone: [f32; 2],
+    /// Output level in dB, so the instruments meet at the same loudness (see the sketches'
+    /// report).
+    pub level: f32,
 }
 
 impl Preset {
@@ -109,6 +112,7 @@ impl Preset {
         send: [0.3, 0.45],
         reverb: 0.35,
         drone: [1.0, 0.45],
+        level: 1.9,
     };
 }
 

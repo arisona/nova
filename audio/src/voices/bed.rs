@@ -515,8 +515,8 @@ impl Bed {
         let tilt = lerp(0.15, -0.3, warmth);
         // The height of the light tilts the chord, as an exponent of the frequency.
         let lift = settings.height_tilt * 2.0 * (params.image.height - 0.5) / 6.02;
-        let depth =
-            (0.45 + 0.35 * params.activity + 0.15 * warmth).min(0.95) * settings.motion.at(params.form);
+        let depth = (0.45 + 0.35 * params.activity + 0.15 * warmth).min(0.95)
+            * settings.motion.at(params.form);
         let partial_rate = (0.02 + 0.2 * params.flow) * (1.0 + warmth) * block_seconds;
         let tone_rate = (0.01 + 0.08 * params.flow) * block_seconds;
         let sweep_rate = (0.01 + 0.06 * params.flow) * block_seconds;

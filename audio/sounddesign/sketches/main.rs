@@ -129,19 +129,21 @@ fn sketches(directory: &Path, names: &[String], filter: &str) {
     let mut report = String::from(
         "# Audio sketches\n\nRendered by the `sketches` example of `nova-audio` (see \
          `doc/audio_concept.md`). Loudness per ITU-R BS.1770 (LUFS) with a simplified \
-         loudness range (LRA), sample peak, crest factor (peak to RMS), share of energy per \
-         band, side-to-mid energy below 80 Hz (the mono check for subwoofers), speed relative \
+         loudness range (LRA), the 95th percentile of the momentary loudness (M95), \
+         the median and 95th percentile of the level between 1 and 4 kHz over 50 ms \
+         (presence, where hits stand out from the gaps), sample peak, crest factor (peak to \
+         RMS), share of energy per band, side-to-mid energy below 80 Hz (the mono check for subwoofers), speed relative \
          to real time, mean and maximum visual activity, and the steps played by thumps, \
          ticks and stabs.\n\n",
     );
     let bands: Vec<&str> = analysis::BANDS.iter().map(|band| band.2).collect();
     writeln!(
         report,
-        "| Scenario | LUFS | LRA | Peak dBFS | Crest dB | {} Hz (%) | Side/mid < 80 Hz dB | × real time | Activity | Steps |",
+        "| Scenario | LUFS | LRA | M95 LUFS | 1–4 kHz P50 / P95 dB | Peak dBFS | Crest dB | {} Hz (%) | Side/mid < 80 Hz dB | × real time | Activity | Steps |",
         bands.join(" / ")
     )
     .unwrap();
-    report.push_str("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
+    report.push_str("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
     let mut descriptions = String::new();
     let octaves: Vec<String> = analysis::OCTAVES
         .iter()
@@ -202,10 +204,13 @@ fn sketches(directory: &Path, names: &[String], filter: &str) {
             .collect();
         writeln!(
             report,
-            "| {} | {:.1} | {:.1} | {:.1} | {:.1} | {} | {:.0} | {:.0} | {:.3} / {:.2} | {} |",
+            "| {} | {:.1} | {:.1} | {:.1} | {:.0} / {:.0} | {:.1} | {:.1} | {} | {:.0} | {:.0} | {:.3} / {:.2} | {} |",
             scenario.name,
             analysis.loudness,
             analysis.range,
+            analysis.momentary,
+            analysis.presence[0],
+            analysis.presence[1],
             analysis.peak,
             analysis.crest,
             shares.join(" / "),
@@ -234,8 +239,15 @@ fn sketches(directory: &Path, names: &[String], filter: &str) {
         )
         .unwrap();
         println!(
-            "{}: {:.1} LUFS, peak {:.1} dBFS, side/mid bass {:.0} dB, DC {:.5}, {speed:.0}× real time",
-            scenario.name, analysis.loudness, analysis.peak, analysis.side_to_mid_bass, analysis.dc
+            "{}: {:.1} LUFS (M95 {:.1}), 1–4 kHz {:.0} / {:.0} dB, peak {:.1} dBFS, side/mid bass {:.0} dB, DC {:.5}, {speed:.0}× real time",
+            scenario.name,
+            analysis.loudness,
+            analysis.momentary,
+            analysis.presence[0],
+            analysis.presence[1],
+            analysis.peak,
+            analysis.side_to_mid_bass,
+            analysis.dc
         );
     }
     report.push_str(

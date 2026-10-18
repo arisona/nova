@@ -103,6 +103,9 @@ pub struct Preset {
     pub line: [f32; 2],
     /// How long a note of the bass line holds before it fades, in 16ths, when cold and warm.
     pub line_hold: [f32; 2],
+    /// Output level in dB, so the instruments meet at the same loudness (see the sketches'
+    /// report).
+    pub level: f32,
 }
 
 /// The register the chord is folded into, in Hz.
@@ -161,6 +164,7 @@ impl Preset {
         reverb: [1.55, 0.6],
         line: [0.16, 0.3],
         line_hold: [1.2, 2.2],
+        level: 0.0,
     };
 
     /// This preset with other throws.

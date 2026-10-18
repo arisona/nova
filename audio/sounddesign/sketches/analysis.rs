@@ -25,6 +25,12 @@ pub struct Analysis {
     pub loudness: f32,
     /// Loudness range (EBU Tech 3342, simplified), in LU.
     pub range: f32,
+    /// The 95th percentile of the momentary loudness (400 ms), in LUFS: how loud the loud
+    /// moments are.
+    pub momentary: f32,
+    /// The median and the 95th percentile of the level between 1 and 4 kHz over 50 ms, in
+    /// dBFS: where the ear is most sensitive, and how far hits stand out from the gaps.
+    pub presence: [f32; 2],
     /// Sample peak, in dBFS.
     pub peak: f32,
     /// Peak to RMS, in dB.
@@ -138,6 +144,36 @@ fn k_weighted(samples: &[f32]) -> Vec<f64> {
     signal
 }
 
+/// A band-pass around 2 kHz with a Q of 0.7, about 1 to 4 kHz (RBJ cookbook).
+fn presence_band(samples: &[f32], sample_rate: f32) -> Vec<f64> {
+    let w = std::f64::consts::TAU * 2000.0 / sample_rate as f64;
+    let alpha = w.sin() / (2.0 * 0.7);
+    let a0 = 1.0 + alpha;
+    let (b0, b2, a1, a2) = (
+        alpha / a0,
+        -alpha / a0,
+        -2.0 * w.cos() / a0,
+        (1.0 - alpha) / a0,
+    );
+    let (mut x1, mut x2, mut y1, mut y2) = (0.0, 0.0, 0.0, 0.0);
+    samples
+        .iter()
+        .map(|&sample| {
+            let x = sample as f64;
+            let y = b0 * x + b2 * x2 - a1 * y1 - a2 * y2;
+            (x2, x1, y2, y1) = (x1, x, y1, y);
+            y
+        })
+        .collect()
+}
+
+/// The value at `fraction` of sorted `values`, in dB.
+fn percentile_of(values: &[f64], fraction: f64) -> f32 {
+    values
+        .get(((values.len() as f64 - 1.0) * fraction).round() as usize)
+        .map_or(-200.0, |&power| decibels(power))
+}
+
 /// Mean square of both K-weighted channels over windows of `window` samples, every `hop`.
 fn window_powers(left: &[f64], right: &[f64], window: usize, hop: usize) -> Vec<f64> {
     let mut powers = Vec::new();
@@ -180,6 +216,16 @@ pub fn analyse(left: &[f32], right: &[f32], sample_rate: f32) -> Analysis {
     let (k_left, k_right) = (k_weighted(left), k_weighted(right));
     let momentary = window_powers(&k_left, &k_right, rate * 4 / 10, rate / 10);
     let (integrated, _) = gated_loudness(&momentary, -10.0);
+    let mut sorted = momentary.clone();
+    sorted.sort_by(f64::total_cmp);
+    let momentary_loud = -0.691 + percentile_of(&sorted, 0.95);
+    let (band_left, band_right) = (
+        presence_band(left, sample_rate),
+        presence_band(right, sample_rate),
+    );
+    // Both channels, as for the loudness: a full-scale sine in one reads −3 dB.
+    let mut presence = window_powers(&band_left, &band_right, rate / 20, rate / 40);
+    presence.sort_by(f64::total_cmp);
     let short_term = window_powers(&k_left, &k_right, rate * 3, rate);
     let (_, mut gated) = gated_loudness(&short_term, -20.0);
     gated.sort_by(f64::total_cmp);
@@ -256,6 +302,11 @@ pub fn analyse(left: &[f32], right: &[f32], sample_rate: f32) -> Analysis {
     Analysis {
         loudness: (-0.691 + decibels(integrated) as f64) as f32,
         range: percentile(0.95) - percentile(0.10),
+        momentary: momentary_loud,
+        presence: [
+            percentile_of(&presence, 0.5),
+            percentile_of(&presence, 0.95),
+        ],
         peak: decibels((peak as f64).powi(2)),
         crest: decibels((peak as f64).powi(2) / mean_square.max(1e-30)),
         bands,
