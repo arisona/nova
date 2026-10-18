@@ -9,7 +9,9 @@
 //! and a gentle wow). Warmth also keeps the chord from sounding like an organ: breath
 //! (narrow-band noise modulating each tone's amplitude, which spreads its partials into
 //! breathy bands), a slowly drifting brightness per tone, slightly detuned upper partials,
-//! deeper movement, and tones that fade back now and then. Void keeps only the strongest
+//! deeper movement, and tones that fade back now and then. Form can still the partials'
+//! movement towards the layers and break the chord into grains towards the grain, each
+//! partial sounding in short bursts at random. Void keeps only the strongest
 //! share of partials, ranked like Void by rank in the visuals; the root's fundamental always
 //! stays. A K-weighted level estimate keeps the loudness constant whatever Heat, Void or the
 //! palette do.
@@ -22,13 +24,18 @@ use nova_core::HUES;
 
 use crate::BLOCK;
 use crate::dsp::{
-    Drift, Rng, Rotor, Svf, coefficient, k_weight, lerp, resonant_lowpass, smooth, smoothstep,
+    Curve, Drift, Rng, Rotor, Svf, coefficient, k_weight, lerp, resonant_lowpass, smooth,
+    smoothstep,
 };
 use crate::harmony::{CROSSFADE_SECONDS, Harmony, MAX_TONES, Tone};
 use crate::params::Params;
 use crate::signals::Signals;
 
 pub const PARTIALS: usize = 8;
+
+/// Shortest and longest grain in seconds, and the share of time a partial sounds in grains.
+const GRAIN_SECONDS: [f32; 2] = [0.03, 0.09];
+const GRAIN_DUTY: f32 = 0.4;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
@@ -78,6 +85,12 @@ pub struct Settings {
     /// `Features::height`). The bass stays, and so does the chord's loudness; 0 ignores the
     /// height.
     pub height_tilt: f32,
+    /// How much the partials move over Form, as a factor of their drift: 1 as they are,
+    /// less for still layers.
+    pub motion: Curve,
+    /// How far the chord breaks into grains over Form, from 0 (continuous) to 1 (only
+    /// grains), at constant loudness; the bass stays.
+    pub grains: Curve,
 }
 
 impl Settings {
@@ -102,6 +115,8 @@ impl Settings {
         register: None,
         voicing: 3.0,
         height_tilt: 1.5,
+        motion: Curve::ONE,
+        grains: Curve::ZERO,
     };
 }
 
@@ -138,6 +153,7 @@ struct Partial {
     detune: f32,
     gains: [f32; 2],
     steps: [f32; 2],
+    grain: Grain,
     mask: f32,
     frequency: f32,
     /// Level before Void, for ranking.
@@ -160,11 +176,50 @@ impl Partial {
             detune: rng.range(-1.0, 1.0),
             gains: [0.0; 2],
             steps: [0.0; 2],
+            grain: Grain {
+                age: 0.0,
+                length: GRAIN_SECONDS[0],
+                wait: -1.0,
+            },
             mask: 1.0,
             frequency: 0.0,
             strength: 0.0,
             level: 0.0,
         }
+    }
+}
+
+/// A partial's grains: a burst shaped like a raised sine, then a random wait.
+#[derive(Clone, Copy)]
+struct Grain {
+    age: f32,
+    length: f32,
+    /// Seconds to the next burst; negative before the first, which starts at random.
+    wait: f32,
+}
+
+impl Grain {
+    /// The envelope after `seconds` more, from 0 to 1.
+    fn advance(&mut self, seconds: f32, rng: &mut Rng) -> f32 {
+        if self.wait < 0.0 {
+            self.wait = rng.range(1e-3, GRAIN_SECONDS[1] / GRAIN_DUTY);
+        }
+        if self.wait > 0.0 {
+            self.wait -= seconds;
+            if self.wait > 0.0 {
+                return 0.0;
+            }
+            self.age = 0.0;
+            self.length = rng.range(GRAIN_SECONDS[0], GRAIN_SECONDS[1]);
+        }
+        self.age += seconds;
+        if self.age >= self.length {
+            let mean = self.length * (1.0 - GRAIN_DUTY) / GRAIN_DUTY;
+            self.wait = -(1.0 - rng.unit()).ln() * mean;
+            return 0.0;
+        }
+        let shape = (std::f32::consts::PI * self.age / self.length).sin();
+        shape * shape
     }
 }
 
@@ -460,7 +515,8 @@ impl Bed {
         let tilt = lerp(0.15, -0.3, warmth);
         // The height of the light tilts the chord, as an exponent of the frequency.
         let lift = settings.height_tilt * 2.0 * (params.image.height - 0.5) / 6.02;
-        let depth = (0.45 + 0.35 * params.activity + 0.15 * warmth).min(0.95);
+        let depth =
+            (0.45 + 0.35 * params.activity + 0.15 * warmth).min(0.95) * settings.motion.at(params.form);
         let partial_rate = (0.02 + 0.2 * params.flow) * (1.0 + warmth) * block_seconds;
         let tone_rate = (0.01 + 0.08 * params.flow) * block_seconds;
         let sweep_rate = (0.01 + 0.06 * params.flow) * block_seconds;
@@ -634,6 +690,13 @@ impl Bed {
                 (target - *normalization) * coefficient(0.4, self.sample_rate / BLOCK as f32);
         }
 
+        // Grains keep the chord's loudness: the mean power of the burst envelope (a raised
+        // sine squared) is 3/8 of the time it sounds.
+        let grains = settings.grains.at(params.form).clamp(0.0, 1.0);
+        let grained = (1.0 - grains).powi(2)
+            + grains * (1.0 - grains) * GRAIN_DUTY
+            + grains * grains * 0.375 * GRAIN_DUTY;
+        let grain_gain = 1.0 / grained.sqrt();
         for set in &mut self.sets {
             for tone_index in 0..set.count {
                 let normalization = self.normalization[(tone_index > 0) as usize];
@@ -646,6 +709,10 @@ impl Bed {
                         1.0 - self.chord_gate * lerp(0.6, 1.0, warmth) * top
                     };
                     let mut main = partial.level * normalization * accent;
+                    if grains > 0.0 && tone_index > 0 {
+                        let burst = partial.grain.advance(block_seconds, &mut self.rng);
+                        main *= (1.0 - grains + grains * burst) * grain_gain;
+                    }
                     if let Some(filter) = filter.filter(|_| tone_index > 0) {
                         let response =
                             resonant_lowpass(partial.frequency, filter.cutoff, filter.resonance);

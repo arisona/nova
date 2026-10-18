@@ -17,7 +17,7 @@ use crate::instruments::strata::space::{self, Space};
 use crate::params::Params;
 use crate::score::{Pattern, Patterns, Score, Throws};
 use crate::signals::{Change, Now, Signals};
-use crate::voices::{Air, Bed, Bell, bed, bell};
+use crate::voices::{Air, Bed, Bell, Strike, bed, bell};
 
 /// Shoal's rhythm. Bells from a rhythm of 0.2, from straight (cold) to syncopated (warm); a gong
 /// from 0.1 on every phrase, its fifth at the half from 0.4; a soft half-time kick from 0.6
@@ -125,6 +125,7 @@ pub struct Shoal {
     count: usize,
     root: f32,
     heat: f32,
+    form: f32,
     drone: f32,
     rings: u64,
 }
@@ -145,6 +146,7 @@ impl Shoal {
             count: 0,
             root: 0.0,
             heat: 0.5,
+            form: 0.5,
             drone: 1.0,
             rings: 0,
         };
@@ -213,12 +215,13 @@ impl Shoal {
             None => {}
         }
         self.heat = params.heat;
+        self.form = params.form;
         let [below, under] = self.preset.drone;
         self.drone = lerp(below, under, smoothstep(0.2, 0.6, params.rhythm));
         self.bells.normalize();
         self.gong.normalize();
         self.bed.update_block(params, signals);
-        self.air.update_block(params);
+        self.air.update_block(params, 0.0);
         self.pulse.update_block(params, signals);
         self.space
             .update_block(params, signals.tempo, signals.echo, 0.0);
@@ -231,13 +234,23 @@ impl Shoal {
             if hits.bell > 0.0 {
                 // Even and odd 16ths interlock from either side.
                 let pan = if step.is_multiple_of(2) { -0.45 } else { 0.45 };
-                let frequency = self.degree(hits.degree);
-                self.bells.trigger(hits.bell, frequency, pan, self.heat);
+                self.bells.trigger(Strike {
+                    velocity: hits.bell,
+                    frequency: self.degree(hits.degree),
+                    pan,
+                    heat: self.heat,
+                    form: self.form,
+                });
                 self.rings += 1;
             }
             if hits.bass > 0.0 {
-                self.gong
-                    .trigger(hits.bass, self.root * hits.note, 0.0, self.heat);
+                self.gong.trigger(Strike {
+                    velocity: hits.bass,
+                    frequency: self.root * hits.note,
+                    pan: 0.0,
+                    heat: self.heat,
+                    form: self.form,
+                });
             }
         }
         let mut pulse = self.pulse.next(now);

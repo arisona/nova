@@ -281,7 +281,7 @@ impl Fathom {
             filter.settle();
         }
         self.bed.update_block(params, signals);
-        self.air.update_block(params);
+        self.air.update_block(params, 0.0);
         self.pulse.update_block(params, signals);
         let [drone, stabs] = self.reverb;
         self.space

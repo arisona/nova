@@ -4,10 +4,11 @@
 //! detuned by a few Hz, as a gamelan tunes its paired instruments apart so they shimmer
 //! (ombak). Cold is glass: bright, clear modes and a shorter ring; warm is bronze: darker,
 //! longer and wider beating. Soft notes are darker than hard ones. With other settings the
-//! same voice is a gong: low, slow to speak and long. Notes ring on over each other; a note
-//! that has to make room fades out over 3 ms.
+//! same voice is a gong: low, slow to speak and long. Form turns ringing bars into damped
+//! ones, struck harder, as gamelan players damp each note with the hand. Notes ring on over
+//! each other; a note that has to make room fades out over 3 ms.
 
-use crate::dsp::{Rotor, lerp, smooth};
+use crate::dsp::{Curve, Rotor, lerp, smooth};
 
 /// Modes per note, and notes ringing at once.
 const MODES: usize = 4;
@@ -28,6 +29,12 @@ pub struct Settings {
     pub beat: [f32; 2],
     /// Seconds the note takes to speak.
     pub attack: f32,
+    /// How long notes ring over Form, as a factor of `decay`: on at the layers, damped at
+    /// the grain.
+    pub ring: Curve,
+    /// How hard the mallet strikes over Form: each mode above the first by this factor more,
+    /// brighter at the grain.
+    pub mallet: Curve,
 }
 
 impl Settings {
@@ -40,6 +47,8 @@ impl Settings {
         damping: 1.6,
         beat: [1.8, 3.2],
         attack: 0.0015,
+        ring: Curve(&[[0.0, 2.0], [0.5, 1.0], [1.0, 0.25]]),
+        mallet: Curve(&[[0.0, 0.7], [0.5, 1.0], [1.0, 1.5]]),
     };
 
     /// A gong: nearly harmonic, slow to speak, ringing for seconds, beating slowly.
@@ -51,6 +60,9 @@ impl Settings {
         damping: 0.8,
         beat: [0.8, 1.4],
         attack: 0.025,
+        // The gong frames the phrases whatever the texture.
+        ring: Curve::ONE,
+        mallet: Curve::ONE,
     };
 }
 
@@ -63,7 +75,17 @@ struct Note {
     age: f32,
     /// Gain while making room for the next note, and that note.
     gain: f32,
-    pending: Option<(f32, f32, f32, f32)>,
+    pending: Option<Strike>,
+}
+
+/// How a note is struck: velocity, frequency, pan, Heat and Form.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Strike {
+    pub velocity: f32,
+    pub frequency: f32,
+    pub pan: f32,
+    pub heat: f32,
+    pub form: f32,
 }
 
 impl Note {
@@ -96,41 +118,33 @@ impl Bell {
         }
     }
 
-    /// Strikes a note at `frequency`, panned from −1 (left) to 1 (right). It takes the
-    /// quietest of the ringing notes' place.
-    pub fn trigger(&mut self, velocity: f32, frequency: f32, pan: f32, heat: f32) {
+    /// Strikes a note, panned from −1 (left) to 1 (right). It takes the quietest of the
+    /// ringing notes' place.
+    pub fn trigger(&mut self, strike: Strike) {
         let note = self
             .notes
             .iter_mut()
             .min_by(|a, b| a.loudness().total_cmp(&b.loudness()))
             .expect("notes");
         if note.loudness() > 1e-4 {
-            note.pending = Some((velocity, frequency, pan, heat));
+            note.pending = Some(strike);
         } else {
-            Self::start(
-                note,
-                &self.settings,
-                self.sample_rate,
-                velocity,
-                frequency,
-                pan,
-                heat,
-            );
+            Self::start(note, &self.settings, self.sample_rate, strike);
         }
     }
 
-    fn start(
-        note: &mut Note,
-        settings: &Settings,
-        sample_rate: f32,
-        velocity: f32,
-        frequency: f32,
-        pan: f32,
-        heat: f32,
-    ) {
+    fn start(note: &mut Note, settings: &Settings, sample_rate: f32, strike: Strike) {
+        let Strike {
+            velocity,
+            frequency,
+            pan,
+            heat,
+            form,
+        } = strike;
         let warmth = smooth(heat);
         let beat = lerp(settings.beat[0], settings.beat[1], warmth);
-        let decay = lerp(settings.decay[0], settings.decay[1], warmth);
+        let decay = lerp(settings.decay[0], settings.decay[1], warmth) * settings.ring.at(form);
+        let mallet = settings.mallet.at(form);
         let top = 0.45 * sample_rate;
         for mode in 0..MODES {
             let ratio = settings.ratios[mode];
@@ -138,8 +152,8 @@ impl Bell {
                 rotor.set_frequency((frequency + twin as f32 * beat) * ratio, sample_rate);
             }
             let level = lerp(settings.cold[mode], settings.warm[mode], warmth);
-            // Soft notes are darker.
-            let softness = velocity.powf(mode as f32 * 0.5);
+            // Soft notes are darker, a hard mallet brighter.
+            let softness = velocity.powf(mode as f32 * 0.5) * mallet.powi(mode as i32);
             note.levels[mode] = if frequency * ratio < top {
                 0.5 * velocity * level * softness
             } else {
@@ -174,16 +188,8 @@ impl Bell {
             if note.pending.is_some() {
                 note.gain -= fade;
                 if note.gain <= 0.0 {
-                    let (velocity, frequency, pan, heat) = note.pending.take().unwrap_or_default();
-                    Self::start(
-                        note,
-                        &self.settings,
-                        self.sample_rate,
-                        velocity,
-                        frequency,
-                        pan,
-                        heat,
-                    );
+                    let strike = note.pending.take().unwrap_or_default();
+                    Self::start(note, &self.settings, self.sample_rate, strike);
                 }
             }
             if note.levels[0] * note.gain < 1e-5 {
@@ -224,13 +230,27 @@ mod tests {
         let rate = 16_000.0;
         let mut bell = Bell::new(rate, Settings::BAR);
         assert_eq!(bell.next(), [0.0; 2]);
-        bell.trigger(1.0, 440.0, 0.0, 0.5);
+        let strike = |frequency, form| Strike {
+            velocity: 1.0,
+            frequency,
+            pan: 0.0,
+            heat: 0.5,
+            form,
+        };
+        bell.trigger(strike(440.0, 0.5));
         let early = peak(&mut bell, rate, 0.0, 0.1);
         let late = peak(&mut bell, rate, 2.0, 0.1);
         assert!(early > 0.3 && late < 0.2 * early, "{early}, {late}");
+        // Ringing at the layers, damped at the grain.
+        let rings = |form| {
+            let mut bell = Bell::new(rate, Settings::BAR);
+            bell.trigger(strike(440.0, form));
+            peak(&mut bell, rate, 1.5, 0.1)
+        };
+        assert!(rings(0.0) > 1.5 * rings(0.5) && rings(0.5) > 10.0 * rings(1.0));
         // More notes than places: the quietest make room.
         for index in 0..40 {
-            bell.trigger(1.0, 300.0 + 37.0 * index as f32, 0.0, 0.5);
+            bell.trigger(strike(300.0 + 37.0 * index as f32, 0.5));
             for _ in 0..400 {
                 let [left, right] = bell.next();
                 assert!(left.abs() < 2.0 * NOTES as f32 && right.is_finite());

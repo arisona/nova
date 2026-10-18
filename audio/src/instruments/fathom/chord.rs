@@ -12,12 +12,13 @@
 //! `score::Throws`).
 //!
 //! Below the first pattern, the rhythm (from Void) gives a pure drone through the low-pass,
-//! as loud as Strata's; above it, swells every second bar, which turn into stabs. Like the
+//! as loud as Strata's; above it, swells every second bar, which turn into stabs. Form sets
+//! their length, from long, legato chords at the layers to short, clipped ones at the grain. Like the
 //! pulse, the chord rests towards Flow 0, and as the rhythm dissolves, the stabs move into
 //! their echoes.
 
 use crate::BLOCK;
-use crate::dsp::{Contour, Drift, Rng, coefficient, lerp, resonance, smooth, smoothstep};
+use crate::dsp::{Contour, Curve, Drift, Rng, coefficient, lerp, resonance, smooth, smoothstep};
 use crate::harmony::{CROSSFADE_SECONDS, Harmony};
 use crate::params::Params;
 use crate::signals::{Now, Signals};
@@ -63,6 +64,9 @@ pub struct Settings {
     pub attack: [f32; 2],
     pub hold: [f32; 2],
     pub release: [f32; 2],
+    /// How long stabs are over Form, as a factor of their attack, hold and release: long and
+    /// legato at the layers, short and clipped at the grain.
+    pub length: Curve,
     /// Swell envelope: attack in seconds, hold in 16ths, release time constant in seconds.
     pub swell: [f32; 3],
     /// How far the slow ride moves the filter either way, in octaves.
@@ -99,6 +103,7 @@ impl Settings {
         attack: [0.0015, 0.005],
         hold: [0.25, 0.45],
         release: [0.07, 0.16],
+        length: Curve(&[[0.0, 2.5], [0.5, 1.0], [1.0, 0.45]]),
         swell: [0.5, 4.0, 1.2],
         ride: 0.8,
         height: 1.0,
@@ -395,19 +400,21 @@ impl Chord {
         let morph = self.morph;
         let sixteenth = 15.0 / self.tempo.max(1.0);
         let [swell_attack, swell_hold, swell_release] = settings.swell;
+        let length = settings.length.at(self.params.form);
         let attack = log_lerp(
             swell_attack,
-            lerp(settings.attack[0], settings.attack[1], warmth),
+            lerp(settings.attack[0], settings.attack[1], warmth) * length,
             morph,
         );
         let hold = log_lerp(
             swell_hold,
-            lerp(settings.hold[0], settings.hold[1], warmth),
+            lerp(settings.hold[0], settings.hold[1], warmth) * length,
             morph,
         ) * sixteenth;
         let release = log_lerp(
             swell_release,
-            lerp(settings.release[0], settings.release[1], warmth) * 100.0 / self.tempo.max(1.0),
+            lerp(settings.release[0], settings.release[1], warmth) * length * 100.0
+                / self.tempo.max(1.0),
             morph,
         ) * if self.thrown { 1.5 } else { 1.0 };
         // The stab's gain stays continuous: the new velocity takes over from where the
@@ -531,6 +538,44 @@ mod tests {
             }
         }
         (chord.count(), thrown, boost, stab)
+    }
+
+    #[test]
+    fn form_sets_how_long_stabs_last() {
+        // Samples a stab stays above a quarter of its peak, on average.
+        let sounding = |form: f32| {
+            let palettes: [Palette; 1] = [palette()];
+            let harmony = Harmony::from_palette(&palettes[0]);
+            let mut conductor = Conductor::new(RATE, harmony, SCORE, 1);
+            let mut signals = Signals::new(harmony);
+            let mut chord = Chord::new(
+                RATE,
+                Settings::DEFAULT,
+                [180.0, 720.0],
+                &harmony,
+                Rng::new(1),
+            );
+            let params = Params {
+                form,
+                ..Params::default()
+            };
+            let mut levels = Vec::new();
+            for frame in 0..(RATE as usize * 12) {
+                if frame % BLOCK == 0 {
+                    conductor.update_block(&params, &Controls::default(), 0.0, &palettes, &mut signals);
+                    chord.update_block(&params, &signals);
+                }
+                levels.push(chord.next(&conductor.next()).dry);
+            }
+            let peak = levels.iter().copied().fold(0.0, f32::max);
+            let above = levels.iter().filter(|&&level| level > 0.25 * peak).count();
+            above as f32 / chord.count() as f32
+        };
+        let [legato, neutral, clipped] = [0.0, 0.5, 1.0].map(sounding);
+        assert!(
+            legato > 1.5 * neutral && neutral > 1.5 * clipped,
+            "{legato}, {neutral}, {clipped}"
+        );
     }
 
     #[test]

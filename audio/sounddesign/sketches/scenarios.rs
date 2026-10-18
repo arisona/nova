@@ -80,6 +80,10 @@ impl Script<'_> {
         self.flow = value;
     }
 
+    pub fn set_form(&mut self, value: f32) {
+        self.form = value;
+    }
+
     pub fn set_void(&mut self, value: f32) {
         self.void = value;
     }
@@ -383,6 +387,17 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
                 state.set_height(t);
             },
         ),
+        scenario(
+            "strata_13_texture",
+            "Form from 0 to 1 (Void 0.8): still layers, then the chord breaks into grains and \
+             the air into dust",
+            90.0,
+            euclidean,
+            |t, state| {
+                state.set_void(0.8);
+                state.set_form(t);
+            },
+        ),
     ]
 }
 
@@ -442,6 +457,16 @@ fn shoal_scenarios() -> Vec<Spec> {
                 state.set_heat(0.5);
                 state.set_void(0.65);
                 state.set_flow(0.6);
+            },
+        ),
+        scenario(
+            "shoal_06_texture",
+            "Form from 0 to 1 (Void 0.3): ringing bells, then damped ones, struck harder",
+            90.0,
+            shoal,
+            |t, state| {
+                state.set_void(0.3);
+                state.set_form(t);
             },
         ),
     ]
@@ -597,6 +622,16 @@ fn fathom_scenarios(palettes: usize) -> Vec<Spec> {
             |t, state| {
                 state.set_void(0.3);
                 state.set_balance(2.0 * t - 1.0);
+            },
+        ),
+        scenario(
+            "fathom_15_texture",
+            "Form from 0 to 1 (Void 0.3): long, legato chords, then short, clipped stabs",
+            90.0,
+            fathom,
+            |t, state| {
+                state.set_void(0.3);
+                state.set_form(t);
             },
         ),
     ]

@@ -1,10 +1,14 @@
 //! The air: noise through narrow resonators tuned to the harmony, folded into 500 Hz to
-//! 4 kHz. Wind and breath, strongest when cold.
+//! 4 kHz. Wind and breath, strongest when cold. Dust instead of noise, sparse impulses that
+//! ring the resonators like grains of sand on glass, turns the breath into a crackle.
 
 use crate::BLOCK;
 use crate::dsp::{Drift, Rng, Svf, coefficient, lerp, smooth};
 use crate::harmony::{Harmony, MAX_TONES};
 use crate::params::Params;
+
+/// Impulses per second of the dust.
+const DUST_RATE: f32 = 150.0;
 
 pub struct Air {
     sample_rate: f32,
@@ -16,6 +20,9 @@ pub struct Air {
     count: usize,
     level: f32,
     step: f32,
+    /// How much of the noise is dust, and the gains of noise and dust for it.
+    dust: f32,
+    mix: [f32; 2],
     rng: Rng,
 }
 
@@ -31,6 +38,8 @@ impl Air {
             count: 0,
             level: 0.0,
             step: 0.0,
+            dust: 0.0,
+            mix: [1.0, 0.0],
             rng,
         };
         air.change(harmony);
@@ -62,7 +71,8 @@ impl Air {
         self.count = harmony.count;
     }
 
-    pub fn update_block(&mut self, params: &Params) {
+    /// `dust` is how much of the noise is dust, from 0 to 1.
+    pub fn update_block(&mut self, params: &Params, dust: f32) {
         let block_seconds = BLOCK as f32 / self.sample_rate;
         let glide = coefficient(2.0, self.sample_rate / BLOCK as f32);
         let warmth = smooth(params.heat);
@@ -85,12 +95,27 @@ impl Air {
         }
         let target = lerp(0.09, 0.025, warmth) * (0.8 + 0.5 * params.void);
         self.step = (target - self.level) / BLOCK as f32;
+        // Dust as loud as the noise: uniform noise has a variance of 1/3.
+        self.dust = dust.clamp(0.0, 1.0);
+        let impulse = (self.sample_rate / (3.0 * DUST_RATE)).sqrt();
+        self.mix = [(1.0 - self.dust).sqrt(), self.dust.sqrt() * impulse];
     }
 
     #[inline]
     pub fn next(&mut self) -> [f32; 2] {
         self.level += self.step;
-        let noise = [self.rng.range(-1.0, 1.0), self.rng.range(-1.0, 1.0)];
+        let mut noise = [self.rng.range(-1.0, 1.0), self.rng.range(-1.0, 1.0)];
+        if self.dust > 0.0 {
+            let chance = DUST_RATE / self.sample_rate;
+            for sample in &mut noise {
+                let grain = if self.rng.unit() < chance {
+                    if self.rng.unit() < 0.5 { -1.0 } else { 1.0 }
+                } else {
+                    0.0
+                };
+                *sample = *sample * self.mix[0] + grain * self.mix[1];
+            }
+        }
         let mut output = [0.0; 2];
         for index in 0..self.count {
             for channel in 0..2 {

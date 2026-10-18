@@ -13,7 +13,7 @@ pub mod tick;
 
 pub use air::Air;
 pub use bed::Bed;
-pub use bell::Bell;
+pub use bell::{Bell, Strike};
 pub use dub_delay::DubDelay;
 pub use reverb::Reverb;
 pub use stab::Stab;

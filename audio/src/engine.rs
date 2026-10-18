@@ -576,6 +576,25 @@ mod tests {
     }
 
     #[test]
+    fn form_changes_the_texture_but_roughly_keeps_the_loudness() {
+        for (name, preset) in presets() {
+            let levels: Vec<f32> = [0.0, 0.5, 1.0]
+                .iter()
+                .map(|&form| {
+                    let mut engine = engine(4, &preset);
+                    engine.set_controls(Controls { form, ..loud() });
+                    rms(&mut engine, 2.0);
+                    rms(&mut engine, 8.0)
+                })
+                .collect();
+            for level in [levels[0], levels[2]] {
+                let ratio = 20.0 * (level / levels[1]).log10();
+                assert!(ratio.abs() < 4.0, "{name}: {levels:?}");
+            }
+        }
+    }
+
+    #[test]
     fn bass_is_mono_and_palette_changes_do_not_click() {
         for (name, preset) in presets() {
             let mut engine = engine(11, &preset);

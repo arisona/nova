@@ -3,12 +3,13 @@
 //! The bed and the air follow the conductor's harmony; the pulse plays on its grid; the
 //! drone (chord, air and reverb) follows the pulse sample by sample; the space adds the dub
 //! delay, the reverb and distance. Void moves it from ambient to rhythmic and back into
-//! the distance.
+//! the distance; Form from still layers to grain: the chord breaks into grains, the air
+//! into dust.
 
 pub mod pulse;
 pub mod space;
 
-use crate::dsp::Rng;
+use crate::dsp::{Curve, Rng};
 use crate::harmony::Harmony;
 use crate::params::Params;
 use crate::score::{Pattern, Patterns, Score, Throws};
@@ -56,14 +57,22 @@ pub struct Preset {
     pub bed: bed::Settings,
     pub pulse: pulse::Settings,
     pub space: space::Settings,
+    /// How much of the air is dust over Form, from 0 to 1.
+    pub dust: Curve,
 }
 
 impl Preset {
     pub const DEFAULT: Self = Self {
         score: SCORE,
-        bed: bed::Settings::DEFAULT,
+        bed: bed::Settings {
+            // Still layers, and grains above the middle.
+            motion: Curve(&[[0.0, 0.35], [0.5, 1.0]]),
+            grains: Curve(&[[0.5, 0.0], [1.0, 0.85]]),
+            ..bed::Settings::DEFAULT
+        },
         pulse: pulse::Settings::DEFAULT,
         space: space::Settings::DEFAULT,
+        dust: Curve(&[[0.5, 0.0], [1.0, 0.75]]),
     };
 
     /// Strata with ticks in loops of 12 steps and stabs in loops of 7, which phase against
@@ -89,6 +98,7 @@ pub struct Strata {
     air: Air,
     pulse: Pulse,
     space: Space,
+    dust: Curve,
 }
 
 impl Strata {
@@ -100,6 +110,7 @@ impl Strata {
             air: Air::new(sample_rate, harmony, Rng::new(rng.next_u64())),
             pulse: Pulse::new(sample_rate, preset.pulse, harmony, Rng::new(rng.next_u64())),
             space: Space::new(sample_rate, preset.space),
+            dust: preset.dust,
         }
     }
 
@@ -127,7 +138,7 @@ impl Strata {
             None => {}
         }
         self.bed.update_block(params, signals);
-        self.air.update_block(params);
+        self.air.update_block(params, self.dust.at(params.form));
         self.pulse.update_block(params, signals);
         self.space
             .update_block(params, signals.tempo, signals.echo, 0.0);

@@ -61,6 +61,10 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
 pub struct Curve(pub &'static [[f32; 2]]);
 
 impl Curve {
+    /// 0 and 1 everywhere, for answers that stay off or neutral.
+    pub const ZERO: Self = Self(&[[0.0, 0.0]]);
+    pub const ONE: Self = Self(&[[0.0, 1.0]]);
+
     pub fn at(&self, x: f32) -> f32 {
         let points = self.0;
         if x <= points[0][0] {
