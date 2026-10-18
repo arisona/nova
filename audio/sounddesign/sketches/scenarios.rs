@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use nova_audio::strata;
 use nova_audio::{Preset, fathom, shoal};
-use nova_core::{Bus, Controls, Features, HUES};
+use nova_core::{Bus, Controls, Features};
 use nova_voxel::{MODULE_X_RES, MODULE_Y_RES, MODULE_Z_RES, Renderer, Settings, all_content_names};
 
 /// The display's frame time.
@@ -13,19 +13,6 @@ pub const FRAME_SECONDS: f32 = 0.04;
 
 /// Seconds of each content module's scenario.
 const MODULE_SECONDS: f32 = 45.0;
-
-/// The image of scripted scenarios, neutral: gray light, half the voxels lit, centred and
-/// spread evenly, with activity in the middle of the range the sound follows (0.003 to 0.3
-/// on a logarithmic scale).
-const IMAGE: Features = Features {
-    level: 0.25,
-    balance: 0.0,
-    width: 1.0,
-    height: 0.5,
-    density: 0.5,
-    activity: 0.03,
-    hues: [0.0; HUES],
-};
 
 /// A display frame: what the engine plays from until the next one, as the bus carries it.
 #[derive(Clone, Copy, Debug)]
@@ -46,7 +33,7 @@ pub struct Scenario {
 
 /// The sliders a scripted scenario moves, and the light it hands over. Every control
 /// starts at 0.5 and the palette at the first one; the sound moves them by the global
-/// tides, as it does live. The light starts neutral (`IMAGE`).
+/// tides, as it does live. The light starts neutral (`Features::NEUTRAL`).
 pub struct Script<'a> {
     names: &'a [String],
     /// Position in the palettes.
@@ -98,6 +85,16 @@ impl Script<'_> {
         self.image.density = value;
     }
 
+    /// How far the light spreads from left to right, from 0 in one column to 1.
+    pub fn set_width(&mut self, value: f32) {
+        self.image.width = value;
+    }
+
+    /// The mean luminance, which over the share of lit voxels is the glow.
+    pub fn set_level(&mut self, value: f32) {
+        self.image.level = value;
+    }
+
     /// Where the light sits, from −1 on the left to 1 on the right.
     pub fn set_balance(&mut self, value: f32) {
         self.image.balance = value;
@@ -141,7 +138,7 @@ pub fn script(names: &[String], seconds: f32, set: impl Fn(f32, &mut Script)) ->
         flow: 0.5,
         form: 0.5,
         void: 0.5,
-        image: IMAGE,
+        image: Features::NEUTRAL,
     };
     let mut clock = 0.0;
     (0..count)
@@ -396,6 +393,38 @@ fn strata_scenarios(palettes: usize) -> Vec<Spec> {
             |t, state| {
                 state.set_void(0.8);
                 state.set_form(t);
+            },
+        ),
+        scenario(
+            "strata_14_density_sweep",
+            "From all voxels lit to none (Void 0.8): sparse light fills the space with air \
+             and hall",
+            60.0,
+            euclidean,
+            |t, state| {
+                state.set_void(0.8);
+                state.set_density(1.0 - t);
+                state.set_level(0.5 * (1.0 - t));
+            },
+        ),
+        scenario(
+            "strata_15_width_sweep",
+            "From light spread out to light in one column (Void 0.8): a narrower image",
+            60.0,
+            euclidean,
+            |t, state| {
+                state.set_void(0.8);
+                state.set_width(1.0 - t);
+            },
+        ),
+        scenario(
+            "strata_16_glow_sweep",
+            "From dim to glowing lit voxels (Void 0.8): the hall brightens",
+            60.0,
+            euclidean,
+            |t, state| {
+                state.set_void(0.8);
+                state.set_level(0.5 * t);
             },
         ),
     ]

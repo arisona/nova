@@ -339,7 +339,7 @@ fn partial_twin(twin: f32, frequency: f32) -> f32 {
 /// the chord's colors on average come forward, by up to `decibels` at twice the average,
 /// the others step back. Grayer light moves them less; the root and tones without a color
 /// stay as they are.
-struct Voicing<'a> {
+pub(crate) struct Voicing<'a> {
     hues: &'a [f32; HUES],
     /// The average share of the chord's colors, or 0 if they do not show.
     average: f32,
@@ -348,7 +348,7 @@ struct Voicing<'a> {
 }
 
 impl<'a> Voicing<'a> {
-    fn new(tones: &[Tone], hues: &'a [f32; HUES], decibels: f32) -> Self {
+    pub(crate) fn new(tones: &[Tone], hues: &'a [f32; HUES], decibels: f32) -> Self {
         let mut voicing = Self {
             hues,
             average: 0.0,
@@ -378,7 +378,7 @@ impl<'a> Voicing<'a> {
         self.hues[below] * (1.0 - fraction) + self.hues[(below + 1) % HUES] * fraction
     }
 
-    fn gain(&self, tone: &Tone) -> f32 {
+    pub(crate) fn gain(&self, tone: &Tone) -> f32 {
         match Self::color(tone) {
             Some(hue) if self.average > 1e-6 => {
                 let lean = (self.share(hue) / self.average - 1.0).clamp(-1.0, 1.0);

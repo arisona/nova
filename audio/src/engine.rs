@@ -28,6 +28,10 @@ use master::Master;
 /// on the first phrase start past halfway.
 const MIX_SECONDS: f32 = 5.0;
 
+/// How strongly the image shapes the sound: 0 ignores it (the sound hears neutral light,
+/// `Features::NEUTRAL`, and no onsets), 1 answers it fully, more exaggerates it.
+const IMAGE_WEIGHT: f32 = 1.0;
+
 /// Range of visual activity the sound follows, on a logarithmic scale: calm content (about
 /// 0.005) still differs, busy content (about 0.2) does not all sound the same.
 const ACTIVITY_RANGE: [f32; 2] = [0.003, 0.3];
@@ -194,11 +198,12 @@ impl Engine {
 
     fn update_block(&mut self) {
         let block_rate = self.sample_rate / BLOCK as f32;
+        let light = Features::NEUTRAL.towards(&self.light, IMAGE_WEIGHT);
         let controls = if self.primed {
             coefficient(0.08, block_rate)
         } else {
             self.primed = true;
-            self.params.image = self.light;
+            self.params.image = light;
             1.0
         };
         let target = tides::effective(&self.controls, self.clock);
@@ -212,7 +217,7 @@ impl Engine {
         params.flow_setting += (self.controls.flow - params.flow_setting) * controls;
 
         let image = coefficient(2.5, block_rate);
-        let (smoothed, features) = (&mut params.image, &self.light);
+        let (smoothed, features) = (&mut params.image, &light);
         for (smoothed, target) in [
             (&mut smoothed.level, features.level),
             (&mut smoothed.balance, features.balance),
@@ -226,7 +231,9 @@ impl Engine {
         for (smoothed, &target) in smoothed.hues.iter_mut().zip(&features.hues) {
             *smoothed += (target - *smoothed) * image;
         }
-        let (activity, onset) = self.activity.update(self.light.activity, 1.0 / block_rate);
+        let (activity, onset) = self
+            .activity
+            .update(light.activity.max(0.0), 1.0 / block_rate);
         params.activity = activity;
         self.signals.onset = onset;
 
@@ -601,6 +608,29 @@ mod tests {
                 assert!(ratio.abs() < 4.0, "{name}: {levels:?}");
             }
         }
+    }
+
+    #[test]
+    fn gathered_light_narrows_the_image() {
+        // Side to mid energy over a few seconds of Strata, with the light in one column or
+        // spread out.
+        let side_to_mid = |width| {
+            let mut engine = engine(3, &Preset::default());
+            engine.set_light(Features {
+                width,
+                ..Features::NEUTRAL
+            });
+            rms(&mut engine, 4.0);
+            let (mut mid, mut side) = (0.0, 0.0);
+            for _ in 0..(RATE as usize * 4) {
+                let [left, right] = engine.next_frame();
+                mid += (left + right) * (left + right);
+                side += (left - right) * (left - right);
+            }
+            side / mid
+        };
+        let (narrow, wide) = (side_to_mid(0.0), side_to_mid(1.0));
+        assert!(narrow < 0.6 * wide, "{narrow} vs {wide}");
     }
 
     #[test]

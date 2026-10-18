@@ -4,7 +4,7 @@
 //! drone (chord, air and reverb) follows the pulse sample by sample; the space adds the dub
 //! delay, the reverb and distance. Void moves it from ambient to rhythmic and back into
 //! the distance; Form from still layers to grain: the chord breaks into grains, the air
-//! into dust.
+//! into dust. Sparse light fills the space with more air and hall.
 
 pub mod pulse;
 pub mod space;
@@ -59,6 +59,10 @@ pub struct Preset {
     pub space: space::Settings,
     /// How much of the air is dust over Form, from 0 to 1.
     pub dust: Curve,
+    /// How sparse light fills the space: as the share of lit voxels falls from half to
+    /// nothing, the air and the hall grow by up to this many dB (see `Features::density`);
+    /// 0 ignores the density.
+    pub sparse: f32,
     /// Output level in dB, so the instruments meet at the same loudness (see the sketches'
     /// report).
     pub level: f32,
@@ -76,6 +80,7 @@ impl Preset {
         pulse: pulse::Settings::DEFAULT,
         space: space::Settings::DEFAULT,
         dust: Curve(&[[0.5, 0.0], [1.0, 0.75]]),
+        sparse: 3.0,
         level: -0.6,
     };
 
@@ -103,6 +108,10 @@ pub struct Strata {
     pulse: Pulse,
     space: Space,
     dust: Curve,
+    sparse: f32,
+    reverb_level: f32,
+    /// The gain of the air from sparse light.
+    air_gain: f32,
 }
 
 impl Strata {
@@ -115,6 +124,9 @@ impl Strata {
             pulse: Pulse::new(sample_rate, preset.pulse, harmony, Rng::new(rng.next_u64())),
             space: Space::new(sample_rate, preset.space),
             dust: preset.dust,
+            sparse: preset.sparse,
+            reverb_level: preset.space.reverb_level,
+            air_gain: 1.0,
         }
     }
 
@@ -143,6 +155,11 @@ impl Strata {
         }
         self.bed.update_block(params, signals);
         self.air.update_block(params, self.dust.at(params.form));
+        // Sparse light fills the space, a complement rather than a mirror.
+        let sparseness = ((0.5 - params.image.density) * 2.0).clamp(0.0, 1.0);
+        self.air_gain = 10.0_f32.powf(self.sparse * sparseness / 20.0);
+        self.space
+            .set_reverb_level(self.reverb_level * self.air_gain);
         self.pulse.update_block(params, signals);
         self.space
             .update_block(params, signals.tempo, signals.echo, 0.0);
@@ -154,7 +171,10 @@ impl Strata {
         // The drone follows the pulse: chord, air and reverb dip with each thump and with
         // the chord gate.
         let bed = self.bed.next(pulse.drone);
-        let air = self.air.next().map(|sample| sample * pulse.drone);
+        let air = self
+            .air
+            .next()
+            .map(|sample| sample * pulse.drone * self.air_gain);
         self.space.process(bed, air, pulse)
     }
 

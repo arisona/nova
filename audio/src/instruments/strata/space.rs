@@ -2,11 +2,13 @@
 //!
 //! The pulse feeds the dub delay; everything feeds the reverb (see `voices/reverb.rs`), whose
 //! input is high-passed so the bass stays dry and clean. Void moves the sound away: less and
-//! darker dry signal above the bass, more reverb. The reverb follows the drone's dip.
+//! darker dry signal above the bass, more reverb. The reverb follows the drone's dip. The
+//! glow of the light brightens the hall, and light gathered in one place narrows the stereo
+//! image above the bass.
 
 use super::pulse::PulseOut;
 use crate::BLOCK;
-use crate::dsp::{Svf, lerp};
+use crate::dsp::{Svf, lerp, smoothstep};
 use crate::params::Params;
 use crate::voices::{DubDelay, Reverb, dub_delay};
 
@@ -22,6 +24,14 @@ pub struct Settings {
     pub echo_level: f32,
     /// How far the echoes dip with the drone (with the thumps), from 0 to 1.
     pub echo_duck: f32,
+    /// How far the glow of the light moves the hall's damping, in octaves either way: up
+    /// for lit voxels at full brightness, down for dim ones, not for those at half (see
+    /// `Features::glow`); 0 ignores the glow.
+    pub glow: f32,
+    /// Width of the stereo image above the bass for light gathered in a single column, as
+    /// a factor of the side signal; light spread out keeps it whole (see
+    /// `Features::width`). 1 ignores the width.
+    pub narrow: f32,
     pub dub: dub_delay::Settings,
 }
 
@@ -32,6 +42,8 @@ impl Settings {
         reverb_level: 1.55,
         echo_level: 0.6,
         echo_duck: 0.0,
+        glow: 1.0,
+        narrow: 0.6,
         dub: dub_delay::Settings::DEFAULT,
     };
 }
@@ -49,6 +61,10 @@ pub struct Space {
     dry_step: f32,
     wet: f32,
     wet_step: f32,
+    /// The hall's damping in Hz now, and the side signal's gain above the bass.
+    damping_hz: f32,
+    side: f32,
+    side_step: f32,
 }
 
 impl Space {
@@ -71,6 +87,9 @@ impl Space {
             dry_step: 0.0,
             wet: settings.reverb_level,
             wet_step: 0.0,
+            damping_hz: settings.reverb_damping,
+            side: 1.0,
+            side_step: 0.0,
         }
     }
 
@@ -94,6 +113,17 @@ impl Space {
         for filter in &mut self.damping {
             filter.set(cutoff, 0.6, self.sample_rate);
         }
+        // The glow of what is lit, once something is.
+        let light = &params.image;
+        let lit = smoothstep(0.0, 0.05, light.density);
+        let glow = (2.0 * light.glow() - 1.0).clamp(-1.0, 1.0) * lit;
+        let damping = self.settings.reverb_damping * 2.0_f32.powf(self.settings.glow * glow);
+        if (damping / self.damping_hz - 1.0).abs() > 0.002 {
+            self.damping_hz = damping;
+            self.reverb.set_damping(damping);
+        }
+        let side = lerp(self.settings.narrow, 1.0, smoothstep(0.1, 0.8, light.width));
+        self.side_step = (side - self.side) / BLOCK as f32;
         self.dub.update_block(tempo, echo, params.heat, boost);
         self.reverb.update_block();
     }
@@ -117,16 +147,20 @@ impl Space {
         }
         let wet = self.reverb.process(send);
 
-        let mut output = [0.0; 2];
+        self.side += self.side_step;
+        let (mut low, mut high) = ([0.0; 2], [0.0; 2]);
         for channel in 0..2 {
             let dry = bed[channel]
                 + air[channel]
                 + pulse.dry[channel]
                 + self.settings.echo_level * echoes[channel];
-            let low = self.split[channel].lowpass(dry);
-            let high = self.damping[channel].lowpass(dry - low) * self.dry;
-            output[channel] = low + high + wet[channel] * self.wet * pulse.drone;
+            low[channel] = self.split[channel].lowpass(dry);
+            high[channel] = self.damping[channel].lowpass(dry - low[channel]) * self.dry
+                + wet[channel] * self.wet * pulse.drone;
         }
-        output
+        // Narrower above the bass as the light gathers.
+        let mid = 0.5 * (high[0] + high[1]);
+        let side = 0.5 * (high[0] - high[1]) * self.side;
+        [low[0] + mid + side, low[1] + mid - side]
     }
 }

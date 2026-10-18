@@ -7,16 +7,18 @@
 //! the elaboration, from one note per beat to eighths and 16ths, as a gamelan does between
 //! its levels of density. A gong closes every phrase, and its fifth marks the half. The
 //! bed's drone sinks below the bells as they grow; with a fuller rhythm a soft kick and
-//! ticks join. Bed, air,
+//! ticks join. Visual activity strikes the bells harder, and those whose colors show in the
+//! light ring forward, like the bed's chord tones. Bed, air,
 //! pulse and space are shared with Strata.
 
 use crate::dsp::{Rng, lerp, smooth, smoothstep};
-use crate::harmony::{Harmony, MAX_TONES};
+use crate::harmony::{Harmony, MAX_TONES, Tone};
 use crate::instruments::strata::pulse::{self, Pulse};
 use crate::instruments::strata::space::{self, Space};
 use crate::params::Params;
 use crate::score::{Pattern, Patterns, Score, Throws};
 use crate::signals::{Change, Now, Signals};
+use crate::voices::bed::Voicing;
 use crate::voices::{Air, Bed, Bell, Strike, bed, bell};
 
 /// Shoal's rhythm. Bells from a rhythm of 0.2, from straight (cold) to syncopated (warm); a gong
@@ -88,6 +90,12 @@ pub struct Preset {
     pub reverb: f32,
     /// Level of the drone's chord below the bells and once they play fully.
     pub drone: [f32; 2],
+    /// How much harder the bells strike with visual activity: their velocity changes by up
+    /// to this share either way of calm and busy light; 0 ignores the activity.
+    pub strike: f32,
+    /// How far the colors of the light move the bells, in dB, as in the bed (see
+    /// `bed::Settings::voicing`); 0 ignores the colors.
+    pub voicing: f32,
     /// Output level in dB, so the instruments meet at the same loudness (see the sketches'
     /// report).
     pub level: f32,
@@ -112,6 +120,8 @@ impl Preset {
         send: [0.3, 0.45],
         reverb: 0.35,
         drone: [1.0, 0.45],
+        strike: 0.25,
+        voicing: 3.0,
         level: 1.9,
     };
 }
@@ -124,12 +134,15 @@ pub struct Shoal {
     bells: Bell,
     gong: Bell,
     preset: Preset,
-    /// The chord's tones in the lowest octave of the bells, from low to high.
-    tones: [f32; MAX_TONES],
+    /// The chord's tones in the lowest octave of the bells, from low to high, and how far
+    /// the colors of the light lean each.
+    tones: [Tone; MAX_TONES],
+    leans: [f32; MAX_TONES],
     count: usize,
     root: f32,
     heat: f32,
     form: f32,
+    activity: f32,
     drone: f32,
     rings: u64,
 }
@@ -146,11 +159,13 @@ impl Shoal {
             bells: Bell::new(sample_rate, preset.bell),
             gong: Bell::new(sample_rate, preset.gong),
             preset: *preset,
-            tones: [0.0; MAX_TONES],
+            tones: [Tone::default(); MAX_TONES],
+            leans: [1.0; MAX_TONES],
             count: 0,
             root: 0.0,
             heat: 0.5,
             form: 0.5,
+            activity: 0.5,
             drone: 1.0,
             rings: 0,
         };
@@ -175,21 +190,23 @@ impl Shoal {
             let frequency = fold(tone.frequency, low, high);
             let taken = self.tones[..self.count]
                 .iter()
-                .any(|&other| (frequency / other - 1.0).abs() < 0.01);
+                .any(|other| (frequency / other.frequency - 1.0).abs() < 0.01);
             if !taken {
-                self.tones[self.count] = frequency;
+                self.tones[self.count] = Tone { frequency, ..*tone };
                 self.count += 1;
             }
         }
-        self.tones[..self.count].sort_by(f32::total_cmp);
+        self.tones[..self.count].sort_by(|a, b| a.frequency.total_cmp(&b.frequency));
         self.root = fold(harmony.root(), 65.0, 130.0);
     }
 
-    /// The frequency of a degree of the chord, from 1: the tones climb by octaves.
-    fn degree(&self, degree: u8) -> f32 {
+    /// The frequency of a degree of the chord, from 1, and how far the light leans it: the
+    /// tones climb by octaves.
+    fn degree(&self, degree: u8) -> (f32, f32) {
         let index = degree.max(1) as usize - 1;
         let count = self.count.max(1);
-        self.tones[index % count] * (1 << (index / count)) as f32
+        let frequency = self.tones[index % count].frequency * (1 << (index / count)) as f32;
+        (frequency, self.leans[index % count])
     }
 
     pub fn update_block(&mut self, params: &Params, signals: &mut Signals) {
@@ -220,6 +237,15 @@ impl Shoal {
         }
         self.heat = params.heat;
         self.form = params.form;
+        self.activity = params.activity;
+        let voicing = Voicing::new(
+            &self.tones[..self.count],
+            &params.image.hues,
+            self.preset.voicing,
+        );
+        for (lean, tone) in self.leans.iter_mut().zip(&self.tones[..self.count]) {
+            *lean = voicing.gain(tone);
+        }
         let [below, under] = self.preset.drone;
         self.drone = lerp(below, under, smoothstep(0.2, 0.6, params.rhythm));
         self.bells.normalize();
@@ -238,9 +264,11 @@ impl Shoal {
             if hits.bell > 0.0 {
                 // Even and odd 16ths interlock from either side.
                 let pan = if step.is_multiple_of(2) { -0.45 } else { 0.45 };
+                let (frequency, lean) = self.degree(hits.degree);
+                let strike = 1.0 + self.preset.strike * (2.0 * self.activity - 1.0);
                 self.bells.trigger(Strike {
-                    velocity: hits.bell,
-                    frequency: self.degree(hits.degree),
+                    velocity: hits.bell * strike * lean,
+                    frequency,
                     pan,
                     heat: self.heat,
                     form: self.form,
@@ -296,9 +324,9 @@ mod tests {
         let shoal = Shoal::new(16_000.0, &Preset::DEFAULT, &harmony, 1);
         let [low, high] = Preset::DEFAULT.register;
         assert!(shoal.count >= 2);
-        let tones: Vec<f32> = (1..=9).map(|degree| shoal.degree(degree)).collect();
+        let tones: Vec<f32> = (1..=9).map(|degree| shoal.degree(degree).0).collect();
         assert!(tones.windows(2).all(|pair| pair[1] > pair[0]), "{tones:?}");
         assert!(tones[0] >= low && tones[0] < high);
-        assert_eq!(shoal.degree(1 + shoal.count as u8), 2.0 * tones[0]);
+        assert_eq!(shoal.degree(1 + shoal.count as u8).0, 2.0 * tones[0]);
     }
 }
