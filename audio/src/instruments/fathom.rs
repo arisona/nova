@@ -11,12 +11,12 @@ pub mod chord;
 use crate::BLOCK;
 use crate::dsp::{Rng, Svf, coefficient, fold, lerp, smooth};
 use crate::harmony::Harmony;
-use crate::instruments::strata::pulse::{self, Pulse};
-use crate::instruments::strata::space::{self, Space};
+use crate::instruments::drone::Drone;
+use crate::instruments::{pulse, space};
 use crate::params::Params;
 use crate::score::{Pattern, Patterns, Score};
 use crate::signals::{Change, Now, Signals};
-use crate::voices::{Air, Bed, Sub, bed, dub_delay};
+use crate::voices::{Sub, bed, dub_delay};
 use chord::Chord;
 
 pub use crate::score::Throws;
@@ -207,11 +207,8 @@ impl Preset {
 
 pub struct Fathom {
     sample_rate: f32,
-    bed: Bed,
-    air: Air,
-    pulse: Pulse,
+    drone: Drone,
     chord: Chord,
-    space: Space,
     air_level: f32,
     reverb: [f32; 2],
     /// Fourth-order Butterworth high-pass on the send, so the delay stays out of the bass.
@@ -236,9 +233,14 @@ impl Fathom {
         let register = preset.bed.register.unwrap_or(REGISTER);
         Self {
             sample_rate,
-            bed: Bed::new(sample_rate, preset.bed, harmony, Rng::new(rng.next_u64())),
-            air: Air::new(sample_rate, harmony, Rng::new(rng.next_u64())),
-            pulse: Pulse::new(sample_rate, preset.pulse, harmony, Rng::new(rng.next_u64())),
+            drone: Drone::new(
+                sample_rate,
+                preset.bed,
+                preset.pulse,
+                preset.space,
+                harmony,
+                &mut rng,
+            ),
             chord: Chord::new(
                 sample_rate,
                 preset.chord,
@@ -246,7 +248,6 @@ impl Fathom {
                 harmony,
                 Rng::new(rng.next_u64()),
             ),
-            space: Space::new(sample_rate, preset.space),
             air_level: preset.air,
             reverb: preset.reverb,
             send_filter: [
@@ -265,29 +266,10 @@ impl Fathom {
     }
 
     pub fn update_block(&mut self, params: &Params, signals: &mut Signals) {
-        // The pulse as it is after the previous block, for the bed and anyone else.
-        self.pulse.publish(signals);
-        let harmony = &signals.harmony;
-        match signals.change {
-            Some(Change::Load) => {
-                self.bed.load(harmony);
-                self.air.load(harmony);
-                self.pulse.adopt(harmony);
-                self.chord.set_harmony(harmony, true);
-            }
-            Some(Change::Palette) => {
-                self.bed.change(harmony);
-                self.air.change(harmony);
-                self.pulse.change(harmony);
-                self.chord.set_harmony(harmony, false);
-            }
-            Some(Change::Bass) => {
-                self.bed.set_bass(harmony.root());
-                self.air.change(harmony);
-                self.pulse.change(harmony);
-            }
-            Some(Change::Voice) => self.bed.move_voice(),
-            None => {}
+        match self.drone.follow(signals) {
+            Some(Change::Load) => self.chord.set_harmony(&signals.harmony, true),
+            Some(Change::Palette) => self.chord.set_harmony(&signals.harmony, false),
+            _ => {}
         }
         self.root = fold(signals.harmony.root(), 40.0, 80.0);
         self.tempo = signals.tempo.max(1.0);
@@ -300,26 +282,24 @@ impl Fathom {
         let target = (self.since_line < bar_seconds) as u8 as f32;
         self.taken += (target - self.taken) * coefficient(bar_seconds, 1.0 / block_seconds);
         self.chord.update_block(params, signals);
-        self.bed.set_filter(Some(self.chord.filter()));
+        self.drone.bed.set_filter(Some(self.chord.filter()));
         for filter in &mut self.send_filter {
             filter.settle();
         }
-        self.bed.update_block(params, signals);
-        self.air.update_block(params, 0.0);
-        self.pulse.update_block(params, signals);
         let [drone, stabs] = self.reverb;
-        self.space
-            .set_reverb_level(drone * (stabs / drone).powf(self.chord.morph()));
-        self.space.set_echo_start(self.chord.echo_start());
-        self.space
-            .update_block(params, signals.tempo, signals.echo, self.chord.boost());
+        let space = &mut self.drone.space;
+        space.set_reverb_level(drone * (stabs / drone).powf(self.chord.morph()));
+        space.set_echo_start(self.chord.echo_start());
+        self.drone
+            .update_block(params, signals, 0.0, self.chord.boost());
     }
 
     #[inline]
     pub fn next(&mut self, now: &Now) -> [f32; 2] {
-        let mut pulse = self.pulse.next(now);
+        let drone = &mut self.drone;
+        let mut pulse = drone.pulse.next(now);
         let stab = self.chord.next(now);
-        let parts = self.bed.next_parts(1.0);
+        let parts = drone.bed.next_parts(1.0);
         if now.hits.bass > 0.0 {
             let warmth = smooth(self.heat);
             let hold = lerp(self.line_hold[0], self.line_hold[1], warmth) * 15.0 / self.tempo;
@@ -336,7 +316,7 @@ impl Fathom {
             parts.bass[0] * bass + low + parts.chord[0] * gain,
             parts.bass[1] * bass + low + parts.chord[1] * gain,
         ];
-        let air = self
+        let air = drone
             .air
             .next()
             .map(|sample| sample * pulse.drone * self.air_level);
@@ -346,12 +326,12 @@ impl Fathom {
             .send_filter
             .iter_mut()
             .fold(send, |send, filter| filter.highpass(send));
-        self.space.process(bed, air, pulse)
+        drone.space.process(bed, air, pulse)
     }
 
     /// Steps played so far: thumps, ticks and chord stabs.
     pub fn steps(&self) -> [u64; 3] {
-        let [thumps, ticks, _] = self.pulse.counts();
+        let [thumps, ticks, _] = self.drone.pulse.counts();
         [thumps, ticks, self.chord.count()]
     }
 }

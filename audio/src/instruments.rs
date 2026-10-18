@@ -5,8 +5,11 @@
 //! Instruments are an enum rather than trait objects: plain code that stays fast in debug
 //! builds, where the audio has to keep up in real time too.
 
+pub mod drone;
 pub mod fathom;
+pub mod pulse;
 pub mod shoal;
+pub mod space;
 pub mod strata;
 
 use crate::harmony::Harmony;

@@ -17,7 +17,6 @@ Where the sound is heading and what is still open. What it does now is in the [R
 ### Next
 
 - **Profile on the Raspberry Pi 4** with visuals active, every instrument and a mix between two. The last profile, about 17% of one core, came before Fathom, Shoal, the mix, the grains and the longer delay lines.
-- **After the PR**: move the pulse and the space, which all three instruments play, from `instruments/strata/` to `instruments/`, and give the three a shared drone part (bed, air, pulse and space) for the harmony's changes and the updates each of them now repeats.
 - **The mix between instruments**: patterns switch to the new score at a phrase start rather than blending into it, and the bass swaps there too; two beds playing the same chord may not sum well at equal power; an instrument that mixes in again starts where it stopped, its echoes and hall still decaying. A sketch of a mix is missing; how long a mix takes (`MIX_SECONDS`, 5 s) and which module plays which instrument (`CONTENT_INSTRUMENTS` in `host/src/state.rs`) are still first guesses.
 
 ### To listen to

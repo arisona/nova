@@ -13,13 +13,13 @@
 
 use crate::dsp::{Rng, fold, lerp, smooth, smoothstep};
 use crate::harmony::{Harmony, MAX_TONES, Tone};
-use crate::instruments::strata::pulse::{self, Pulse};
-use crate::instruments::strata::space::{self, Space};
+use crate::instruments::drone::Drone;
+use crate::instruments::{pulse, space};
 use crate::params::Params;
 use crate::score::{Pattern, Patterns, Score, Throws};
 use crate::signals::{BAR, Change, Now, Signals};
 use crate::voices::bed::Voicing;
-use crate::voices::{Air, Bed, Bell, Strike, bed, bell};
+use crate::voices::{Bell, Strike, bed, bell};
 
 /// Shoal's rhythm. Bells from a rhythm of 0.2, from straight (cold) to syncopated (warm); a gong
 /// from 0.1 on every phrase, its fifth at the half from 0.4; a soft half-time kick from 0.6
@@ -129,10 +129,7 @@ impl Preset {
 }
 
 pub struct Shoal {
-    bed: Bed,
-    air: Air,
-    pulse: Pulse,
-    space: Space,
+    drone: Drone,
     bells: Bell,
     gong: Bell,
     preset: Preset,
@@ -145,7 +142,7 @@ pub struct Shoal {
     heat: f32,
     form: f32,
     liveliness: f32,
-    drone: f32,
+    drone_level: f32,
     rings: u64,
 }
 
@@ -154,10 +151,14 @@ impl Shoal {
     pub fn new(sample_rate: f32, preset: &Preset, harmony: &Harmony, seed: u64) -> Self {
         let mut rng = Rng::new(seed);
         let mut shoal = Self {
-            bed: Bed::new(sample_rate, preset.bed, harmony, Rng::new(rng.next_u64())),
-            air: Air::new(sample_rate, harmony, Rng::new(rng.next_u64())),
-            pulse: Pulse::new(sample_rate, preset.pulse, harmony, Rng::new(rng.next_u64())),
-            space: Space::new(sample_rate, preset.space),
+            drone: Drone::new(
+                sample_rate,
+                preset.bed,
+                preset.pulse,
+                preset.space,
+                harmony,
+                &mut rng,
+            ),
             bells: Bell::new(sample_rate, preset.bell),
             gong: Bell::new(sample_rate, preset.gong),
             preset: *preset,
@@ -168,7 +169,7 @@ impl Shoal {
             heat: 0.5,
             form: 0.5,
             liveliness: 0.5,
-            drone: 1.0,
+            drone_level: 1.0,
             rings: 0,
         };
         shoal.tune(harmony);
@@ -203,30 +204,8 @@ impl Shoal {
     }
 
     pub fn update_block(&mut self, params: &Params, signals: &mut Signals) {
-        // The pulse as it is after the previous block, for the bed and anyone else.
-        self.pulse.publish(signals);
-        let harmony = &signals.harmony;
-        match signals.change {
-            Some(Change::Load) => {
-                self.bed.load(harmony);
-                self.air.load(harmony);
-                self.pulse.adopt(harmony);
-                self.tune(harmony);
-            }
-            Some(Change::Palette) => {
-                self.bed.change(harmony);
-                self.air.change(harmony);
-                self.pulse.change(harmony);
-                self.tune(harmony);
-            }
-            Some(Change::Bass) => {
-                self.bed.set_bass(harmony.root());
-                self.air.change(harmony);
-                self.pulse.change(harmony);
-                self.tune(harmony);
-            }
-            Some(Change::Voice) => self.bed.move_voice(),
-            None => {}
+        if let Some(Change::Load | Change::Palette | Change::Bass) = self.drone.follow(signals) {
+            self.tune(&signals.harmony);
         }
         self.heat = params.heat;
         self.form = params.form;
@@ -240,14 +219,10 @@ impl Shoal {
             *lean = voicing.gain(tone);
         }
         let [below, under] = self.preset.drone;
-        self.drone = lerp(below, under, smoothstep(0.2, 0.6, params.rhythm));
+        self.drone_level = lerp(below, under, smoothstep(0.2, 0.6, params.rhythm));
         self.bells.normalize();
         self.gong.normalize();
-        self.bed.update_block(params, signals);
-        self.air.update_block(params, 0.0);
-        self.pulse.update_block(params, signals);
-        self.space
-            .update_block(params, signals.tempo, signals.echo, 0.0);
+        self.drone.update_block(params, signals, 0.0, 0.0);
     }
 
     #[inline]
@@ -278,14 +253,15 @@ impl Shoal {
                 });
             }
         }
-        let mut pulse = self.pulse.next(now);
-        let parts = self.bed.next_parts(1.0);
-        let chord = self.drone * pulse.drone;
+        let drone = &mut self.drone;
+        let mut pulse = drone.pulse.next(now);
+        let parts = drone.bed.next_parts(1.0);
+        let chord = self.drone_level * pulse.drone;
         let bed = [
             parts.bass[0] + parts.chord[0] * chord,
             parts.bass[1] + parts.chord[1] * chord,
         ];
-        let air = self.air.next().map(|sample| sample * pulse.drone);
+        let air = drone.air.next().map(|sample| sample * pulse.drone);
         let [bells_level, gong_level] = self.preset.levels;
         let bells = self.bells.next().map(|sample| sample * bells_level);
         let gong = self.gong.next().map(|sample| sample * gong_level);
@@ -296,12 +272,12 @@ impl Shoal {
             pulse.reverb_send[channel] += self.preset.reverb * bells[channel] + 0.5 * gong[channel];
         }
         pulse.delay_send += send * 0.5 * (bells[0] + bells[1]);
-        self.space.process(bed, air, pulse)
+        drone.space.process(bed, air, pulse)
     }
 
     /// Steps played so far: thumps, ticks and bells.
     pub fn steps(&self) -> [u64; 3] {
-        let [thumps, ticks, _] = self.pulse.counts();
+        let [thumps, ticks, _] = self.drone.pulse.counts();
         [thumps, ticks, self.rings]
     }
 }
