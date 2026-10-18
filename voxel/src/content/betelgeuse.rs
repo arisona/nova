@@ -1,24 +1,32 @@
-//! Betelgeuse: a body of water filling the volume from the floor, with rain.
+//! Betelgeuse: a body of water filling the volume from the floor, with rain and bubbles.
 //!
 //! Ported from the Java modules Waves, Waves3D, Sweep, Pulse, Jump and Snow. The water
-//! was a single blue, so Heat picks the water color from the palette; the depths blend
-//! towards the color before it and raindrops towards the color after it.
+//! was a single blue, so Heat picks the water color from the palette; the deep water below
+//! a moving thermocline blends towards the color before it, raindrops towards the color
+//! after it. The thermocline carries the same waves as the surface, so the water moves
+//! and shows its Form even when it fills the whole volume.
 //!
 //! ```text
 //! inputs:  (x, y, z) voxel, f = form, T = simulated seconds (Flow-integrated), Z = height
 //! level:   L = (1 − void)·Z, so the void fraction above the water stays dark on average
-//! surface: s(x, y) = L + A · Σ anchor weight · componentₖ(x, y, T) + rain·ripples
-//!          A = min(1, L/2, (Z − L)/2) tapers the swell, so Void 0 and 1 stay exact
+//! swell:   h(x, y, t) = Σ anchor weight · componentₖ(x, y, t), components of similar strength
 //!          bob   (0)  the whole surface rises and falls (Sweep, Pulse): layers
 //!          jump  (¼)  each module's rim against its core, in counter-phase (Jump): columns
 //!          roll  (½)  four travelling sines along a fixed diagonal (Waves): blobs
 //!          cross (¾)  standing waves across x and y (Waves3D): patches
-//!          chop  (1)  short, fast interference: grain
-//! rain:    weight S(2f − 1)·min(1, 4·(1 − void)); drops (Snow) fall from the top at 5 voxels/s, each with a
-//!          short tail; where one meets the surface, a ripple ring spreads at 2.5 voxels/s
-//!          and fades over 0.9 s
+//!          chop  (1)  short, fast interference, 2 to 3 voxels long: grain
+//! surface: s(x, y) = L + A·(h(x, y, T) + rain·ripples)
+//!          A = min(1.6, L/2, (Z − L)/2) tapers the swell, so Void 0 and 1 stay exact
+//! thermocline: c(x, y) = L/2 − B·h(x, y, 0.8·T),  B = min(1.5, 0.3·L)
+//!          internal waves, slower and in counter-phase to the surface
+//! rain:    weight r = S(2f − 1)·min(1, 4·(1 − void)); drops (Snow) fall from the top at 5 voxels/s,
+//!          each with a short tail; where one meets the surface, a ripple ring spreads at
+//!          2.5 voxels/s and fades over 0.9 s
+//! bubbles: weight S(2f − 1), 3 per second and module footprint rise from the floor at 2.5
+//!          voxels/s and vanish a voxel below the surface; the drop color halfway to white
 //! water:   w = S(s − z)    voxels below the surface are lit, the surface voxel partly
-//! color:   q = heat·(len − 1) − 0.8·depth,  depth = clamp(2·(s − z − 0.5)/Z, 0, 1)
+//! color:   d = S((c − z)/1.5 + ½)   deep water below the thermocline
+//!          q = heat·(len − 1) − d,  brightness 1 − 0.35·d
 //!          drops: q = heat·(len − 1) + 0.6     (both clamped to the palette)
 //! ```
 
@@ -42,20 +50,28 @@ const ROLL: [(f32, f32, f32); 4] = [
     (0.45, 0.9, 1.5),
     (0.3, 1.25, -0.7),
 ];
-const CROSS: [(f32, f32, f32); 3] = [(0.8, 0.5, 0.9), (0.5, 0.9, -1.3), (0.35, 1.4, 1.7)];
+const CROSS: [(f32, f32, f32); 3] = [(1.2, 0.5, 0.9), (0.8, 0.9, -1.3), (0.55, 1.4, 1.7)];
 const CHOP: [(f32, f32, f32, f32); 2] = [
     // amplitude, wavenumber x, wavenumber y, radians per second
-    (0.8, 1.3, 1.1, 2.1),
-    (0.5, 0.9, -0.9, 2.9),
+    (1.4, 2.4, 2.0, 2.6),
+    (0.9, 1.7, -2.3, 3.4),
 ];
+const SWELL: f32 = 1.6; // largest surface amplitude A (voxels)
+const THERMOCLINE: f32 = 0.5; // height of the thermocline, as a share of the water level
+const INTERNAL: (f32, f32, f32) = (1.5, 0.3, 0.8); // amplitude (voxels), cap as a share of the level, pace
+const THERMOCLINE_WIDTH: f32 = 1.5; // voxels
+const DEEP_DIM: f32 = 0.35; // deep water is this much darker
 const RAIN_FORM: f32 = 0.5; // rain starts above this form
 const RAIN_RATE: f32 = 2.5; // drops per second and module footprint at full rain
 const MAX_DROPS: usize = 64;
 const DROP_SPEED: f32 = 5.0; // voxels per simulated second
 const DROP_TAIL: f32 = 0.4; // brightness of the voxel above a drop
+const BUBBLE_RATE: f32 = 3.0; // bubbles per second and module footprint at full rain
+const BUBBLE_SPEED: f32 = 2.5; // voxels per simulated second
+const BUBBLE_WHITE: f32 = 0.5; // bubbles mix the drop color this much towards white
 const RIPPLE: (f32, f32, f32) = (0.9, 2.5, 0.9); // amplitude, speed (voxels/s), life (s)
 const RIPPLE_WAVENUMBER: f32 = 2.2;
-const DEPTH: f32 = 0.8; // palette colors the depths drift towards the previous color
+const DEPTH: f32 = 1.0; // palette colors the deep water drifts towards the previous color
 const DROP_SHIFT: f32 = 0.6; // palette colors drops drift towards the next color
 const SUBSTEP: f32 = 0.05;
 const SEED: u64 = 0x5EA;
@@ -78,9 +94,12 @@ pub struct Betelgeuse {
     rng: Rng,
     dim: (usize, usize, usize),
     drops: Vec<Drop>,
+    bubbles: Vec<Drop>,
     ripples: Vec<Ripple>,
-    spawn: f32, // drops owed
+    spawn: f32,        // drops owed
+    bubble_spawn: f32, // bubbles owed
     surface: Vec<f32>,
+    thermocline: Vec<f32>,
     palette: PaletteMix,
 }
 
@@ -92,9 +111,12 @@ impl Betelgeuse {
             rng: Rng::new(SEED),
             dim: (0, 0, 0),
             drops: Vec::new(),
+            bubbles: Vec::new(),
             ripples: Vec::new(),
             spawn: 0.0,
+            bubble_spawn: 0.0,
             surface: Vec::new(),
+            thermocline: Vec::new(),
             palette: PaletteMix::default(),
         }
     }
@@ -104,14 +126,16 @@ impl Betelgeuse {
         self.time = 0.0;
         self.rng = Rng::new(SEED);
         self.drops.clear();
+        self.bubbles.clear();
         self.ripples.clear();
         self.spawn = 0.0;
+        self.bubble_spawn = 0.0;
         self.surface = vec![0.0; dim.0 * dim.1];
+        self.thermocline = vec![0.0; dim.0 * dim.1];
     }
 
-    /// The swell at a column, before scaling by the amplitude A.
-    fn swell(&self, x: usize, y: usize, weights: &[f32; ANCHORS]) -> f32 {
-        let t = self.time as f32;
+    /// The swell at a column and time `t`, before scaling by its amplitude.
+    fn swell(&self, x: usize, y: usize, t: f32, weights: &[f32; ANCHORS]) -> f32 {
         let (xf, yf) = (x as f32, y as f32);
         let mut height = 0.0;
         if weights[0] > 0.0 {
@@ -167,7 +191,7 @@ impl Betelgeuse {
             .sum()
     }
 
-    fn step(&mut self, dt: f32, rain: f32) {
+    fn step(&mut self, dt: f32, rain: f32, bubbles: f32) {
         let steps = (dt / SUBSTEP).ceil() as usize;
         let top = self.dim.2 as f32;
         for _ in 0..steps {
@@ -201,6 +225,21 @@ impl Betelgeuse {
             for (x, y) in landed {
                 self.ripples.push(Ripple { x, y, age: 0.0 });
             }
+
+            self.bubble_spawn += bubbles * BUBBLE_RATE * footprint(self.dim) * h;
+            while self.bubble_spawn >= 1.0 {
+                self.bubble_spawn -= 1.0;
+                if self.bubbles.len() < MAX_DROPS {
+                    let x = self.rng.below(self.dim.0);
+                    let y = self.rng.below(self.dim.1);
+                    self.bubbles.push(Drop { x, y, z: 0.0 });
+                }
+            }
+            for bubble in self.bubbles.iter_mut() {
+                bubble.z += BUBBLE_SPEED * h;
+            }
+            self.bubbles
+                .retain(|bubble| bubble.z < surface[bubble.x * dy + bubble.y] - 1.0);
         }
         self.time += dt as f64;
     }
@@ -220,17 +259,23 @@ impl Content for Betelgeuse {
         self.palette.select(state.palette(), "Betelgeuse");
         let form = state.form();
         let void = state.void();
-        let rain = ease((form - RAIN_FORM) / (1.0 - RAIN_FORM)) * (4.0 * (1.0 - void)).min(1.0);
-        self.step(dt, rain);
+        let bubbles = ease((form - RAIN_FORM) / (1.0 - RAIN_FORM));
+        let rain = bubbles * (4.0 * (1.0 - void)).min(1.0);
+        self.step(dt, rain, bubbles);
 
         let top = dim.2 as f32;
         let level = (1.0 - void) * top;
-        let amplitude = 1f32.min(0.5 * level).min(0.5 * (top - level));
+        let amplitude = SWELL.min(0.5 * level).min(0.5 * (top - level));
+        let (internal, cap, pace) = INTERNAL;
+        let internal = internal.min(cap * level);
+        let t = self.time as f32;
         let weights: [f32; ANCHORS] = std::array::from_fn(|i| anchor_weight(form, ANCHORS, i));
         for x in 0..dim.0 {
             for y in 0..dim.1 {
-                let swell = self.swell(x, y, &weights) + rain * self.ripples_at(x, y);
+                let swell = self.swell(x, y, t, &weights) + rain * self.ripples_at(x, y);
                 self.surface[x * dim.1 + y] = level + amplitude * swell;
+                self.thermocline[x * dim.1 + y] =
+                    THERMOCLINE * level - internal * self.swell(x, y, pace * t, &weights);
             }
         }
 
@@ -238,20 +283,29 @@ impl Content for Betelgeuse {
         for x in 0..dim.0 {
             for y in 0..dim.1 {
                 let surface = self.surface[x * dim.1 + y];
+                let thermocline = self.thermocline[x * dim.1 + y];
                 for z in 0..dim.2 {
-                    let below = surface - z as f32;
-                    let water = ease(below);
+                    let water = ease(surface - z as f32);
                     if water <= 0.0 {
                         next.set(x, y, z, Vec3::ZERO);
                         continue;
                     }
-                    let depth = (2.0 * (below - 0.5) / top).clamp(0.0, 1.0);
-                    next.set(x, y, z, self.palette.clamped(hot - DEPTH * depth) * water);
+                    let deep = ease((thermocline - z as f32) / THERMOCLINE_WIDTH + 0.5);
+                    let color = self.palette.clamped(hot - DEPTH * deep) * (1.0 - DEEP_DIM * deep);
+                    next.set(x, y, z, color * water);
                 }
             }
         }
 
         let drop_color = self.palette.clamped(hot + DROP_SHIFT);
+        let bubble_color = drop_color.lerp(Vec3::ONE, BUBBLE_WHITE);
+        for bubble in &self.bubbles {
+            let z = bubble.z.round() as usize;
+            if z < dim.2 {
+                let water = next.get(bubble.x, bubble.y, z);
+                next.set(bubble.x, bubble.y, z, water.lerp(bubble_color, bubbles));
+            }
+        }
         for drop in &self.drops {
             let z = drop.z.round();
             for (offset, brightness) in [(0.0, 1.0), (1.0, DROP_TAIL)] {
