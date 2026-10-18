@@ -3,14 +3,14 @@
 //! Everything below 120 Hz becomes mono (subwoofers sum their channels), infrasound goes,
 //! and a look-ahead limiter keeps peaks below about −1 dBFS. Volume comes last, on a squared
 //! curve for finer adjustment at low levels, with a short ramp so changes never click; the
-//! output fades in from silence when the engine starts.
+//! output fades in from silence when the engine starts and when Volume rises from zero.
 
 use crate::dsp::{Limiter, Svf, smoothstep};
 
 /// Largest sample value: −1 dBFS.
 const CEILING: f32 = 0.891;
 
-/// Seconds over which the output fades in after construction.
+/// Seconds over which the output fades in after construction and after silence.
 const FADE_IN_SECONDS: f32 = 1.5;
 
 /// Seconds a change of Volume takes from silence to full level.
@@ -45,7 +45,15 @@ impl Master {
 
     /// From 0 (silent) to 1, sanitized by the engine.
     pub fn set_volume(&mut self, volume: f32) {
+        if self.is_silent() && volume > 0.0 {
+            self.fade_in = 0.0;
+        }
         self.volume = volume;
+    }
+
+    /// Whether Volume is zero and its ramp down has finished, so the output is silent.
+    pub fn is_silent(&self) -> bool {
+        self.volume == 0.0 && self.gain == 0.0
     }
 
     #[inline]

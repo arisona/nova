@@ -288,7 +288,12 @@ impl Engine {
         self.signals = current;
     }
 
+    /// The next frame of output. Muted, the engine stops rendering and its music pauses
+    /// until Volume rises again.
     pub fn next_frame(&mut self) -> [f32; 2] {
+        if self.master.is_silent() {
+            return [0.0; 2];
+        }
         if self.position == 0 {
             self.update_block();
         }
@@ -409,6 +414,22 @@ mod tests {
             for _ in 0..8000 {
                 assert_eq!(engine.next_frame(), [0.0; 2], "{name}");
             }
+        }
+    }
+
+    #[test]
+    fn unmuting_fades_in_from_where_the_music_paused() {
+        for (name, preset) in presets() {
+            let mut engine = engine(1, &preset);
+            rms(&mut engine, 4.0);
+            engine.set_controls(Controls::default());
+            rms(&mut engine, 0.05);
+            assert!(engine.master.is_silent(), "{name}");
+            engine.set_controls(loud());
+            let start = rms(&mut engine, 0.1);
+            rms(&mut engine, 1.4);
+            let full = rms(&mut engine, 2.0);
+            assert!(start < 0.05 * full && full > 0.01, "{name}: {start} {full}");
         }
     }
 
