@@ -4,7 +4,7 @@ Where the sound is heading and what is still open. What it does now is in the [R
 
 ## Direction
 
-- **One instrument, played with the sliders**, not a sound per module: drone and ambient after Biosphere, from the cold spaces of _Substrata_ to the pulses of _Microgravity_. Strata, Fathom, Shoal and Bayou share one world (the harmony, the conductor, the controls); each content module plays one of them.
+- **One instrument, played with the sliders**, not a sound per module: drone and ambient after Biosphere, from the cold spaces of _Substrata_ to the pulses of _Microgravity_. Strata, Fathom, Shoal and Bayou share one world (the harmony, the conductor, the controls); the web app chooses which one plays.
 - **One meaning per control**, shared with the light: Heat is color (glassy to round, straight to syncopated), Flow is time (tempo, evolution, sections), Form is texture (continuous to granular), Void is gaps (in time the rhythm, in space distance and a thinner spectrum). Brightness stays out of the sound.
 - **Structure, not chance**: the rhythm comes from scores of weighted steps after dub techno, ambient music and gamelan, and varies with the harmony's sections, fills, breaks and tides. Instruments give the hits their sound and never decide where steps fall.
 - **A subtle coupling to the light**: the sound answers slow, smoothed features that describe the light, each answer a setting with 0 to ignore it, rarely one to one. Nothing is triggered voxel by voxel, and modules have no hints of their own. A listener should sense that sound and light belong together, not hear the image being played.
@@ -17,7 +17,7 @@ Where the sound is heading and what is still open. What it does now is in the [R
 ### Next
 
 - **Profile on the Raspberry Pi 4** with visuals active, every instrument and a mix between two. The last profile, about 17% of one core, came before Fathom, Shoal, the mix, the grains and the longer delay lines.
-- **The mix between instruments**: patterns switch to the new score at a phrase start rather than blending into it, and the bass swaps there too; two beds playing the same chord may not sum well at equal power; an instrument that mixes in again starts where it stopped, its echoes and hall still decaying. A sketch of a mix is missing; how long a mix takes (`MIX_SECONDS`, 5 s) and which module plays which instrument (`CONTENT_INSTRUMENTS` in `host/src/state.rs`) are still first guesses.
+- **The mix between instruments**: patterns switch to the new score at a phrase start rather than blending into it, and the bass swaps there too; two beds playing the same chord may not sum well at equal power; an instrument that mixes in again starts where it stopped, its echoes and hall still decaying. A sketch of a mix is missing; how long a mix takes (`MIX_SECONDS`, 5 s) is still a first guess.
 
 ### To listen to
 
@@ -46,5 +46,5 @@ Questions for the target system:
 - **A grain layer**: granular playback of buffers the instrument records from itself, later samples. Samples and spoken fragments are left out for now.
 - **Tuning ideas**: dub throws of the chord; the pulse into the fog (less transient thumps and ticks, deeper with Void); a bass accent that stays out of the chord's range; looseness for the drone's pumping; `coupling` as a parameter; a pattern that shifts by a step every few phrases and comes back around, as in Reich's _Clapping Music_; slower audio tides that shape sections over minutes.
 - **The light**: local flashes as onsets; features that follow Flip Vertical; the sound describing itself back to the light.
-- **A performer mode** on a Mac laptop, with an instrument selector and more expressive input (a native interface or MIDI), after Scriabin's light organ. It can afford more than the Pi's budget.
+- **A performer mode** on a Mac laptop, with more expressive input (a native interface or MIDI), after Scriabin's light organ. It can afford more than the Pi's budget.
 - **Output**: the highest-resolution sample format a device offers (F32, I32 or I24 before I16), dither for 16-bit output; quality scaled down (reverb channels, partials) only if a target needs it.

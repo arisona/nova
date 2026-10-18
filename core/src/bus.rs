@@ -1,7 +1,7 @@
-//! The bus: what the parts share while Nova plays. The host puts the controls on it as the
-//! user sets them, and the instrument the selected content plays; the display adds the tide
-//! clock and the features of its light with every frame; the sound reads all of it. Each
-//! part also leaves its status there for the host.
+//! The bus: what the parts share while Nova plays. The host puts the controls and the
+//! instrument on it as the user sets them; the display adds the tide clock and the features
+//! of its light with every frame; the sound reads all of it. Each part also leaves its
+//! status there for the host.
 //!
 //! Lock-free for the values, so the audio callback can read them; values may come from
 //! different moments, which the readers' smoothing hides. Statuses change rarely and are

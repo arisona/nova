@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import { NovaState } from './App';
 import { ContentSelector } from './ContentSelector';
+import { InstrumentSelector } from './InstrumentSelector';
 import { PaletteSelector } from './PaletteSelector';
 import { Slider } from './Slider';
 import { apiSetValue } from './api';
@@ -28,6 +29,10 @@ const sendPalette = (name: string) => {
   apiSetValue('palette', name);
 };
 
+const sendInstrument = (name: string) => {
+  apiSetValue('instrument', name);
+};
+
 // Icons: Material Symbols, Rounded and filled (see icons.tsx), https://fonts.google.com/icons
 
 export const MainPage = ({
@@ -40,6 +45,7 @@ export const MainPage = ({
   const navigate = useNavigate();
   const content = useDelayedSend(sendContent);
   const palette = useDelayedSend(sendPalette);
+  const instrument = useDelayedSend(sendInstrument);
 
   const handleSettings = () => {
     void navigate('/settings');
@@ -53,6 +59,11 @@ export const MainPage = ({
   const handleContentChange = (name: string) => {
     content.select(name);
     setState((prevState) => ({ ...prevState, selectedContent: name }));
+  };
+
+  const handleInstrumentChange = (name: string) => {
+    instrument.select(name);
+    setState((prevState) => ({ ...prevState, instrument: name }));
   };
 
   const handleBrightnessChange = (
@@ -148,6 +159,16 @@ export const MainPage = ({
           sent={content.sent}
           colors={paletteColors}
           onChange={handleContentChange}
+        />
+      )}
+      {state.volume >= 0 && state.instruments.length > 1 && (
+        <InstrumentSelector
+          instruments={state.instruments}
+          value={state.instrument}
+          pending={instrument.pending}
+          sent={instrument.sent}
+          colors={paletteColors}
+          onChange={handleInstrumentChange}
         />
       )}
       <Divider sx={{ my: 3 }} />

@@ -15,6 +15,7 @@ interface ApiSettingValues {
   brightness: number;
   volume: number;
   palette: string;
+  instrument: string;
   heat: number;
   flow: number;
   form: number;
@@ -77,6 +78,8 @@ interface ApiStateResponse {
   volume: number; // -1 while audio is disabled or failing
   palettes: unknown;
   palette: string;
+  instruments: unknown;
+  instrument: string;
   heat: number;
   flow: number;
   form: number;
@@ -178,6 +181,16 @@ export const apiGetState = async (): Promise<NovaState | null> => {
         ? requestedPalette
         : (palettes[0]?.name ?? '');
 
+    const instruments = isStringArray(payload.instruments)
+      ? payload.instruments
+      : [];
+    const requestedInstrument = payload.instrument;
+    const instrument =
+      requestedInstrument !== undefined &&
+      instruments.includes(requestedInstrument)
+        ? requestedInstrument
+        : (instruments[0] ?? '');
+
     const state: NovaState = {
       availableContent,
       enabledContent,
@@ -186,6 +199,8 @@ export const apiGetState = async (): Promise<NovaState | null> => {
       volume: payload.volume ?? defaultNovaState.volume,
       palettes,
       palette,
+      instruments,
+      instrument,
       heat: payload.heat ?? defaultNovaState.heat,
       flow: payload.flow ?? defaultNovaState.flow,
       form: payload.form ?? defaultNovaState.form,
