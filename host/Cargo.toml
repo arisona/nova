@@ -1,0 +1,25 @@
+[package]
+name = "nova-host"
+version = "3.0.0"
+edition = "2024"
+rust-version = "1.94"
+description = "The host of the Nova voxel display: runs the light and the sound with the settings and the web app"
+
+[[bin]]
+name = "nova"
+path = "src/main.rs"
+
+[dependencies]
+nova-audio = { path = "../audio" }
+nova-core = { path = "../core" }
+nova-voxel = { path = "../voxel" }
+actix-web = "4.15.0"
+ctrlc = { version = "3.5.2", features = ["termination"] }
+include_dir = "0.7.4"
+mime_guess = "2.0.5"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.152"
+
+## logging
+env_logger = "0.11.11"
+log = "0.4.34"

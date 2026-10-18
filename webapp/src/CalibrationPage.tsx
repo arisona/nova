@@ -1,4 +1,4 @@
-import { NavigateBefore } from '@mui/icons-material';
+import { NavigateBefore } from './icons';
 import {
   Button,
   IconButton,
@@ -12,10 +12,11 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { NovaState, Rgb } from './App';
+import { useDelayedSend } from './CycleButton';
 import { PaletteSelector } from './PaletteSelector';
 import { CalibrationPattern, apiGetState, apiSet, apiSetValue } from './api';
 
-// Mirror GAMMA_RANGE and GAIN_RANGE in server/src/calibration.rs.
+// Mirror GAMMA_RANGE and GAIN_RANGE in voxel/src/calibration.rs.
 const GAMMA = { min: 1, max: 3, step: 0.05 };
 const GAIN = { min: 0.2, max: 1, step: 0.01 };
 
@@ -34,6 +35,10 @@ const PATTERNS: { value: Pattern; label: string }[] = [
 // The server switches a pattern off 10 minutes after it was last selected, in case this
 // page closes without saying so; while the page is visible it keeps selecting it.
 const KEEP_ALIVE_MS = 60_000;
+
+const sendPalette = (name: string) => {
+  apiSetValue('palette', name);
+};
 
 const ValueRow = ({
   label,
@@ -84,6 +89,7 @@ export const CalibrationPage = ({
   setState: React.Dispatch<React.SetStateAction<NovaState>>;
 }) => {
   const navigate = useNavigate();
+  const palette = useDelayedSend(sendPalette);
   const [pattern, setPattern] = React.useState<Pattern>('gray');
   const patternRef = React.useRef(pattern);
 
@@ -111,7 +117,7 @@ export const CalibrationPage = ({
   }, []);
 
   const setPalette = (name: string) => {
-    apiSetValue('palette', name);
+    palette.select(name);
     setState((prevState) => ({ ...prevState, palette: name }));
   };
 
@@ -202,6 +208,8 @@ export const CalibrationPage = ({
         <PaletteSelector
           palettes={state.palettes}
           value={state.palette}
+          pending={palette.pending}
+          sent={palette.sent}
           onChange={setPalette}
         />
       )}

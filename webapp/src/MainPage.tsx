@@ -1,13 +1,3 @@
-import {
-  BlurOn,
-  Contrast,
-  Settings,
-  Speed,
-  WbSunny,
-  ScatterPlot,
-  VolumeUp,
-  VolumeOff,
-} from '@mui/icons-material';
 import { Divider, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import * as React from 'react';
 
@@ -16,10 +6,29 @@ import { ContentSelector } from './ContentSelector';
 import { PaletteSelector } from './PaletteSelector';
 import { Slider } from './Slider';
 import { apiSetValue } from './api';
+import {
+  Acute,
+  BlurOn,
+  Heat,
+  ScatterPlot,
+  Settings,
+  Sunny,
+  VolumeOff,
+  VolumeUp,
+} from './icons';
 
 import { useNavigate } from 'react-router-dom';
+import { useDelayedSend } from './CycleButton';
 
-// icons: https://fonts.google.com/icons?icon.set=Material+Icons
+const sendContent = (name: string) => {
+  apiSetValue('selected-content', name);
+};
+
+const sendPalette = (name: string) => {
+  apiSetValue('palette', name);
+};
+
+// Icons: Material Symbols, Rounded and filled (see icons.tsx), https://fonts.google.com/icons
 
 export const MainPage = ({
   state,
@@ -29,6 +38,8 @@ export const MainPage = ({
   setState: React.Dispatch<React.SetStateAction<NovaState>>;
 }) => {
   const navigate = useNavigate();
+  const content = useDelayedSend(sendContent);
+  const palette = useDelayedSend(sendPalette);
 
   const handleSettings = () => {
     void navigate('/settings');
@@ -40,7 +51,7 @@ export const MainPage = ({
       ?.colors.map((color) => color.hex) ?? [];
 
   const handleContentChange = (name: string) => {
-    apiSetValue('selected-content', name);
+    content.select(name);
     setState((prevState) => ({ ...prevState, selectedContent: name }));
   };
 
@@ -61,7 +72,7 @@ export const MainPage = ({
   };
 
   const handlePaletteChange = (name: string) => {
-    apiSetValue('palette', name);
+    palette.select(name);
     setState((prevState) => ({ ...prevState, palette: name }));
   };
 
@@ -116,7 +127,7 @@ export const MainPage = ({
       </Stack>
 
       <Slider
-        icon={<WbSunny />}
+        icon={<Sunny />}
         label="Brightness"
         value={state.brightness}
         onChange={handleBrightnessChange}
@@ -133,6 +144,8 @@ export const MainPage = ({
         <ContentSelector
           enabled={state.enabledContent}
           value={state.selectedContent}
+          pending={content.pending}
+          sent={content.sent}
           colors={paletteColors}
           onChange={handleContentChange}
         />
@@ -141,16 +154,18 @@ export const MainPage = ({
       <PaletteSelector
         palettes={state.palettes}
         value={state.palette}
+        pending={palette.pending}
+        sent={palette.sent}
         onChange={handlePaletteChange}
       />
       <Slider
-        icon={<Contrast />}
+        icon={<Heat />}
         label="Heat"
         value={state.heat}
         onChange={handleHeatChange}
       />
       <Slider
-        icon={<Speed />}
+        icon={<Acute />}
         label="Flow"
         value={state.flow}
         onChange={handleFlowChange}

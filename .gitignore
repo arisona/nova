@@ -1,8 +1,8 @@
 # Webapp: dependencies
 webapp/node_modules/
 
-# Server: Rust build output
-server/target/
+# Rust build output
+/target/
 
 # Nova configuration file
 nova_settings.json

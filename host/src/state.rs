@@ -1,0 +1,834 @@
+use std::collections::BTreeMap;
+use std::fs;
+use std::io::ErrorKind;
+use std::path::Path;
+use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
+
+use nova_audio::{DEFAULT_INSTRUMENT, INSTRUMENTS};
+use nova_core::{Bus, Controls, PALETTES, Part, Status};
+use nova_voxel::{
+    Calibration, MODULE_GRID_MAX, MODULE_X_RES, MODULE_Y_RES, MODULE_Z_RES, Pattern,
+    PatternSelection, all_content_names,
+};
+
+/// The instrument each content module plays, unless the settings file links it to another;
+/// modules not listed play `DEFAULT_INSTRUMENT`. A first guess, to be tuned by ear.
+const CONTENT_INSTRUMENTS: [(&str, &str); 6] = [
+    ("Andromeda", "Fathom"),
+    ("Betelgeuse", "Strata"),
+    ("Oort Cloud", "Strata"),
+    ("Orion's Belt", "Shoal"),
+    ("Pleiades", "Shoal"),
+    ("Tannhäuser Gate", "Fathom"),
+];
+
+/// The host's state: the settings, saved in `nova_settings.json`, and what only lives while
+/// Nova runs: the bus the parts meet on, requests and the test pattern. The controls go
+/// onto the bus whenever they change.
+// Content and palettes are referenced by name, so saved settings survive entries being
+// added, removed, reordered or renamed. Missing fields (older or hand-written settings
+// files) fall back to defaults when loading.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct State {
+    enabled_content: Vec<String>,
+    selected_content: String,
+
+    brightness: f32,
+    volume: f32,
+    palette: String,
+    heat: f32,
+    flow: f32,
+    form: f32,
+    void: f32,
+    flip_vertical: bool,
+    calibration: Calibration,
+
+    ethernet_interface: String,
+    modules: Vec<(usize, usize, u8)>,
+    webserver_port: u16,
+    simulator: bool,
+    audio: bool,
+    /// The instrument each content module plays, by name.
+    instruments: BTreeMap<String, String>,
+
+    #[serde(skip)]
+    available_content: Vec<String>,
+
+    #[serde(skip)]
+    dim: (usize, usize, usize),
+
+    #[serde(skip)]
+    bus: Arc<Bus>,
+    #[serde(skip)]
+    hardware_reset_requested: bool,
+    #[serde(skip)]
+    shutdown_requested: bool,
+    #[serde(skip)]
+    calibration_pattern: PatternSelection,
+}
+
+impl State {
+    pub const MODULE_DEFAULT_ADDRESS: u8 = 1;
+
+    const SETTINGS_FILE: &str = "nova_settings.json";
+
+    pub fn load() -> Self {
+        Self::load_from(Path::new(Self::SETTINGS_FILE))
+    }
+
+    /// Loads settings, or starts from defaults and saves them. A file that cannot be
+    /// parsed, such as a hand-edited module layout with a typo, is moved aside rather
+    /// than overwritten.
+    fn load_from(path: &Path) -> Self {
+        match fs::read_to_string(path) {
+            Ok(json_string) => match serde_json::from_str::<State>(&json_string) {
+                Ok(saved) => return Self::from_saved(saved),
+                Err(e) => {
+                    let invalid = path.with_extension("json.invalid");
+                    let moved = fs::rename(path, &invalid);
+                    log::error!(
+                        "Failed to parse settings ({e}); {}, using defaults",
+                        match moved {
+                            Ok(()) => format!("moved them to {}", invalid.display()),
+                            Err(e) => format!("cannot move them aside ({e})"),
+                        }
+                    );
+                }
+            },
+            Err(e) if e.kind() == ErrorKind::NotFound => {
+                log::info!("No settings at {}, using defaults", path.display());
+            }
+            Err(e) => log::error!("Failed to load settings ({e}), using defaults"),
+        }
+        let settings = Self::default();
+        settings.save_to(path);
+        settings
+    }
+
+    /// Settings restored from a saved file, validated through the setters. Unknown
+    /// content and palette names fall back to defaults.
+    fn from_saved(saved: State) -> Self {
+        let mut settings = Self::default();
+        // The links first, so selecting the content puts its own instrument on the bus.
+        for (content, instrument) in &saved.instruments {
+            settings.set_instrument(content, instrument);
+        }
+        settings.set_enabled_content(&saved.enabled_content);
+        settings.set_selected_content(&saved.selected_content);
+        settings.set_brightness(saved.brightness);
+        settings.set_volume(saved.volume);
+        settings.set_palette(&saved.palette);
+        settings.set_heat(saved.heat);
+        settings.set_flow(saved.flow);
+        settings.set_form(saved.form);
+        settings.set_void(saved.void);
+        settings.set_flip_vertical(saved.flip_vertical);
+        settings.calibration = saved.calibration.validated();
+        settings.set_ethernet_interface(&saved.ethernet_interface);
+
+        let mut max_x = 0;
+        let mut max_y = 0;
+        let mut modules: Vec<(usize, usize, u8)> = Vec::new();
+        for module in saved.modules.iter() {
+            if module.0 >= MODULE_GRID_MAX || module.1 >= MODULE_GRID_MAX {
+                log::warn!(
+                    "Module location out of bounds (max is {}), skipping module",
+                    MODULE_GRID_MAX - 1
+                );
+                continue;
+            }
+            if modules.iter().any(|&(_, _, address)| address == module.2) {
+                log::warn!("Module address {} is used more than once", module.2);
+            }
+            modules.push(*module);
+            max_x = max_x.max(module.0);
+            max_y = max_y.max(module.1);
+        }
+        if !modules.is_empty() {
+            settings.modules = modules;
+            settings.dim = (
+                (max_x + 1) * MODULE_X_RES,
+                (max_y + 1) * MODULE_Y_RES,
+                MODULE_Z_RES,
+            );
+        } else {
+            log::warn!("No valid modules found, using defaults");
+        }
+
+        settings.set_webserver_port(saved.webserver_port);
+        settings.simulator = saved.simulator;
+        settings.audio = saved.audio;
+        settings.publish();
+        settings
+    }
+
+    pub fn save(&self) {
+        self.save_to(Path::new(Self::SETTINGS_FILE));
+    }
+
+    fn save_to(&self, path: &Path) {
+        if let Ok(json_string) = serde_json::to_string_pretty(self) {
+            if let Err(e) = fs::write(path, json_string) {
+                log::error!("Failed to save settings: {e}");
+            }
+        } else {
+            log::error!("Failed to serialize settings");
+        }
+    }
+
+    /// Content module names, in the order of `all_content()`.
+    pub fn available_content(&self) -> &[String] {
+        &self.available_content
+    }
+
+    pub fn knows_content(&self, name: &str) -> bool {
+        self.available_content
+            .iter()
+            .any(|available| available == name)
+    }
+
+    /// Enabled content module names, in the order of `available_content()`.
+    pub fn enabled_content(&self) -> &[String] {
+        &self.enabled_content
+    }
+
+    /// Enables the named modules. Unknown names are dropped; if none remain, every
+    /// module is enabled. If the selected module is no longer enabled, the first
+    /// enabled one is selected.
+    pub fn set_enabled_content<S: AsRef<str>>(&mut self, names: &[S]) {
+        self.enabled_content = self
+            .available_content
+            .iter()
+            .filter(|available| names.iter().any(|name| name.as_ref() == available.as_str()))
+            .cloned()
+            .collect();
+        if self.enabled_content.is_empty() {
+            self.enabled_content = self.available_content.clone();
+        }
+        if !self.enabled_content.contains(&self.selected_content) {
+            self.selected_content = self.enabled_content[0].clone();
+            self.publish();
+        }
+    }
+
+    pub fn selected_content(&self) -> &str {
+        &self.selected_content
+    }
+
+    /// Selects an enabled content module. Returns false, changing nothing, for any other name.
+    pub fn set_selected_content(&mut self, name: &str) -> bool {
+        let enabled = self.enabled_content.iter().any(|enabled| enabled == name);
+        if enabled {
+            self.selected_content = name.to_string();
+            self.publish();
+            log::info!("{name} plays {}", self.instrument());
+        }
+        enabled
+    }
+
+    /// Position of the selected module in `available_content()`, for the renderer.
+    pub fn selected_content_index(&self) -> usize {
+        self.available_content
+            .iter()
+            .position(|available| *available == self.selected_content)
+            .unwrap_or(0)
+    }
+
+    pub fn brightness(&self) -> f32 {
+        self.brightness
+    }
+
+    pub fn set_brightness(&mut self, brightness: f32) {
+        set_control(&mut self.brightness, brightness);
+        self.publish();
+    }
+
+    pub fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    pub fn set_volume(&mut self, volume: f32) {
+        set_control(&mut self.volume, volume);
+        self.publish();
+    }
+
+    pub fn palette(&self) -> &str {
+        &self.palette
+    }
+
+    /// Selects a palette by name. Returns false, changing nothing, for unknown names.
+    pub fn set_palette(&mut self, name: &str) -> bool {
+        let known = PALETTES.iter().any(|palette| palette.name == name);
+        if known {
+            self.palette = name.to_string();
+            self.publish();
+        }
+        known
+    }
+
+    /// Position of the selected palette in `PALETTES`.
+    pub fn palette_index(&self) -> usize {
+        PALETTES
+            .iter()
+            .position(|palette| palette.name == self.palette)
+            .unwrap_or(0)
+    }
+
+    pub fn heat(&self) -> f32 {
+        self.heat
+    }
+
+    pub fn set_heat(&mut self, heat: f32) {
+        set_control(&mut self.heat, heat);
+        self.publish();
+    }
+
+    pub fn flow(&self) -> f32 {
+        self.flow
+    }
+
+    pub fn set_flow(&mut self, flow: f32) {
+        set_control(&mut self.flow, flow);
+        self.publish();
+    }
+
+    pub fn form(&self) -> f32 {
+        self.form
+    }
+
+    pub fn set_form(&mut self, form: f32) {
+        set_control(&mut self.form, form);
+        self.publish();
+    }
+
+    pub fn void(&self) -> f32 {
+        self.void
+    }
+
+    pub fn set_void(&mut self, void: f32) {
+        set_control(&mut self.void, void);
+        self.publish();
+    }
+
+    /// The bus the parts meet on.
+    pub fn bus(&self) -> Arc<Bus> {
+        Arc::clone(&self.bus)
+    }
+
+    /// Puts the controls and the selected content's instrument on the bus.
+    fn publish(&self) {
+        self.bus.set_controls(&self.controls());
+        let instrument = INSTRUMENTS
+            .iter()
+            .position(|(name, _)| *name == self.instrument())
+            .unwrap_or(0);
+        self.bus.set_instrument(instrument);
+    }
+
+    /// The universal controls as set.
+    pub fn controls(&self) -> Controls {
+        Controls {
+            brightness: self.brightness,
+            volume: self.volume,
+            palette: self.palette_index(),
+            heat: self.heat,
+            flow: self.flow,
+            form: self.form,
+            void: self.void,
+        }
+    }
+
+    pub fn flip_vertical(&self) -> bool {
+        self.flip_vertical
+    }
+
+    pub fn set_flip_vertical(&mut self, flip_vertical: bool) {
+        self.flip_vertical = flip_vertical;
+    }
+
+    pub fn calibration(&self) -> Calibration {
+        self.calibration
+    }
+
+    /// Sets a channel's gamma (0 red, 1 green, 2 blue). Returns false, changing nothing,
+    /// for invalid values.
+    pub fn set_gamma(&mut self, channel: usize, gamma: f32) -> bool {
+        self.calibration.set_gamma(channel, gamma)
+    }
+
+    /// Sets a channel's gain (0 red, 1 green, 2 blue). Returns false, changing nothing,
+    /// for invalid values.
+    pub fn set_gain(&mut self, channel: usize, gain: f32) -> bool {
+        self.calibration.set_gain(channel, gain)
+    }
+
+    pub fn reset_calibration(&mut self) {
+        self.calibration = Calibration::default();
+    }
+
+    /// The test pattern to show instead of content; `Off` unless the calibration page
+    /// selected one recently.
+    pub fn calibration_pattern(&self) -> Pattern {
+        self.calibration_pattern.pattern()
+    }
+
+    pub fn set_calibration_pattern(&mut self, pattern: Pattern) {
+        self.calibration_pattern.select(pattern);
+    }
+
+    pub fn ethernet_interface(&self) -> &str {
+        &self.ethernet_interface
+    }
+
+    /// Keeps at most 20 bytes, cut at a character boundary.
+    pub fn set_ethernet_interface(&mut self, ethernet_interface: &str) {
+        let end = ethernet_interface.floor_char_boundary(20);
+        self.ethernet_interface = ethernet_interface[..end].to_string();
+    }
+
+    pub fn modules(&self) -> &[(usize, usize, u8)] {
+        &self.modules
+    }
+
+    /// The module address, if there is a single module. A layout of several modules is
+    /// only configured in the settings file.
+    pub fn module0_address(&self) -> Option<u8> {
+        match self.modules.as_slice() {
+            [(_, _, address)] => Some(*address),
+            _ => None,
+        }
+    }
+
+    /// Sets the module address if there is a single module. Returns false, changing
+    /// nothing, for a layout of several modules.
+    pub fn set_module0_address(&mut self, module0_address: u8) -> bool {
+        match self.modules.as_mut_slice() {
+            [(_, _, address)] => {
+                *address = module0_address;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub fn webserver_port(&self) -> u16 {
+        self.webserver_port
+    }
+
+    pub fn set_webserver_port(&mut self, webserver_port: u16) {
+        self.webserver_port = webserver_port;
+    }
+
+    /// Whether to show the desktop simulator instead of driving the hardware.
+    pub fn simulator(&self) -> bool {
+        self.simulator
+    }
+
+    /// Whether to start the audio service.
+    pub fn audio(&self) -> bool {
+        self.audio
+    }
+
+    /// The instrument the selected content plays, by name (see `nova_audio::INSTRUMENTS`).
+    pub fn instrument(&self) -> &str {
+        self.instruments
+            .get(&self.selected_content)
+            .map_or(DEFAULT_INSTRUMENT, String::as_str)
+    }
+
+    /// Links a content module to an instrument, both by name; unknown names change nothing.
+    fn set_instrument(&mut self, content: &str, instrument: &str) {
+        if !self.knows_content(content) {
+            log::warn!("Unknown content {content:?} linked to an instrument");
+        } else if !INSTRUMENTS.iter().any(|(known, _)| *known == instrument) {
+            log::warn!("Unknown instrument {instrument:?} for {content}");
+        } else {
+            self.instruments
+                .insert(content.to_string(), instrument.to_string());
+        }
+    }
+
+    /// Whether audio is enabled and its output has not failed. Volume is only
+    /// adjustable in the web app while this holds.
+    pub fn audio_available(&self) -> bool {
+        self.audio && !matches!(self.bus.status(Part::Audio), Status::Err(_))
+    }
+
+    pub fn dim(&self) -> (usize, usize, usize) {
+        self.dim
+    }
+
+    pub fn request_hardware_reset(&mut self) {
+        self.hardware_reset_requested = true;
+    }
+
+    pub fn take_hardware_reset_request(&mut self) -> bool {
+        std::mem::take(&mut self.hardware_reset_requested)
+    }
+
+    /// Asks the hardware loop to reset the modules, so the display stays dark, and exit.
+    /// Returns false if the caller should exit right away instead: in the simulator, or
+    /// when a shutdown was already requested and has not finished.
+    pub fn request_shutdown(&mut self) -> bool {
+        if self.simulator || self.shutdown_requested {
+            return false;
+        }
+        self.shutdown_requested = true;
+        true
+    }
+
+    pub fn shutdown_requested(&self) -> bool {
+        self.shutdown_requested
+    }
+
+    /// Restores default settings, keeping the bus, the display calibration, and
+    /// what can only be configured in the settings file: the Ethernet interface, the web
+    /// server port, the simulator and audio switches, the instruments, and a layout of more
+    /// than one module.
+    pub fn restore_defaults(&mut self) {
+        let defaults = Self::default();
+        let (modules, dim) = if self.modules.len() > 1 {
+            (std::mem::take(&mut self.modules), self.dim)
+        } else {
+            (defaults.modules, defaults.dim)
+        };
+        *self = Self {
+            modules,
+            dim,
+            calibration: self.calibration,
+            ethernet_interface: std::mem::take(&mut self.ethernet_interface),
+            webserver_port: self.webserver_port,
+            simulator: self.simulator,
+            audio: self.audio,
+            instruments: std::mem::take(&mut self.instruments),
+            bus: std::mem::take(&mut self.bus),
+            hardware_reset_requested: self.hardware_reset_requested,
+            shutdown_requested: self.shutdown_requested,
+            ..defaults
+        };
+        self.publish();
+    }
+}
+
+/// Stores a control value clamped to [0, 1]. Non-finite values are ignored: NaN would
+/// reach the renderer and be saved as `null`, which makes the settings file unloadable.
+fn set_control(control: &mut f32, value: f32) {
+    if value.is_finite() {
+        *control = value.clamp(0.0, 1.0);
+    }
+}
+
+impl Default for State {
+    fn default() -> Self {
+        let available_content = all_content_names();
+        let state = Self {
+            enabled_content: available_content.clone(),
+            selected_content: available_content[0].clone(),
+            // New installations and Restore defaults start every control in the middle,
+            // except Volume, which starts muted.
+            brightness: 0.5,
+            volume: 0.0,
+            palette: PALETTES[0].name.to_string(),
+            heat: 0.5,
+            flow: 0.5,
+            form: 0.5,
+            void: 0.5,
+            flip_vertical: false,
+            calibration: Calibration::default(),
+            ethernet_interface: "eth0".to_string(),
+            modules: vec![(0, 0, Self::MODULE_DEFAULT_ADDRESS)],
+
+            webserver_port: 8080,
+            simulator: false,
+            audio: false,
+            instruments: available_content
+                .iter()
+                .map(|content| {
+                    let instrument = CONTENT_INSTRUMENTS
+                        .iter()
+                        .find(|(known, _)| known == content)
+                        .map_or(DEFAULT_INSTRUMENT, |(_, instrument)| instrument);
+                    (content.clone(), instrument.to_string())
+                })
+                .collect(),
+
+            available_content,
+
+            dim: (MODULE_X_RES, MODULE_Y_RES, MODULE_Z_RES),
+
+            bus: Arc::new(Bus::new(&Controls::default())),
+            hardware_reset_requested: false,
+            shutdown_requested: false,
+            calibration_pattern: PatternSelection::default(),
+        };
+        state.publish();
+        state
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hardware_reset_request_is_consumed_once_and_not_persisted() {
+        let mut state = State::default();
+        assert!(!state.take_hardware_reset_request());
+        state.request_hardware_reset();
+        state.request_hardware_reset();
+        let saved = serde_json::to_value(&state).unwrap();
+        assert!(saved.get("hardware_reset_requested").is_none());
+        let mut restored: State = serde_json::from_value(saved).unwrap();
+        assert!(!restored.take_hardware_reset_request());
+        assert!(state.take_hardware_reset_request());
+        assert!(!state.take_hardware_reset_request());
+    }
+
+    #[test]
+    fn shutdown_is_requested_once_and_not_in_the_simulator() {
+        let mut state = State::default();
+        assert!(!state.shutdown_requested());
+        assert!(state.request_shutdown());
+        assert!(state.shutdown_requested());
+        // A second request exits right away, e.g. a second Ctrl+C.
+        assert!(!state.request_shutdown());
+        let saved = serde_json::to_value(&state).unwrap();
+        assert!(saved.get("shutdown_requested").is_none());
+
+        let mut simulator = State {
+            simulator: true,
+            ..State::default()
+        };
+        assert!(!simulator.request_shutdown());
+    }
+
+    #[test]
+    fn controls_are_validated_and_go_onto_the_bus() {
+        let mut state = State::default();
+        assert_eq!(state.volume(), 0.0);
+        state.set_volume(0.37);
+        state.set_volume(f32::NAN);
+        state.set_volume(f32::INFINITY);
+        assert_eq!(state.volume(), 0.37);
+        let saved = serde_json::to_value(&state).unwrap();
+        let restored: State = serde_json::from_value(saved).unwrap();
+        assert_eq!(restored.volume(), 0.37);
+        state.set_volume(2.0);
+        assert_eq!(state.volume(), 1.0);
+        state.set_volume(-1.0);
+        assert_eq!(state.volume(), 0.0);
+        state.set_heat(0.3);
+        state.set_palette(PALETTES[2].name);
+        assert_eq!(state.bus().controls(), state.controls());
+        assert_eq!(state.bus().controls().palette, 2);
+        let bus = state.bus();
+        state.restore_defaults();
+        assert_eq!(
+            bus.controls(),
+            Controls::default(),
+            "the same bus, with defaults"
+        );
+        assert!(serde_json::to_value(&state).unwrap().get("bus").is_none());
+    }
+
+    #[test]
+    fn controls_ignore_non_finite_values() {
+        let mut state = State::default();
+        let setters: [fn(&mut State, f32); 6] = [
+            State::set_brightness,
+            State::set_volume,
+            State::set_heat,
+            State::set_flow,
+            State::set_form,
+            State::set_void,
+        ];
+        for set in setters {
+            set(&mut state, 0.25);
+            set(&mut state, f32::NAN);
+            set(&mut state, f32::INFINITY);
+            set(&mut state, f32::NEG_INFINITY);
+        }
+        let controls = [
+            state.brightness(),
+            state.volume(),
+            state.heat(),
+            state.flow(),
+            state.form(),
+            state.void(),
+        ];
+        assert_eq!(controls, [0.25; 6]);
+        let json = serde_json::to_string(&state).unwrap();
+        let restored = State::from_saved(serde_json::from_str(&json).unwrap());
+        assert_eq!(restored.heat(), 0.25);
+    }
+
+    #[test]
+    fn ethernet_interface_is_truncated_at_a_character_boundary() {
+        let mut state = State::default();
+        state.set_ethernet_interface("enx0123456789abcdef0123");
+        assert_eq!(state.ethernet_interface(), "enx0123456789abcdef0");
+        // 'é' takes bytes 19 and 20, so it must not be split.
+        state.set_ethernet_interface("eth-interface-name-é");
+        assert_eq!(state.ethernet_interface(), "eth-interface-name-");
+    }
+
+    #[test]
+    fn restore_keeps_file_only_settings_and_runtime_status() {
+        let mut state = State::default();
+        state.set_heat(0.9);
+        state.set_ethernet_interface("en7");
+        state.set_module0_address(5);
+        state.set_webserver_port(8000);
+        state.simulator = true;
+        state.audio = true;
+        let first = state.selected_content().to_string();
+        state.set_instrument(&first, "Shoal");
+        state
+            .bus()
+            .report(Part::Audio, Status::Ok("Audio ready".into()));
+        state.restore_defaults();
+        // A single module is reset completely; its address can be set in the web app.
+        assert_eq!(state.heat(), 0.5);
+        assert_eq!(state.ethernet_interface(), "en7");
+        assert_eq!(
+            state.modules(),
+            &vec![(0, 0, State::MODULE_DEFAULT_ADDRESS)]
+        );
+        assert_eq!(state.webserver_port(), 8000);
+        assert!(state.simulator());
+        assert!(state.audio());
+        assert_eq!(state.instrument(), "Shoal");
+        assert_eq!(
+            state.bus().status(Part::Audio),
+            Status::Ok("Audio ready".into())
+        );
+
+        let mut saved = serde_json::to_value(State::default()).unwrap();
+        saved["modules"] = serde_json::json!([[0, 0, 1], [1, 0, 2]]);
+        let mut state = State::from_saved(serde_json::from_value(saved).unwrap());
+        let dim = state.dim();
+        state.restore_defaults();
+        assert_eq!(state.modules(), &vec![(0, 0, 1), (1, 0, 2)]);
+        assert_eq!(state.dim(), dim);
+    }
+
+    #[test]
+    fn module_address_is_only_configurable_for_a_single_module() {
+        let mut state = State::default();
+        assert!(state.set_module0_address(5));
+        assert_eq!(state.module0_address(), Some(5));
+
+        let mut saved = serde_json::to_value(State::default()).unwrap();
+        saved["modules"] = serde_json::json!([[0, 0, 1], [1, 0, 2]]);
+        let mut state = State::from_saved(serde_json::from_value(saved).unwrap());
+        assert_eq!(state.module0_address(), None);
+        assert!(!state.set_module0_address(5));
+        assert_eq!(state.modules(), &vec![(0, 0, 1), (1, 0, 2)]);
+    }
+
+    #[test]
+    fn unknown_names_fall_back_and_settings_round_trip() {
+        let mut settings = State::default();
+        let first = settings.available_content()[0].clone();
+        assert!(!settings.set_selected_content("Renamed"));
+        assert!(!settings.set_palette("Renamed"));
+        assert_eq!(settings.selected_content(), first);
+        settings.set_enabled_content(&["Renamed"]);
+        assert_eq!(settings.enabled_content(), settings.available_content());
+        assert!(settings.set_palette(PALETTES[3].name));
+        settings.set_void(0.3);
+        let json = serde_json::to_string(&settings).unwrap();
+        let restored = State::from_saved(serde_json::from_str(&json).unwrap());
+        assert_eq!(restored.palette(), PALETTES[3].name);
+        assert_eq!(restored.palette_index(), 3);
+        assert_eq!(restored.selected_content(), first);
+        assert_eq!(restored.void(), 0.3);
+    }
+
+    #[test]
+    fn older_settings_files_still_load() {
+        // Saved before content and palettes were referenced by name, and before Void.
+        let mut saved = serde_json::to_value(State::default()).unwrap();
+        let fields = saved.as_object_mut().unwrap();
+        for field in ["enabled_content", "selected_content", "palette", "void"] {
+            fields.remove(field);
+        }
+        fields.insert("enabled_content_indices".into(), serde_json::json!([0, 3]));
+        fields.insert("selected_content_index".into(), serde_json::json!(3));
+        fields.insert("tone".into(), serde_json::json!(0.4));
+        let restored = State::from_saved(serde_json::from_value(saved).unwrap());
+        assert_eq!(restored.enabled_content(), restored.available_content());
+        assert_eq!(restored.selected_content(), restored.available_content()[0]);
+        assert_eq!(restored.palette(), PALETTES[0].name);
+        assert_eq!(restored.void(), State::default().void());
+    }
+
+    #[test]
+    fn missing_fields_fall_back_to_defaults() {
+        let saved = serde_json::from_str(r#"{ "heat": 0.3, "modules": [[0, 0, 2]] }"#).unwrap();
+        let restored = State::from_saved(saved);
+        assert_eq!(restored.heat(), 0.3);
+        assert_eq!(restored.module0_address(), Some(2));
+        assert_eq!(restored.brightness(), State::default().brightness());
+        assert_eq!(restored.webserver_port(), State::default().webserver_port());
+        assert!(!restored.simulator());
+        assert!(!restored.audio());
+    }
+
+    #[test]
+    fn content_plays_its_instrument_and_puts_it_on_the_bus() {
+        let index = |name: &str| INSTRUMENTS.iter().position(|(known, _)| *known == name);
+        let mut state = State::default();
+        for content in state.available_content().to_vec() {
+            assert!(state.set_selected_content(&content));
+            assert_eq!(Some(state.bus().instrument()), index(state.instrument()));
+        }
+        assert!(state.set_selected_content("Pleiades"));
+        assert_eq!(state.instrument(), "Shoal");
+
+        let mut saved = serde_json::to_value(&state).unwrap();
+        saved["instruments"]["Pleiades"] = serde_json::json!("Fathom");
+        let state = State::from_saved(serde_json::from_value(saved.clone()).unwrap());
+        assert_eq!(state.instrument(), "Fathom");
+        assert_eq!(Some(state.bus().instrument()), index("Fathom"));
+        saved["instruments"]["Pleiades"] = serde_json::json!("Theremin");
+        let state = State::from_saved(serde_json::from_value(saved).unwrap());
+        assert_eq!(state.instrument(), "Shoal");
+    }
+
+    #[test]
+    fn audio_is_available_only_when_enabled_and_not_failing() {
+        let mut state = State::default();
+        assert!(!state.audio_available());
+        state.audio = true;
+        assert!(state.audio_available());
+        state
+            .bus()
+            .report(Part::Audio, Status::Ok("Audio ready".into()));
+        assert!(state.audio_available());
+        state
+            .bus()
+            .report(Part::Audio, Status::Err("Audio unavailable".into()));
+        assert!(!state.audio_available());
+    }
+
+    #[test]
+    fn invalid_settings_file_is_moved_aside() {
+        let dir = std::env::temp_dir().join(format!("nova-settings-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("nova_settings.json");
+        let invalid = dir.join("nova_settings.json.invalid");
+        let broken = r#"{ "modules": [[0, 0, 1], [1, 0, 2],] }"#;
+        fs::write(&path, broken).unwrap();
+
+        let state = State::load_from(&path);
+        assert_eq!(state.modules(), State::default().modules());
+        assert_eq!(fs::read_to_string(&invalid).unwrap(), broken);
+        // Defaults are saved in its place and load again.
+        assert!(serde_json::from_str::<State>(&fs::read_to_string(&path).unwrap()).is_ok());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+}

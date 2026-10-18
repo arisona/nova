@@ -1,13 +1,13 @@
 # Nova hardware protocol
 
-The server talks to Nova modules over raw Ethernet. It sends a sync packet every 20 ms (50 Hz), alternating between "send pixels" and "shift pixels" (the previously sent pixels are shifted to the output), so the display frame rate is 25 Hz.
+Nova's hardware driver talks to the modules over raw Ethernet. It sends a sync packet every 20 ms (50 Hz), alternating between "send pixels" and "shift pixels" (the previously sent pixels are shifted to the output), so the display frame rate is 25 Hz.
 
 There are two packet types:
 
 - **Sync packets** (`EtherType 0x0810`) for timing, status polls and replies, and shift commands
 - **Data packets** (`EtherType 0x0800` + UDP port 3210) for RGB pixel chains, reset, and auto-ID
 
-The implementation and all constants, including unused command codes, are in `server/src/nova.rs`.
+The implementation and all constants, including unused command codes, are in `voxel/src/hardware.rs`.
 
 ## Module addressing
 
@@ -26,7 +26,7 @@ After giving your interface a static IP in `192.168.1.x`, you can ping modules d
 Offset  Len  Field           Value / Meaning
 ------- ---- --------------- -----------------------------------------------
 0–5     6    DST MAC         Broadcast (FF:FF:FF:FF:FF:FF)
-6–11    6    SRC MAC         Host interface MAC
+6–11    6    SRC MAC         Nova's interface MAC
 12–13   2    EtherType       0x0810
 14–15   2    Payload Length  Big-endian = 46 (0x002E)
 16      1    Command         0x00 = SYNC, 0x04 = STATUS
@@ -40,14 +40,14 @@ Offset  Len  Field           Value / Meaning
 - **Usage**:
   - Every 20 ms: send SYNC with `send pixels` and `shift pixels` flag alternating
   - Every 5 s: send STATUS (`Command=0x04`) to poll modules
-  - Modules reply with `Command=0x04`, DST MAC = host MAC
+  - Modules reply with `Command=0x04`, DST MAC = the MAC of Nova's interface
 
 ## Module reset and auto-ID
 
 1. **Reset**: 4 rounds of UDP `UDP_CMD_RESET (0x00)`, 200 ms between rounds
 2. **Auto-ID**: 1 round of UDP `UDP_CMD_AUTOID (0x70)`, 200 ms after
 
-After power-on, a module answers status polls but shows nothing until it has received this sequence. The server runs it for the responding modules, those that answer status polls, when it opens the interface and again before it exits, so the display stays dark. Whenever the responding modules change, because one started or restarted, stopped answering, or the configuration changed, the server reopens the interface and resets the responding modules again. A reset requested from the web app also reopens the interface.
+After power-on, a module answers status polls but shows nothing until it has received this sequence. The hardware driver runs it for the responding modules, those that answer status polls, when it opens the interface and again before it exits, so the display stays dark. Whenever the responding modules change, because one started or restarted, stopped answering, or the configuration changed, the driver reopens the interface and resets the responding modules again. A reset requested from the web app also reopens the interface.
 
 _All use the same UDP payload format ([data packet](#data-packet-ethertype-0x0800--udp-3210)) with `sequence=0`, `shift=false`._
 
@@ -59,7 +59,7 @@ _All use the same UDP payload format ([data packet](#data-packet-ethertype-0x080
 Offset  Len  Field           Value / Meaning
 ------- ---- --------------- -----------------------------
 0–5     6    DST MAC         NOVA_MAC_PREFIX (00:20:E3:10:00) + module_address
-6–11    6    SRC MAC         Host interface MAC
+6–11    6    SRC MAC         Nova's interface MAC
 12–13   2    EtherType       0x0800 (IPv4)
 14      1    IP ver + IHL    0x40|0x05 → v4, IHL=5
 15      1    DSCP/ECN        0x00

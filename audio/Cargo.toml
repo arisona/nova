@@ -1,0 +1,21 @@
+[package]
+name = "nova-audio"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+description = "The sound of the Nova voxel display: DSP, voices, instruments and native output"
+
+[dependencies]
+nova-core = { path = "../core" }
+cpal = "0.18.2"
+log = "0.4.34"
+
+[dev-dependencies]
+# For the sketches, which render the real content; the library knows nothing of the display.
+nova-voxel = { path = "../voxel" }
+
+# Offline renderings for sound design; see `sounddesign/sketches/main.rs`.
+[[example]]
+name = "sketches"
+path = "sounddesign/sketches/main.rs"
+test = true
