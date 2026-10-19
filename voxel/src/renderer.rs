@@ -21,7 +21,7 @@ const MAX_FRAME_DELTA_SECONDS: f32 = 0.25;
 const CONTENT_FADE_SECONDS: f32 = 5.0;
 const PALETTE_FADE_SECONDS: f32 = 2.0;
 /// How far a fade takes Void towards 1 at its darkest point: 1 is completely dark.
-const FADE_DEPTH: f32 = 0.5;
+const FADE_DEPTH: f32 = 1.0;
 /// How much a fade sparkles at its darkest point (see `sparkle.rs`): 0 not at all, 1 fully.
 const FADE_SPARKLE: f32 = 1.0;
 
@@ -90,8 +90,11 @@ pub struct Renderer {
     /// it is dark.
     selected_content_index: usize,
     palette: usize,
-    /// Progress of a fade, from 0 to 1: dark at 0.5, done at 1.
+    /// Progress of a fade, from 0 to 1: dark at 0.5, done at 1, and how long it takes,
+    /// set by the change that starts it, so the new module comes back as slowly as the
+    /// old one left.
     fade: f32,
+    fade_seconds: f32,
 
     next: VoxelImage,
     output: VoxelImage,
@@ -110,6 +113,7 @@ impl Renderer {
             selected_content_index: usize::MAX,
             palette: 0,
             fade: 1.0,
+            fade_seconds: CONTENT_FADE_SECONDS,
 
             next: VoxelImage::new(dim),
             output: VoxelImage::new(dim),
@@ -157,12 +161,14 @@ impl Renderer {
         let selected_index = settings.content.min(self.content.len() - 1);
         let content_changes = selected_index != self.selected_content_index;
         let changes = content_changes || controls.palette != self.palette;
-        let fade_seconds = if content_changes {
-            CONTENT_FADE_SECONDS
-        } else {
-            PALETTE_FADE_SECONDS
-        };
-        if self.selected_content_index == usize::MAX || fade_seconds <= 0.0 {
+        if changes {
+            self.fade_seconds = if content_changes {
+                CONTENT_FADE_SECONDS
+            } else {
+                PALETTE_FADE_SECONDS
+            };
+        }
+        if self.selected_content_index == usize::MAX || self.fade_seconds <= 0.0 {
             self.fade = 1.0;
         } else {
             // A change of mind turns the fade around, from the darkness it has reached.
@@ -171,7 +177,7 @@ impl Renderer {
                 self.fade = 1.0 - self.fade;
             }
             let before = self.fade;
-            self.fade = (before + delta / fade_seconds).min(1.0);
+            self.fade = (before + delta / self.fade_seconds).min(1.0);
             if before < 0.5 && self.fade >= 0.5 {
                 // Swap at the darkest point; the new module or palette starts from there.
                 self.fade = 0.5;
@@ -294,9 +300,12 @@ mod tests {
         settings.content = 1;
         let lit = total(renderer.image());
         let mut darkest = f32::INFINITY;
-        for _ in 0..frames + 1 {
+        for frame in 0..frames + 1 {
             renderer.render_step(&settings, step);
             darkest = darkest.min(total(renderer.image()));
+            if frame == frames * 3 / 4 {
+                assert!(renderer.fade < 0.8, "the new module comes back as slowly");
+            }
         }
         assert!(darkest < lit, "the swap happens in the dark");
         assert_eq!((renderer.selected_content_index, renderer.fade), (1, 1.0));
