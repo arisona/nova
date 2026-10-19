@@ -9,6 +9,7 @@ use crate::content::common::ease;
 use crate::content::{Content, all_content};
 use crate::host::Settings;
 use crate::light::Meter;
+use crate::sparkle::Sparkle;
 use crate::voxel_image::VoxelImage;
 
 /// Longest frame step the renderer passes on, so a stalled frame never makes content or
@@ -21,6 +22,8 @@ const CONTENT_FADE_SECONDS: f32 = 5.0;
 const PALETTE_FADE_SECONDS: f32 = 2.0;
 /// How far a fade takes Void towards 1 at its darkest point: 1 is completely dark.
 const FADE_DEPTH: f32 = 0.5;
+/// How much a fade sparkles at its darkest point (see `sparkle.rs`): 0 not at all, 1 fully.
+const FADE_SPARKLE: f32 = 1.0;
 
 /// What content renders from: the controls after the tides, the tide clock, and whether to
 /// start over. It only carries values; content interprets them.
@@ -96,6 +99,7 @@ pub struct Renderer {
     delta_time: Instant,
     tides: TideClock,
     meter: Meter,
+    sparkle: Sparkle,
 }
 
 impl Renderer {
@@ -113,6 +117,7 @@ impl Renderer {
             delta_time: Instant::now(),
             tides: TideClock::default(),
             meter: Meter::default(),
+            sparkle: Sparkle::default(),
         }
     }
 
@@ -181,15 +186,22 @@ impl Renderer {
             self.palette = controls.palette;
         }
         state.palette = self.palette;
+        // The fade lifts Void, and sparkles as much as it lifts: not at all where Void
+        // already darkens everything.
         let darkness = ease(1.0 - (2.0 * self.fade - 1.0).abs());
-        state.void += (1.0 - state.void) * FADE_DEPTH * darkness;
+        let lift = (1.0 - state.void) * darkness;
+        state.void += FADE_DEPTH * lift;
 
         self.content[self.selected_content_index].render(&state, delta, &mut self.next);
 
+        let light = self.meter.measure(&self.next, delta);
+        self.sparkle
+            .update(&light, FADE_SPARKLE * lift, delta, self.next.dim());
         self.output
             .copy_scaled_from(&self.next, controls.brightness);
+        self.sparkle.draw(&mut self.output, controls.brightness);
         self.bus.set_clock(seconds);
-        self.bus.set_light(&self.meter.measure(&self.next, delta));
+        self.bus.set_light(&light);
     }
 
     pub fn image(&self) -> &VoxelImage {
