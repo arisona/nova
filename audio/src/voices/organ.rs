@@ -3,15 +3,24 @@
 //! Every key sounds the footages of drawbars, from the 16' an octave below the tone through
 //! the 8' (the tone itself) to the 1' three octaves above, all taken from one phasor, so they
 //! stay locked in phase: the chord stands still and pure where the bed breathes and drifts.
-//! Cold is a flute registration (8', 4' and a little 2') without vibrato; warm the reedy
-//! combo organ, with the 16', the fifths and thirds of the mixture, and a vibrato. Each
+//! Cold is a flute registration (8', 4' and a little 2'); warm the reedy combo organ, with
+//! the 16' and the fifths and thirds of the mixture, and towards the warmest a vibrato. Each
 //! key's registration is normalized by its K-weighted level, so Heat keeps the loudness, and
 //! footages above `ceiling` roll off by 24 dB per octave, so the reed never buzzes
 //! piercingly. Keys the chord keeps go on sounding; new ones speak and old ones fade over
 //! the time the change asks for. Each key can lean forward or back, as the colors of the
-//! light ask, while the chord keeps its level.
+//! light ask, while the chord keeps its level. The instrument can take the footages above
+//! the 8' back, as a gate of brightness, while the chord sounds on.
+//!
+//! It plays through a rotary speaker: a horn turns the footages above the 8', a drum the
+//! others, each moving them in level, in pitch (by Doppler) and between the sides, and each
+//! taking its own time to reach a new speed, the horn quicker than the drum, so they beat
+//! against each other on the way. It moves the chord gently, never far from its level:
+//! stopped, the chord stands still; slow is a chorale, fast a tremolo, and faster than any
+//! cabinet turns, the movement in level becomes a roughness of its own, while the Doppler
+//! is held to a slight vibrato.
 
-use crate::dsp::{Rotor, coefficient, k_weight, lerp, smooth};
+use crate::dsp::{Curve, DelayLine, Rotor, coefficient, k_weight, lerp, smooth};
 use crate::harmony::{MAX_TONES, Tone};
 
 /// Footages per key, as multiples of half the key's frequency: 16', 8', 4', 2 2/3', 2',
@@ -27,13 +36,22 @@ pub struct Settings {
     /// Drawbar levels of the footages when cold and warm.
     pub cold: [f32; FOOTAGES],
     pub warm: [f32; FOOTAGES],
-    /// Vibrato rate in Hz, and its depth in cents when cold and warm.
+    /// Vibrato rate in Hz, and its depth in cents over Heat.
     pub vibrato_hz: f32,
-    pub vibrato_cents: [f32; 2],
+    pub vibrato_cents: Curve,
     /// Footages above this frequency in Hz roll off by 24 dB per octave.
     pub ceiling: f32,
     /// RMS level of the whole chord.
     pub level: f32,
+    /// The rotary speaker's horn and drum: how deep they move the level, from 0 to 1, their
+    /// largest Doppler delay in seconds, and the seconds they take to reach a new speed. The
+    /// drum turns at `drum` times the horn's speed; the Doppler never bends the pitch further
+    /// than `swing`, as a share of the frequency, however fast they turn.
+    pub rotary: [f32; 2],
+    pub doppler: [f32; 2],
+    pub inertia: [f32; 2],
+    pub drum: f32,
+    pub swing: f32,
 }
 
 impl Settings {
@@ -42,9 +60,14 @@ impl Settings {
         cold: [0.0, 1.0, 0.45, 0.0, 0.15, 0.0, 0.0, 0.0],
         warm: [0.45, 1.0, 0.4, 0.5, 0.25, 0.3, 0.12, 0.1],
         vibrato_hz: 6.0,
-        vibrato_cents: [0.0, 14.0],
+        vibrato_cents: Curve::new(&[[0.6, 0.0], [1.0, 14.0]]),
         ceiling: 2500.0,
         level: 0.1,
+        rotary: [0.15, 0.06],
+        doppler: [0.00015, 0.00005],
+        inertia: [0.8, 3.5],
+        drum: 0.85,
+        swing: 0.006,
     };
 }
 
@@ -69,10 +92,61 @@ impl Key {
     }
 }
 
+/// A turning part of the rotary speaker, horn or drum, with its delay lines for the left
+/// and the right.
+struct Turning {
+    /// Turns so far, from 0 to 1, and the speed in turns per second.
+    angle: f32,
+    speed: f32,
+    /// Doppler delay in samples, at most and now.
+    reach: f32,
+    doppler: f32,
+    lines: [DelayLine; 2],
+}
+
+impl Turning {
+    fn new(angle: f32, reach: f32, sample_rate: f32) -> Self {
+        let lines = [0, 1].map(|_| DelayLine::new(reach + 4.0 / sample_rate, sample_rate));
+        Self {
+            angle,
+            speed: 0.0,
+            reach: reach * sample_rate,
+            doppler: reach * sample_rate,
+            lines,
+        }
+    }
+
+    /// Moves towards `speed` by `share` of the way, holding the Doppler to `swing`.
+    fn turn_towards(&mut self, speed: f32, share: f32, swing: f32, sample_rate: f32) {
+        self.speed += (speed - self.speed) * share;
+        let held = swing * sample_rate / (std::f32::consts::TAU * self.speed.max(1e-3));
+        self.doppler = self.reach.min(held);
+    }
+
+    /// The left and right sides as microphones on opposite sides of the cabinet hear them:
+    /// louder as it points their way, higher as it turns towards them.
+    #[inline]
+    fn next(&mut self, input: [f32; 2], depth: f32, sample_rate: f32) -> [f32; 2] {
+        self.angle = (self.angle + self.speed / sample_rate).fract();
+        let (sin, cos) = (std::f32::consts::TAU * self.angle).sin_cos();
+        let middle = self.reach + 2.0;
+        let mut output = [0.0; 2];
+        for (side, sign) in [1.0, -1.0].into_iter().enumerate() {
+            self.lines[side].write(input[side]);
+            let delayed = self.lines[side].read(middle - sign * self.doppler * sin);
+            output[side] = delayed * (1.0 + sign * depth * cos);
+        }
+        output
+    }
+}
+
 pub struct Organ {
     sample_rate: f32,
     settings: Settings,
     keys: [Key; KEYS],
+    /// The rotary speaker's horn and drum.
+    horn: Turning,
+    drum: Turning,
     /// Phase of the vibrato, in turns, and the gain that keeps the chord at its level.
     vibrato: f32,
     norm: f32,
@@ -95,6 +169,8 @@ impl Organ {
             sample_rate,
             settings,
             keys,
+            horn: Turning::new(0.0, settings.doppler[0], sample_rate),
+            drum: Turning::new(0.3, settings.doppler[1], sample_rate),
             vibrato: 0.0,
             norm: 0.0,
         }
@@ -153,14 +229,24 @@ impl Organ {
         }
     }
 
-    /// Once per block: the registration, the vibrato and the chord's level.
-    pub fn update_block(&mut self, heat: f32, block: usize) {
+    /// Once per block: the registration, the vibrato, the chord's level, and the rotary
+    /// speaker's horn turning towards `speed` turns per second.
+    pub fn update_block(&mut self, heat: f32, speed: f32, block: usize) {
         let warmth = smooth(heat);
         let settings = &self.settings;
+        let rate = self.sample_rate / block as f32;
+        let targets = [speed, speed * settings.drum];
+        for ((turning, inertia), target) in [&mut self.horn, &mut self.drum]
+            .into_iter()
+            .zip(settings.inertia)
+            .zip(targets)
+        {
+            let share = coefficient(inertia, rate);
+            turning.turn_towards(target, share, settings.swing, self.sample_rate);
+        }
         self.vibrato =
             (self.vibrato + settings.vibrato_hz * block as f32 / self.sample_rate).fract();
-        let cents = lerp(settings.vibrato_cents[0], settings.vibrato_cents[1], warmth)
-            * (std::f32::consts::TAU * self.vibrato).sin();
+        let cents = settings.vibrato_cents.at(heat) * (std::f32::consts::TAU * self.vibrato).sin();
         let bend = 2.0_f32.powf(cents / 1200.0);
         let top = 0.45 * self.sample_rate;
         let mut power = 0.0;
@@ -203,9 +289,11 @@ impl Organ {
         };
     }
 
+    /// The next sample, with `brightness` scaling the footages above the 8'.
     #[inline]
-    pub fn next(&mut self) -> [f32; 2] {
-        let mut output = [0.0; 2];
+    pub fn next(&mut self, brightness: f32) -> [f32; 2] {
+        let mut low_out = [0.0; 2];
+        let mut high_out = [0.0; 2];
         for key in &mut self.keys {
             key.gain += (key.target - key.gain) * key.rate;
             if key.silent() {
@@ -226,18 +314,24 @@ impl Organ {
                 multiply(eight, four),
                 multiply(eight, eight),
             ];
-            let sample = powers
-                .iter()
-                .zip(&key.footages)
-                .map(|((_, sine), level)| sine * level)
-                .sum::<f32>()
-                * key.gain
-                * key.lean
-                * self.norm;
-            output[0] += sample * key.pan[0];
-            output[1] += sample * key.pan[1];
+            let [low, high] = [0..2, 2..FOOTAGES].map(|range| {
+                powers[range.clone()]
+                    .iter()
+                    .zip(&key.footages[range])
+                    .map(|((_, sine), level)| sine * level)
+                    .sum::<f32>()
+            });
+            let gain = key.gain * key.lean * self.norm;
+            for side in 0..2 {
+                low_out[side] += low * gain * key.pan[side];
+                high_out[side] += high * gain * key.pan[side];
+            }
         }
-        output
+        let [horn, drum] = self.settings.rotary;
+        let high = high_out.map(|sample| sample * brightness);
+        let high = self.horn.next(high, horn, self.sample_rate);
+        let low = self.drum.next(low_out, drum, self.sample_rate);
+        [low[0] + high[0], low[1] + high[1]]
     }
 }
 
@@ -270,9 +364,9 @@ mod tests {
         let frames = (seconds * RATE) as usize;
         for frame in 0..frames {
             if frame % 32 == 0 {
-                organ.update_block(heat, 32);
+                organ.update_block(heat, 0.0, 32);
             }
-            let sample = organ.next()[0];
+            let sample = organ.next(1.0)[0];
             sum += sample * sample;
             step = step.max((sample - previous).abs());
             previous = sample;
@@ -303,5 +397,37 @@ mod tests {
             change < 1.5 * held && level > 0.5 * levels[2],
             "{held}, {change}"
         );
+    }
+
+    /// How far the level of the left side moves over 40 ms windows, as the ratio of the
+    /// loudest to the quietest, for one key with the horn turning at `speed`, once it has
+    /// got there.
+    fn movement(speed: f32) -> f32 {
+        let mut organ = Organ::new(RATE, Settings::COMBO);
+        organ.play(&chord(&[220.0]), 0.02);
+        let window = (0.04 * RATE) as usize;
+        let (mut levels, mut sum) = (Vec::new(), 0.0);
+        for frame in 0..(12.0 * RATE) as usize {
+            if frame % 32 == 0 {
+                organ.update_block(0.5, speed, 32);
+            }
+            let sample = organ.next(1.0)[0];
+            if frame >= (10.0 * RATE) as usize {
+                sum += sample * sample;
+                if (frame + 1) % window == 0 {
+                    levels.push(sum);
+                    sum = 0.0;
+                }
+            }
+        }
+        let loudest = levels.iter().copied().fold(0.0, f32::max);
+        let quietest = levels.iter().copied().fold(f32::INFINITY, f32::min);
+        (loudest / quietest).sqrt()
+    }
+
+    #[test]
+    fn the_rotary_speaker_stands_still_or_turns() {
+        let (still, turning) = (movement(0.0), movement(6.0));
+        assert!(still < 1.05 && turning > 1.15, "{still}, {turning}");
     }
 }

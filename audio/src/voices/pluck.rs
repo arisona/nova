@@ -8,8 +8,9 @@
 //! bridge pickup and a shorter ring; warm a neck pickup: rounder, darker and longer. Soft
 //! notes are darker than hard ones. Form mutes the strings, as a palm resting at the bridge:
 //! ringing towards 0, short and thudding towards 1. The stroke rolls off above `ceiling`, so
-//! plectrum clicks and high notes never ring piercingly. A note that has to make room fades
-//! out over 3 ms.
+//! plectrum clicks and high notes never ring piercingly. A string that still rings is picked
+//! again rather than joined by another, the plectrum damping it on the way in, so fast
+//! strokes on one note make one pulse. A note that has to make room fades out over 3 ms.
 
 use crate::dsp::{Curve, DelayLine, OnePole, Rng, Svf, lerp, smooth};
 
@@ -39,6 +40,8 @@ pub struct Settings {
     /// The stroke rolls off above this frequency in Hz by 24 dB per octave, whatever the
     /// velocity and Heat.
     pub ceiling: f32,
+    /// Share of a ringing string's vibration left when it is picked again.
+    pub repick: f32,
 }
 
 impl Settings {
@@ -52,6 +55,7 @@ impl Settings {
         ring: Curve::new(&[[0.0, 1.6], [0.5, 1.0], [1.0, 0.1]]),
         mute: Curve::new(&[[0.5, 1.0], [1.0, 0.25]]),
         ceiling: 2500.0,
+        repick: 0.35,
     };
 }
 
@@ -66,6 +70,8 @@ pub struct Pick {
 }
 
 struct Note {
+    /// The string's frequency, for picking it again.
+    frequency: f32,
     line: DelayLine,
     loop_filter: OnePole,
     stroke: [Svf; 2],
@@ -106,6 +112,7 @@ impl Pluck {
     pub fn new(sample_rate: f32, settings: Settings, rng: Rng) -> Self {
         let notes = (0..NOTES)
             .map(|_| Note {
+                frequency: 0.0,
                 line: DelayLine::new(1.5 / settings.lowest, sample_rate),
                 loop_filter: OnePole::default(),
                 stroke: [Svf::default(); 2],
@@ -130,9 +137,18 @@ impl Pluck {
         }
     }
 
-    /// Plucks a string, panned from −1 (left) to 1 (right). It takes the quietest of the
-    /// ringing notes' place.
+    /// Plucks a string, panned from −1 (left) to 1 (right): the string of that note again if
+    /// it still rings, or else in the quietest of the ringing notes' place.
     pub fn trigger(&mut self, pick: Pick) {
+        let frequency = pick.frequency.max(self.settings.lowest);
+        if let Some(note) = self.notes.iter_mut().find(|note| {
+            note.pending.is_none()
+                && note.loudness() > 1e-4
+                && (note.frequency / frequency - 1.0).abs() < 0.005
+        }) {
+            Self::start(note, &self.settings, self.sample_rate, pick, false);
+            return;
+        }
         let note = self
             .notes
             .iter_mut()
@@ -141,11 +157,12 @@ impl Pluck {
         if note.loudness() > 1e-4 {
             note.pending = Some(pick);
         } else {
-            Self::start(note, &self.settings, self.sample_rate, pick);
+            Self::start(note, &self.settings, self.sample_rate, pick, true);
         }
     }
 
-    fn start(note: &mut Note, settings: &Settings, sample_rate: f32, pick: Pick) {
+    /// Starts a note on a silent string, or, if not `fresh`, picks a ringing one again.
+    fn start(note: &mut Note, settings: &Settings, sample_rate: f32, pick: Pick, fresh: bool) {
         let Pick {
             velocity,
             frequency,
@@ -155,12 +172,16 @@ impl Pluck {
         } = pick;
         let warmth = smooth(heat);
         let frequency = frequency.max(settings.lowest);
+        note.frequency = frequency;
         let period = sample_rate / frequency;
         // The loop's low-pass delays the fundamental too: the line is shorter by as much.
         let cutoff =
             lerp(settings.damping[0], settings.damping[1], warmth) * settings.mute.at(form);
         note.loop_filter.set(cutoff.max(frequency), sample_rate);
-        note.loop_filter.value = 0.0;
+        // The plectrum damps what still rings.
+        let left = if fresh { 0.0 } else { settings.repick };
+        note.loop_filter.value *= left;
+        note.line.scale(left);
         let pole = (-std::f32::consts::TAU * cutoff.max(frequency) / sample_rate).exp();
         let omega = std::f32::consts::TAU / period;
         let (sin, cos) = omega.sin_cos();
@@ -186,8 +207,7 @@ impl Pluck {
         note.burst_level = velocity * (0.5 * sample_rate / stroke).sqrt();
         note.burst_length = period as usize;
         note.burst = note.burst_length;
-        note.line.clear();
-        note.level = velocity;
+        note.level = velocity.max(note.level * left);
         note.decay = (-1.0 / (decay * sample_rate)).exp();
         let angle = (0.5 + 0.5 * pan.clamp(-1.0, 1.0)) * std::f32::consts::FRAC_PI_2;
         note.pan = [angle.cos(), angle.sin()];
@@ -212,7 +232,7 @@ impl Pluck {
                 note.gain -= fade;
                 if note.gain <= 0.0 {
                     let pick = note.pending.take().unwrap_or_default();
-                    Self::start(note, &self.settings, self.sample_rate, pick);
+                    Self::start(note, &self.settings, self.sample_rate, pick, true);
                 }
             }
             if note.level * note.gain < 1e-5 {
@@ -321,5 +341,22 @@ mod tests {
                 assert!(left.abs() < 2.0 * NOTES as f32 && right.is_finite());
             }
         }
+    }
+
+    #[test]
+    fn strokes_on_one_note_pick_its_string_again() {
+        let mut pluck = Pluck::new(RATE, Settings::GUITAR, Rng::new(1));
+        let mut loudest = 0.0_f32;
+        for _ in 0..40 {
+            pluck.trigger(pick(220.0, 0.0));
+            loudest = loudest.max(peak(&mut pluck, 0.0, 0.06));
+        }
+        let sounding = pluck
+            .notes
+            .iter()
+            .filter(|note| note.loudness() > 1e-4)
+            .count();
+        assert_eq!(sounding, 1);
+        assert!(loudest > 0.2 && loudest < 1.5, "{loudest}");
     }
 }

@@ -323,9 +323,11 @@ impl DelayLine {
         self.buffer[self.position] = value;
     }
 
-    /// Silences the line.
-    pub fn clear(&mut self) {
-        self.buffer.fill(0.0);
+    /// Scales what the line holds; 0 silences it.
+    pub fn scale(&mut self, factor: f32) {
+        for sample in &mut self.buffer {
+            *sample *= factor;
+        }
     }
 }
 

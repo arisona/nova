@@ -358,6 +358,7 @@ impl Conductor {
         let kept = self.stab_steps & 1 << bar_step != 0;
         if let Some(velocity) = score.stab.hit(at_stab, stab, step).filter(|_| kept) {
             hits.stab = velocity;
+            hits.hold = score.stab.source(at_stab, step).digit(step);
             if stab >= 2 {
                 // The last stab of every few bars, twice as often while the bass is away.
                 let bars = score.throws.phrase_bars;

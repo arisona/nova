@@ -512,8 +512,8 @@ fn bayou_scenarios() -> Vec<Spec> {
     vec![
         scenario(
             "bayou_01_cold_to_warm",
-            "Organ and roll (Void 0.3), Heat from 0 to 1: flute to reed, the roll against the \
-             bar, the tresillo, syncopation, with tremolo and breakup",
+            "Pulse and gated organ (Void 0.3), Heat from 0 to 1: a straight pulse, the \
+             tresillo, syncopation, then the ballads' roll with swells, tremolo and breakup",
             90.0,
             bayou,
             |t, state| {
@@ -523,8 +523,8 @@ fn bayou_scenarios() -> Vec<Spec> {
         ),
         scenario(
             "bayou_02_rhythm",
-            "Void from 0 to 1: the organ alone, the bass string, the roll growing, then kick \
-             and ticks, and back into the echoes",
+            "Void from 0 to 1: the organ alone, its gate and the bass string coming in, the \
+             pulse growing, then kick and ticks, and back into the echoes",
             120.0,
             bayou,
             |t, state| state.set_void(t),
@@ -554,12 +554,37 @@ fn bayou_scenarios() -> Vec<Spec> {
         ),
         scenario(
             "bayou_05_texture",
-            "Form from 0 to 1 (Void 0.3): ringing strings, then palm-muted ones",
+            "Form from 0 to 1 (Void 0.3): a still organ with long bright phrases over a ringing \
+             pulse, its rotary speaker speeding up from a chorale to a tremolo and beyond, \
+             short bright notes over a muted chug",
             90.0,
             bayou,
             |t, state| {
                 state.set_void(0.3);
                 state.set_form(t);
+            },
+        ),
+        scenario(
+            "bayou_06_ballads",
+            "Heat 1, Form 0.25, Void 0.3: the ballads' roll, the organ's swells and vibrato, the \
+             amp's tremolo and breakup",
+            60.0,
+            bayou,
+            |_, state| {
+                state.set_heat(1.0);
+                state.set_form(0.25);
+                state.set_void(0.3);
+            },
+        ),
+        scenario(
+            "bayou_07_beyond_the_cabinet",
+            "Form 0.95, Heat 0.3, Void 0.3: the rotary speaker faster than any cabinet turns",
+            60.0,
+            bayou,
+            |_, state| {
+                state.set_form(0.95);
+                state.set_heat(0.3);
+                state.set_void(0.3);
             },
         ),
     ]

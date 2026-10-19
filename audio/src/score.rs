@@ -82,7 +82,8 @@ impl Pattern {
 
     /// With notes: `notes` is a step string beside `steps`. For a bass line they are
     /// intervals above the root, `1` the root, `5` the fifth, `8` the octave, and `.` plays
-    /// the root; for a melody, degrees of the chord, `1` its lowest tone.
+    /// the root; for a melody, degrees of the chord, `1` its lowest tone; for stabs, how
+    /// many 16ths they hold.
     pub const fn with_notes(steps: &str, notes: &str) -> Self {
         let (weights, len) = read(steps);
         let (notes, count) = read(notes);
