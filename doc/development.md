@@ -97,7 +97,7 @@ npm run dev
 - `ethernet_interface`, `webserver_port`, `simulator` and `audio` can only be changed here; restart Nova afterwards. `simulator` shows the desktop simulator instead of driving the hardware; both use the same renderer. `audio` starts the audio service; while it is off or failing, the web app hides Volume.
 - Missing fields fall back to defaults. A file that cannot be parsed is moved to `nova_settings.json.invalid`, and Nova starts with defaults.
 - `calibration` holds the display calibration per channel (red, green, blue); set it on the web app's calibration page. Values outside gamma 1 to 3 and gain 0.2 to 1 are clamped.
-- Content, palettes and the instrument are stored by name. Unknown names are dropped; if no enabled content remains, all modules are enabled. An unknown selection falls back to the first enabled module, an unknown palette to the first palette, an unknown instrument to the default one (see the [README](../README.md#audio)).
+- Content, palettes and the instrument are stored by name. Unknown names are dropped; if no enabled content remains, all modules are enabled. An unknown selection falls back to the first enabled module, an unknown palette to the first palette, an unknown instrument to the default one.
 
 ## Audio output
 
@@ -111,7 +111,7 @@ cargo test audio
 cargo test native_audio_output_smoke -- --ignored --nocapture
 ```
 
-The first command runs the audio crate's tests, the second every test about audio across the crates. The smoke test needs an output device and stays muted.
+The smoke test needs an output device and stays muted.
 
 The sketches render the instruments offline and need no device, from the repository root:
 
@@ -119,7 +119,7 @@ The sketches render the instruments offline and need no device, from the reposit
 cargo run --release -p nova-audio --example sketches -- fathom
 ```
 
-They write WAV files, spectrograms and `report.md` to `nova-audio-sketches` in the OS temporary directory, or to `NOVA_AUDIO_DIR`; the argument renders only scenarios whose name contains it, such as `void`, `fathom` or `module`, and without one, all. Scripted scenarios (`audio/sounddesign/sketches/scenarios.rs`) move the controls as the sliders would, with the global tides, and hand over neutral light or sweep one feature of it; the module scenarios render each content module through the real renderer with every control at 0.5. The report lists, per scenario, the integrated loudness (ITU-R BS.1770) and loudness range, the 95th percentile of the momentary loudness, the median and 95th percentile of the level between 1 and 4 kHz (how far hits stand out from the gaps), peak and crest factor, the energy per band and per octave, the side-to-mid ratio below 80 Hz (the mono check for subwoofers), the speed relative to real time, the visual activity and the steps each part played. They catch technical problems; listening decides. `… --example sketches -- ducking 0.5 0.5` prints how Strata's drone dips with the thumps at the given Heat and Flow, `… -- features` what every content module hands to the sound.
+They write WAV files, spectrograms and `report.md` to `nova-audio-sketches` in the OS temporary directory, or to `NOVA_AUDIO_DIR`; the argument renders only scenarios whose name contains it, such as `void`, `fathom` or `module`. Scripted scenarios (`audio/sounddesign/sketches/scenarios.rs`) move the controls as the sliders would; the module scenarios render each content module through the real renderer. The report lists loudness, levels per band, the mono check below 80 Hz, the speed relative to real time and the steps each part played. `… -- ducking 0.5 0.5` prints how Strata's drone dips with the thumps at the given Heat and Flow, `… -- features` what every content module hands to the sound.
 
 ## Adding content
 
@@ -130,11 +130,10 @@ Content writes unscaled RGB to `next`; the renderer applies Brightness to a sepa
 
 ## Diagnostics
 
-`cargo test orions_belt_form_sweep_dump -- --ignored --nocapture` writes `nova-orions-belt-sweep.ppm` to the OS temporary directory. Its columns step Form from 0 to 1 by 0.125, and its rows are the palettes; each cell shows the middle slice of one module at Heat 0.5.
-
-`cargo test content_form_sweep_dump -- --ignored --nocapture` writes `nova-content-sweep.ppm` with every content module: the columns step Form from 0 to 1, and each module has three rows, after 2, 6 and 15 s at Flow 0.5. Each cell shows the middle slice of two modules side by side. `NOVA_PALETTE`, `NOVA_HEAT` and `NOVA_VOID` change the palette (by name) and the controls.
-
-`cargo test --release content_render_timing -- --ignored --nocapture` prints the render time per frame of every module, for one module and a 2 x 2 grid.
+- `cargo test orions_belt_form_sweep_dump -- --ignored --nocapture` writes `nova-orions-belt-sweep.ppm` to the OS temporary directory: Form from 0 to 1 across, the palettes down, the middle slice of one module at Heat 0.5.
+- `cargo test content_form_sweep_dump -- --ignored --nocapture` writes `nova-content-sweep.ppm`: every module after 2, 6 and 15 s across the Form range. `NOVA_PALETTE`, `NOVA_HEAT` and `NOVA_VOID` change the palette (by name) and the controls.
+- `cargo test --release content_render_timing -- --ignored --nocapture` prints the render time per frame of every module, for one module and a 2 x 2 grid.
+- `cargo test palettes_overview_svg -- --ignored` regenerates `doc/palettes.svg`. Render `doc/palettes.png` from it at 2×, for example with headless Chrome: `--headless --screenshot=doc/palettes.png --force-device-scale-factor=2`, with `--window-size` set to the SVG's size, and its `file://` URL.
 
 ## Troubleshooting
 
