@@ -19,6 +19,7 @@ mod light;
 mod palettes_overview;
 mod renderer;
 mod simulator;
+mod sparkle;
 mod voxel_image;
 
 pub use calibration::{Calibration, Pattern, PatternSelection};

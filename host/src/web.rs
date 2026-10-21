@@ -8,6 +8,7 @@ use actix_web::web::Data;
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, get, post, web};
 use include_dir::{Dir, include_dir};
 
+use nova_audio::INSTRUMENTS;
 use nova_core::{PALETTES, Part, Status};
 use nova_voxel::Pattern;
 
@@ -82,6 +83,8 @@ async fn get_state(data: web::Data<Arc<Mutex<State>>>) -> impl Responder {
         "volume": if state.audio_available() { state.volume() } else { -1.0 },
         "palettes": palettes_json(),
         "palette": state.palette(),
+        "instruments": INSTRUMENTS.iter().map(|(name, _)| name).collect::<Vec<_>>(),
+        "instrument": state.instrument(),
         "heat": state.heat(),
         "flow": state.flow(),
         "form": state.form(),
@@ -215,6 +218,11 @@ async fn command(
             }
             "palette" => {
                 if !state.set_palette(value) {
+                    return HttpResponse::BadRequest();
+                }
+            }
+            "instrument" => {
+                if !state.set_instrument(value) {
                     return HttpResponse::BadRequest();
                 }
             }
@@ -396,6 +404,7 @@ mod tests {
         };
         for uri in [
             "/api/palette?value=Renamed",
+            "/api/instrument?value=Theremin",
             "/api/selected-content?value=Renamed",
             "/api/enabled-content?value=Renamed",
             "/api/enabled-content?value=",
@@ -414,6 +423,13 @@ mod tests {
         );
         assert!(status(uri).await.status().is_success());
         assert_eq!(state.lock().unwrap().palette(), PALETTES[1].name);
+        assert!(
+            status("/api/instrument?value=Bayou".into())
+                .await
+                .status()
+                .is_success()
+        );
+        assert_eq!(state.lock().unwrap().instrument(), "Bayou");
     }
 
     #[actix_web::test]

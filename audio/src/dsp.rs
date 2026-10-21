@@ -149,6 +149,11 @@ impl Rotor {
         im
     }
 
+    /// The latest sample as a phasor: its cosine and sine.
+    pub fn phasor(&self) -> (f32, f32) {
+        (self.re, self.im)
+    }
+
     pub fn normalize(&mut self) {
         let correction = 1.5 - 0.5 * (self.re * self.re + self.im * self.im);
         self.re *= correction;
@@ -316,6 +321,13 @@ impl DelayLine {
     pub fn write(&mut self, value: f32) {
         self.position = (self.position + 1) & self.mask;
         self.buffer[self.position] = value;
+    }
+
+    /// Scales what the line holds; 0 silences it.
+    pub fn scale(&mut self, factor: f32) {
+        for sample in &mut self.buffer {
+            *sample *= factor;
+        }
     }
 }
 

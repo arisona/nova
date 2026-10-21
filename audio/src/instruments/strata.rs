@@ -6,19 +6,14 @@
 //! the distance; Form from still layers to grain: the chord breaks into grains, the air
 //! into dust. Sparse light fills the space with more air and hall.
 
-pub mod pulse;
-pub mod space;
-
 use crate::dsp::{Curve, Rng};
 use crate::harmony::Harmony;
+use crate::instruments::drone::Drone;
+use crate::instruments::{pulse, space};
 use crate::params::Params;
 use crate::score::{Pattern, Patterns, Score, Throws};
-use crate::signals::{BAR, Change, Now, Signals};
-use crate::voices::{Air, Bed};
-use pulse::Pulse;
-use space::Space;
-
-pub use crate::voices::bed;
+use crate::signals::{BAR, Now, Signals};
+use crate::voices::bed;
 
 /// Strata's rhythm: thumps from a rhythm of 0.2, ticks from 0.35, stabs from 0.45 and the
 /// chord gate from 0.25, each growing denser towards the full rhythm; no throws.
@@ -38,7 +33,7 @@ pub const SCORE: Score = Score {
     stabs: BAR,
     bass: Patterns::NONE,
     basses: &[],
-    bell: Patterns::NONE,
+    melody: Patterns::NONE,
     gate: Patterns {
         from: 0.25,
         list: &[Pattern::new(".9.6 .8.. .9.5 .7.4")],
@@ -105,10 +100,7 @@ impl Preset {
 }
 
 pub struct Strata {
-    bed: Bed,
-    air: Air,
-    pulse: Pulse,
-    space: Space,
+    drone: Drone,
     dust: Curve,
     sparse: f32,
     reverb_level: f32,
@@ -121,10 +113,14 @@ impl Strata {
     pub fn new(sample_rate: f32, preset: &Preset, harmony: &Harmony, seed: u64) -> Self {
         let mut rng = Rng::new(seed);
         Self {
-            bed: Bed::new(sample_rate, preset.bed, harmony, Rng::new(rng.next_u64())),
-            air: Air::new(sample_rate, harmony, Rng::new(rng.next_u64())),
-            pulse: Pulse::new(sample_rate, preset.pulse, harmony, Rng::new(rng.next_u64())),
-            space: Space::new(sample_rate, preset.space),
+            drone: Drone::new(
+                sample_rate,
+                preset.bed,
+                preset.pulse,
+                preset.space,
+                harmony,
+                &mut rng,
+            ),
             dust: preset.dust,
             sparse: preset.sparse,
             reverb_level: preset.space.reverb_level,
@@ -133,54 +129,32 @@ impl Strata {
     }
 
     pub fn update_block(&mut self, params: &Params, signals: &mut Signals) {
-        // The pulse as it is after the previous block, for the bed and anyone else.
-        self.pulse.publish(signals);
-        let harmony = &signals.harmony;
-        match signals.change {
-            Some(Change::Load) => {
-                self.bed.load(harmony);
-                self.air.load(harmony);
-                self.pulse.adopt(harmony);
-            }
-            Some(Change::Palette) => {
-                self.bed.change(harmony);
-                self.air.change(harmony);
-                self.pulse.change(harmony);
-            }
-            Some(Change::Bass) => {
-                self.bed.set_bass(harmony.root());
-                self.air.change(harmony);
-                self.pulse.change(harmony);
-            }
-            Some(Change::Voice) => self.bed.move_voice(),
-            None => {}
-        }
-        self.bed.update_block(params, signals);
-        self.air.update_block(params, self.dust.at(params.form));
+        self.drone.follow(signals);
         // Sparse light fills the space, a complement rather than a mirror.
         self.air_gain = 10.0_f32.powf(self.sparse * params.light.sparseness() / 20.0);
-        self.space
+        self.drone
+            .space
             .set_reverb_level(self.reverb_level * self.air_gain);
-        self.pulse.update_block(params, signals);
-        self.space
-            .update_block(params, signals.tempo, signals.echo, 0.0);
+        self.drone
+            .update_block(params, signals, self.dust.at(params.form), 0.0);
     }
 
     #[inline]
     pub fn next(&mut self, now: &Now) -> [f32; 2] {
-        let pulse = self.pulse.next(now);
+        let drone = &mut self.drone;
+        let pulse = drone.pulse.next(now);
         // The drone follows the pulse: chord, air and reverb dip with each thump and with
         // the chord gate.
-        let bed = self.bed.next(pulse.drone);
-        let air = self
+        let bed = drone.bed.next(pulse.drone);
+        let air = drone
             .air
             .next()
             .map(|sample| sample * pulse.drone * self.air_gain);
-        self.space.process(bed, air, pulse)
+        drone.space.process(bed, air, pulse)
     }
 
     /// Steps the pulse has played, per voice: thumps, ticks and stabs.
     pub fn steps(&self) -> [u64; 3] {
-        self.pulse.counts()
+        self.drone.pulse.counts()
     }
 }

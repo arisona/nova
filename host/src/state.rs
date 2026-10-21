@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -13,23 +12,12 @@ use nova_voxel::{
     PatternSelection, all_content_names,
 };
 
-/// The instrument each content module plays, unless the settings file links it to another;
-/// modules not listed play `DEFAULT_INSTRUMENT`. A first guess, to be tuned by ear.
-const CONTENT_INSTRUMENTS: [(&str, &str); 6] = [
-    ("Andromeda", "Fathom"),
-    ("Betelgeuse", "Strata"),
-    ("Oort Cloud", "Strata"),
-    ("Orion's Belt", "Shoal"),
-    ("Pleiades", "Shoal"),
-    ("Tannhäuser Gate", "Fathom"),
-];
-
 /// The host's state: the settings, saved in `nova_settings.json`, and what only lives while
 /// Nova runs: the bus the parts meet on, requests and the test pattern. The controls go
 /// onto the bus whenever they change.
-// Content and palettes are referenced by name, so saved settings survive entries being
-// added, removed, reordered or renamed. Missing fields (older or hand-written settings
-// files) fall back to defaults when loading.
+// Content, palettes and instruments are referenced by name, so saved settings survive
+// entries being added, removed, reordered or renamed. Missing fields (older or
+// hand-written settings files) fall back to defaults when loading.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct State {
@@ -39,6 +27,7 @@ pub struct State {
     brightness: f32,
     volume: f32,
     palette: String,
+    instrument: String,
     heat: f32,
     flow: f32,
     form: f32,
@@ -51,8 +40,6 @@ pub struct State {
     webserver_port: u16,
     simulator: bool,
     audio: bool,
-    /// The instrument each content module plays, by name.
-    instruments: BTreeMap<String, String>,
 
     #[serde(skip)]
     available_content: Vec<String>,
@@ -109,18 +96,15 @@ impl State {
     }
 
     /// Settings restored from a saved file, validated through the setters. Unknown
-    /// content and palette names fall back to defaults.
+    /// content, palette and instrument names fall back to defaults.
     fn from_saved(saved: State) -> Self {
         let mut settings = Self::default();
-        // The links first, so selecting the content puts its own instrument on the bus.
-        for (content, instrument) in &saved.instruments {
-            settings.set_instrument(content, instrument);
-        }
         settings.set_enabled_content(&saved.enabled_content);
         settings.set_selected_content(&saved.selected_content);
         settings.set_brightness(saved.brightness);
         settings.set_volume(saved.volume);
         settings.set_palette(&saved.palette);
+        settings.set_instrument(&saved.instrument);
         settings.set_heat(saved.heat);
         settings.set_flow(saved.flow);
         settings.set_form(saved.form);
@@ -224,7 +208,6 @@ impl State {
         if enabled {
             self.selected_content = name.to_string();
             self.publish();
-            log::info!("{name} plays {}", self.instrument());
         }
         enabled
     }
@@ -318,14 +301,10 @@ impl State {
         Arc::clone(&self.bus)
     }
 
-    /// Puts the controls and the selected content's instrument on the bus.
+    /// Puts the controls and the instrument on the bus.
     fn publish(&self) {
         self.bus.set_controls(&self.controls());
-        let instrument = INSTRUMENTS
-            .iter()
-            .position(|(name, _)| *name == self.instrument())
-            .unwrap_or(0);
-        self.bus.set_instrument(instrument);
+        self.bus.set_instrument(self.instrument_index());
     }
 
     /// The universal controls as set.
@@ -432,23 +411,27 @@ impl State {
         self.audio
     }
 
-    /// The instrument the selected content plays, by name (see `nova_audio::INSTRUMENTS`).
+    /// The instrument the sound plays, by name (see `nova_audio::INSTRUMENTS`).
     pub fn instrument(&self) -> &str {
-        self.instruments
-            .get(&self.selected_content)
-            .map_or(DEFAULT_INSTRUMENT, String::as_str)
+        &self.instrument
     }
 
-    /// Links a content module to an instrument, both by name; unknown names change nothing.
-    fn set_instrument(&mut self, content: &str, instrument: &str) {
-        if !self.knows_content(content) {
-            log::warn!("Unknown content {content:?} linked to an instrument");
-        } else if !INSTRUMENTS.iter().any(|(known, _)| *known == instrument) {
-            log::warn!("Unknown instrument {instrument:?} for {content}");
-        } else {
-            self.instruments
-                .insert(content.to_string(), instrument.to_string());
+    /// Selects an instrument by name. Returns false, changing nothing, for unknown names.
+    pub fn set_instrument(&mut self, name: &str) -> bool {
+        let known = INSTRUMENTS.iter().any(|(known, _)| *known == name);
+        if known {
+            self.instrument = name.to_string();
+            self.publish();
         }
+        known
+    }
+
+    /// Position of the instrument in `INSTRUMENTS`.
+    fn instrument_index(&self) -> usize {
+        INSTRUMENTS
+            .iter()
+            .position(|(name, _)| *name == self.instrument)
+            .unwrap_or(0)
     }
 
     /// Whether audio is enabled and its output has not failed. Volume is only
@@ -486,8 +469,7 @@ impl State {
 
     /// Restores default settings, keeping the bus, the display calibration, and
     /// what can only be configured in the settings file: the Ethernet interface, the web
-    /// server port, the simulator and audio switches, the instruments, and a layout of more
-    /// than one module.
+    /// server port, the simulator and audio switches, and a layout of more than one module.
     pub fn restore_defaults(&mut self) {
         let defaults = Self::default();
         let (modules, dim) = if self.modules.len() > 1 {
@@ -503,7 +485,6 @@ impl State {
             webserver_port: self.webserver_port,
             simulator: self.simulator,
             audio: self.audio,
-            instruments: std::mem::take(&mut self.instruments),
             bus: std::mem::take(&mut self.bus),
             hardware_reset_requested: self.hardware_reset_requested,
             shutdown_requested: self.shutdown_requested,
@@ -532,6 +513,7 @@ impl Default for State {
             brightness: 0.5,
             volume: 0.0,
             palette: PALETTES[0].name.to_string(),
+            instrument: DEFAULT_INSTRUMENT.to_string(),
             heat: 0.5,
             flow: 0.5,
             form: 0.5,
@@ -544,16 +526,6 @@ impl Default for State {
             webserver_port: 8080,
             simulator: false,
             audio: false,
-            instruments: available_content
-                .iter()
-                .map(|content| {
-                    let instrument = CONTENT_INSTRUMENTS
-                        .iter()
-                        .find(|(known, _)| known == content)
-                        .map_or(DEFAULT_INSTRUMENT, |(_, instrument)| instrument);
-                    (content.clone(), instrument.to_string())
-                })
-                .collect(),
 
             available_content,
 
@@ -684,8 +656,7 @@ mod tests {
         state.set_webserver_port(8000);
         state.simulator = true;
         state.audio = true;
-        let first = state.selected_content().to_string();
-        state.set_instrument(&first, "Shoal");
+        state.set_instrument("Shoal");
         state
             .bus()
             .report(Part::Audio, Status::Ok("Audio ready".into()));
@@ -700,7 +671,7 @@ mod tests {
         assert_eq!(state.webserver_port(), 8000);
         assert!(state.simulator());
         assert!(state.audio());
-        assert_eq!(state.instrument(), "Shoal");
+        assert_eq!(state.instrument(), DEFAULT_INSTRUMENT);
         assert_eq!(
             state.bus().status(Part::Audio),
             Status::Ok("Audio ready".into())
@@ -779,24 +750,31 @@ mod tests {
     }
 
     #[test]
-    fn content_plays_its_instrument_and_puts_it_on_the_bus() {
+    fn instrument_is_selected_by_name_and_goes_onto_the_bus() {
         let index = |name: &str| INSTRUMENTS.iter().position(|(known, _)| *known == name);
         let mut state = State::default();
-        for content in state.available_content().to_vec() {
-            assert!(state.set_selected_content(&content));
-            assert_eq!(Some(state.bus().instrument()), index(state.instrument()));
-        }
-        assert!(state.set_selected_content("Pleiades"));
-        assert_eq!(state.instrument(), "Shoal");
-
-        let mut saved = serde_json::to_value(&state).unwrap();
-        saved["instruments"]["Pleiades"] = serde_json::json!("Fathom");
-        let state = State::from_saved(serde_json::from_value(saved.clone()).unwrap());
+        assert_eq!(state.instrument(), DEFAULT_INSTRUMENT);
+        assert_eq!(Some(state.bus().instrument()), index(DEFAULT_INSTRUMENT));
+        assert!(state.set_instrument("Fathom"));
+        assert!(!state.set_instrument("Theremin"));
         assert_eq!(state.instrument(), "Fathom");
         assert_eq!(Some(state.bus().instrument()), index("Fathom"));
-        saved["instruments"]["Pleiades"] = serde_json::json!("Theremin");
-        let state = State::from_saved(serde_json::from_value(saved).unwrap());
-        assert_eq!(state.instrument(), "Shoal");
+        // Selecting content leaves the instrument alone.
+        for content in state.available_content().to_vec() {
+            assert!(state.set_selected_content(&content));
+            assert_eq!(state.instrument(), "Fathom");
+        }
+
+        let mut saved = serde_json::to_value(&state).unwrap();
+        let restored = State::from_saved(serde_json::from_value(saved.clone()).unwrap());
+        assert_eq!(restored.instrument(), "Fathom");
+        assert_eq!(Some(restored.bus().instrument()), index("Fathom"));
+        // Unknown names, and the links of content to instruments from older files, fall
+        // back to the default.
+        saved["instrument"] = serde_json::json!("Theremin");
+        saved["instruments"] = serde_json::json!({ "Pleiades": "Shoal" });
+        let restored = State::from_saved(serde_json::from_value(saved).unwrap());
+        assert_eq!(restored.instrument(), DEFAULT_INSTRUMENT);
     }
 
     #[test]

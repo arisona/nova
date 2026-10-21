@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use nova_audio::strata;
-use nova_audio::{Preset, fathom, shoal};
+use nova_audio::{Preset, bayou, fathom, shoal};
 use nova_core::{Bus, Controls, Features};
 use nova_voxel::{MODULE_X_RES, MODULE_Y_RES, MODULE_Z_RES, Renderer, Settings, all_content_names};
 
@@ -231,6 +231,11 @@ pub fn all(names: &[String]) -> Vec<Scenario> {
             shoal_scenarios(),
             "shoal_",
             Preset::Shoal(shoal::Preset::DEFAULT),
+        ),
+        (
+            bayou_scenarios(),
+            "bayou_",
+            Preset::Bayou(bayou::Preset::DEFAULT),
         ),
     ] {
         let first = specs.len() + 1;
@@ -496,6 +501,90 @@ fn shoal_scenarios() -> Vec<Spec> {
             |t, state| {
                 state.set_void(0.3);
                 state.set_form(t);
+            },
+        ),
+    ]
+}
+
+/// Bayou's scripted scenarios, named `bayou_…`.
+fn bayou_scenarios() -> Vec<Spec> {
+    let bayou = Preset::Bayou(bayou::Preset::DEFAULT);
+    vec![
+        scenario(
+            "bayou_01_cold_to_warm",
+            "Pulse and gated organ (Void 0.3), Heat from 0 to 1: a straight pulse, the \
+             tresillo, syncopation, then the ballads' roll with swells, tremolo and breakup",
+            90.0,
+            bayou,
+            |t, state| {
+                state.set_void(0.3);
+                state.set_heat(t);
+            },
+        ),
+        scenario(
+            "bayou_02_rhythm",
+            "Void from 0 to 1: the organ alone, its gate and the bass string coming in, the \
+             pulse growing, then kick and ticks, and back into the echoes",
+            120.0,
+            bayou,
+            |t, state| state.set_void(t),
+        ),
+        scenario(
+            "bayou_03_cold_ambient",
+            "Antarctica Freeze, Heat 0.15, Void 0.75",
+            60.0,
+            bayou,
+            |_, state| {
+                state.set_palette("Antarctica Freeze");
+                state.set_heat(0.15);
+                state.set_void(0.75);
+            },
+        ),
+        scenario(
+            "bayou_04_warm_rhythmic",
+            "Sahara Drift, Heat 0.85, Void 0.3, Flow 0.45",
+            60.0,
+            bayou,
+            |_, state| {
+                state.set_palette("Sahara Drift");
+                state.set_heat(0.85);
+                state.set_void(0.3);
+                state.set_flow(0.45);
+            },
+        ),
+        scenario(
+            "bayou_05_texture",
+            "Form from 0 to 1 (Void 0.3): a still organ with long bright phrases over a ringing \
+             pulse, its rotary speaker speeding up from a chorale to a tremolo and beyond, \
+             short bright notes over a muted chug",
+            90.0,
+            bayou,
+            |t, state| {
+                state.set_void(0.3);
+                state.set_form(t);
+            },
+        ),
+        scenario(
+            "bayou_06_ballads",
+            "Heat 1, Form 0.25, Void 0.3: the ballads' roll, the organ's swells and vibrato, the \
+             amp's tremolo and breakup",
+            60.0,
+            bayou,
+            |_, state| {
+                state.set_heat(1.0);
+                state.set_form(0.25);
+                state.set_void(0.3);
+            },
+        ),
+        scenario(
+            "bayou_07_beyond_the_cabinet",
+            "Form 0.95, Heat 0.3, Void 0.3: the rotary speaker faster than any cabinet turns",
+            60.0,
+            bayou,
+            |_, state| {
+                state.set_form(0.95);
+                state.set_heat(0.3);
+                state.set_void(0.3);
             },
         ),
     ]

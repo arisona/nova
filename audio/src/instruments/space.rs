@@ -6,9 +6,9 @@
 //! glow of the light brightens the hall, and light gathered in one place narrows the stereo
 //! image above the bass.
 
-use super::pulse::PulseOut;
 use crate::BLOCK;
 use crate::dsp::{Curve, Svf, lerp, smoothstep};
+use crate::instruments::pulse::PulseOut;
 use crate::params::Params;
 use crate::voices::{DubDelay, Reverb, dub_delay};
 

@@ -33,6 +33,8 @@ export interface NovaState {
   volume: number; // -1 while audio is disabled or failing
   palettes: Palette[];
   palette: string;
+  instruments: string[];
+  instrument: string;
   heat: number;
   flow: number;
   form: number;
@@ -50,6 +52,8 @@ export const defaultNovaState: NovaState = {
   volume: -1,
   palettes: [],
   palette: '',
+  instruments: [],
+  instrument: '',
   heat: 0.5,
   flow: 0.5,
   form: 0.5,
