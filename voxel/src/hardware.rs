@@ -60,19 +60,19 @@ impl Hardware {
             // Retry loop for opening the interface
             loop {
                 let settings = self.host.settings();
-                let (interface_name, modules) = (settings.interface, settings.modules);
+                let (interface_name, modules) = (&settings.interface, &settings.modules);
 
                 if self.host.shutdown_requested() {
                     log::info!("Shutting down without an open interface.");
                     return;
                 }
 
-                match Interface::new(&interface_name, Some(filter.as_str())) {
+                match Interface::new(interface_name, Some(filter.as_str())) {
                     Ok(iface) => {
                         log::info!("Opened interface {interface_name}.");
                         interface = iface;
                         responding_modules_at_reset =
-                            responding_modules(&self.last_reply, &modules, Instant::now());
+                            responding_modules(&self.last_reply, modules, Instant::now());
                         if !responding_modules_at_reset.is_empty() {
                             self.report(Status::Ok(format!(
                                 "Resetting modules at interface {interface_name}."
@@ -91,7 +91,13 @@ impl Hardware {
                             log::warn!("{message} Retrying...");
                             failure = Some(message);
                         }
-                        std::thread::sleep(INTERFACE_RETRY_PERIOD);
+                        // Keep rendering until the next attempt, so the sound still follows
+                        // the tide clock and the light.
+                        let retry_time = Instant::now() + INTERFACE_RETRY_PERIOD;
+                        while Instant::now() < retry_time {
+                            self.renderer.render(&settings);
+                            std::thread::sleep(RENDER_PERIOD);
+                        }
                     }
                 }
             }
@@ -498,6 +504,8 @@ const STATUS_PERIOD: Duration = Duration::from_millis(5000);
 // STATUS_PERIOD absorbs loop jitter, which would otherwise briefly drop a module and reset all.
 const RESPONSE_TIMEOUT: Duration = Duration::from_millis(7500);
 const INTERFACE_RETRY_PERIOD: Duration = Duration::from_millis(500);
+// Frames are rendered every other sync; the rest shift the pixels on the hardware.
+const RENDER_PERIOD: Duration = Duration::from_millis(40);
 
 // Ethernet / IP / UDP related constants
 const ETHER_ADDR_LEN: usize = 6;
