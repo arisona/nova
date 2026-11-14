@@ -33,6 +33,7 @@ Install Rust (as `pi`, not root):
 
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"            # puts cargo on the path; new logins get it automatically
 ```
 
 ## Get the source
@@ -94,11 +95,34 @@ EOF
 sudo systemctl enable --now nova
 ```
 
-To use port 80, add `CAP_NET_BIND_SERVICE` to `AmbientCapabilities` and set `webserver_port` as in option A.
+To use port 80, add `CAP_NET_BIND_SERVICE` to `AmbientCapabilities` and set `webserver_port` as in option A:
+
+```sh
+cargo install --path ~/nova/host
+sudo tee /etc/systemd/system/nova.service > /dev/null <<'EOF'
+[Unit]
+Description=Nova
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi
+ExecStart=/home/pi/.cargo/bin/nova
+Environment=RUST_LOG=info
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable --now nova
+```
+
+Managing the service:
 
 - Logs: `journalctl -u nova -f`
-- Update: `cd ~/nova && git pull && cargo install --path host && sudo systemctl restart nova`
-- Updating an installation from before the binary was called `nova` (it was `nova-server`, built from `~/nova/server`): install as above, point the service to the new binary with `sudo sed -i 's#bin/nova-server#bin/nova#' /etc/systemd/system/nova.service`, then `sudo systemctl daemon-reload && sudo systemctl restart nova`, and remove the old binary with `cargo uninstall nova-server`.
+- Update and restart: `cd ~/nova && git pull && cargo install --path host && sudo systemctl restart nova`
 - Stop, for example before using option A: `sudo systemctl stop nova`; `sudo systemctl disable nova` also removes it from startup. Stopping resets the modules, so the display goes dark.
 
 ## Configure the voxel display
@@ -117,27 +141,30 @@ Audio is off by default. To turn it on, set `"audio": true` in `~/nova_settings.
 
 For installations without a cable to the speakers, for example when Nova hangs high above the ground. [BlueALSA](https://github.com/arkq/bluez-alsa) makes a Bluetooth speaker the ALSA default, still without a sound server. Expect about 100–300 ms of latency, and little of the bass the sound is designed for. Wi-Fi and Bluetooth share one radio on the Pi; if the sound drops out, try a USB Bluetooth adapter.
 
-Install BlueALSA and allow `pi` to control Bluetooth, then log in again:
+Install BlueALSA, unblock Bluetooth (Raspberry Pi OS may start with it blocked, and `power on` then fails) and allow `pi` to control it, then log in again:
 
 ```sh
 sudo apt install bluez bluez-alsa-utils libasound2-plugin-bluez
 sudo systemctl enable --now bluetooth bluealsa
+sudo rfkill unblock bluetooth
 sudo usermod -aG bluetooth pi
 ```
 
-Put the speaker into pairing mode and pair it once. `trust` lets the speaker connect to the Pi without confirmation:
+Put the speaker into pairing mode, disconnected from other devices, and pair it once. Pair while the scan is still running: once it stops, unpaired devices disappear after a while ("not available"). If pairing fails, scan and try again. `trust` lets the speaker connect to the Pi without confirmation:
 
 ```sh
 bluetoothctl
 power on
 agent on
-scan on                         # wait for the speaker, note its address
-scan off
+scan on                         # wait for the speaker's name, note its address
 pair XX:XX:XX:XX:XX:XX
+scan off
 trust XX:XX:XX:XX:XX:XX
 connect XX:XX:XX:XX:XX:XX
 exit
 ```
+
+Other addresses that come and go, often without a name, are nearby phones and computers, whose Bluetooth Low Energy addresses change for privacy.
 
 Make the speaker the ALSA default in `~/.asoundrc`, with its address:
 
