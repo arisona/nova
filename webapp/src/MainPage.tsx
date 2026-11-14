@@ -1,7 +1,7 @@
 import { Divider, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import * as React from 'react';
 
-import { NovaState } from './App';
+import { NovaState, SpeakerStatus } from './App';
 import { ContentSelector } from './ContentSelector';
 import { InstrumentSelector } from './InstrumentSelector';
 import { PaletteSelector } from './PaletteSelector';
@@ -10,6 +10,9 @@ import { apiSetValue } from './api';
 import {
   Acute,
   BlurOn,
+  Bluetooth,
+  BluetoothConnected,
+  BluetoothSearching,
   Heat,
   ScatterPlot,
   Settings,
@@ -38,9 +41,11 @@ const sendInstrument = (name: string) => {
 export const MainPage = ({
   state,
   setState,
+  speaker,
 }: {
   state: NovaState;
   setState: React.Dispatch<React.SetStateAction<NovaState>>;
+  speaker: SpeakerStatus | null;
 }) => {
   const navigate = useNavigate();
   const content = useDelayedSend(sendContent);
@@ -49,6 +54,13 @@ export const MainPage = ({
 
   const handleSettings = () => {
     void navigate('/settings');
+  };
+
+  const speakerLabel =
+    speaker === 'connected' ? 'Disconnect speaker' : 'Connect speaker';
+
+  const handleSpeaker = () => {
+    apiSetValue('speaker', speaker === 'connected' ? 'disconnect' : 'connect');
   };
 
   const paletteColors =
@@ -129,6 +141,26 @@ export const MainPage = ({
           NOVA
         </Typography>
         <Stack direction="row" sx={{ alignItems: 'center' }}>
+          {speaker !== null && (
+            <Tooltip title={speakerLabel}>
+              {/* A disabled button fires no events, so the tooltip needs a wrapper. */}
+              <span>
+                <IconButton
+                  aria-label={speakerLabel}
+                  disabled={speaker === 'busy'}
+                  onClick={handleSpeaker}
+                >
+                  {speaker === 'busy' ? (
+                    <BluetoothSearching />
+                  ) : speaker === 'connected' ? (
+                    <BluetoothConnected />
+                  ) : (
+                    <Bluetooth />
+                  )}
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
           <Tooltip title="Settings">
             <IconButton aria-label="Settings" onClick={handleSettings}>
               <Settings />

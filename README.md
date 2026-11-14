@@ -114,7 +114,8 @@ Audio is experimental. The instruments are independent of the content modules; t
 - `POST /api/reload` saves the settings and exits Nova, for a process manager to restart it. Before exiting, as on Ctrl+C, SIGTERM and SIGHUP, the modules are reset so the display stays dark; a second signal exits right away.
 - Calibration: `POST /api/{gamma|gain}-{red|green|blue}?value=<v>` (gamma 1 to 3, gain 0.2 to 1), `POST /api/reset-calibration`, and `POST /api/calibration-pattern?value=<off|gray|red|green|blue|palette>`, which shows a test pattern for at most 10 minutes after the last selection.
 - `POST /api/restore` restores default settings, except those only configured in the settings file and the calibration.
-- `GET /api/get-status` reports the display status (`status-ok`, `status-message`) and the audio status (`audio-ok`, `audio-message`).
+- `GET /api/get-status` reports the display status (`status-ok`, `status-message`), the audio status (`audio-ok`, `audio-message`) and the Bluetooth speaker (`speaker`: `connected`, `disconnected`, `busy` while connecting or disconnecting, or `null` while none is set).
+- `POST /api/speaker?value=<connect|disconnect>` connects or disconnects the Bluetooth speaker through `bluetoothctl`; 400 while none is set.
 - Only `POST` changes anything, and only from Nova's own pages: cross-site browser requests (`Sec-Fetch-Site`, or `Origin`) are rejected with 403, and the host name must be local (an IP address, a name without dots, or under `.local`, `.lan`, `.home.arpa`, `.internal` or `.localhost`) against DNS rebinding. There is no authentication: never expose the port to the internet.
 
 ## Development checks

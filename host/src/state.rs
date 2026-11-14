@@ -12,6 +12,8 @@ use nova_voxel::{
     PatternSelection, all_content_names,
 };
 
+use crate::speaker;
+
 /// The host's state: the settings, saved in `nova_settings.json`, and what only lives while
 /// Nova runs: the bus the parts meet on, requests and the test pattern. The controls go
 /// onto the bus whenever they change.
@@ -40,6 +42,7 @@ pub struct State {
     webserver_port: u16,
     simulator: bool,
     audio: bool,
+    bluetooth_speaker: String,
 
     #[serde(skip)]
     available_content: Vec<String>,
@@ -145,6 +148,7 @@ impl State {
         settings.set_webserver_port(saved.webserver_port);
         settings.simulator = saved.simulator;
         settings.audio = saved.audio;
+        settings.set_bluetooth_speaker(&saved.bluetooth_speaker);
         settings.publish();
         settings
     }
@@ -411,6 +415,22 @@ impl State {
         self.audio
     }
 
+    /// The address of the Bluetooth speaker the web app connects and disconnects, if any.
+    pub fn bluetooth_speaker(&self) -> Option<&str> {
+        Some(self.bluetooth_speaker.as_str()).filter(|address| !address.is_empty())
+    }
+
+    /// Sets the Bluetooth speaker's address, in upper case; empty for none. An invalid
+    /// address is dropped.
+    pub fn set_bluetooth_speaker(&mut self, address: &str) {
+        self.bluetooth_speaker = if address.is_empty() || speaker::is_address(address) {
+            address.to_ascii_uppercase()
+        } else {
+            log::warn!("Invalid Bluetooth speaker address {address:?}, ignoring it");
+            String::new()
+        };
+    }
+
     /// The instrument the sound plays, by name (see `nova_audio::INSTRUMENTS`).
     pub fn instrument(&self) -> &str {
         &self.instrument
@@ -469,7 +489,8 @@ impl State {
 
     /// Restores default settings, keeping the bus, the display calibration, and
     /// what can only be configured in the settings file: the Ethernet interface, the web
-    /// server port, the simulator and audio switches, and a layout of more than one module.
+    /// server port, the simulator and audio switches, the Bluetooth speaker, and a layout of
+    /// more than one module.
     pub fn restore_defaults(&mut self) {
         let defaults = Self::default();
         let (modules, dim) = if self.modules.len() > 1 {
@@ -485,6 +506,7 @@ impl State {
             webserver_port: self.webserver_port,
             simulator: self.simulator,
             audio: self.audio,
+            bluetooth_speaker: std::mem::take(&mut self.bluetooth_speaker),
             bus: std::mem::take(&mut self.bus),
             hardware_reset_requested: self.hardware_reset_requested,
             shutdown_requested: self.shutdown_requested,
@@ -526,6 +548,7 @@ impl Default for State {
             webserver_port: 8080,
             simulator: false,
             audio: false,
+            bluetooth_speaker: String::new(),
 
             available_content,
 
@@ -656,6 +679,7 @@ mod tests {
         state.set_webserver_port(8000);
         state.simulator = true;
         state.audio = true;
+        state.set_bluetooth_speaker("00:11:22:aa:bb:cc");
         state.set_instrument("Shoal");
         state
             .bus()
@@ -671,6 +695,7 @@ mod tests {
         assert_eq!(state.webserver_port(), 8000);
         assert!(state.simulator());
         assert!(state.audio());
+        assert_eq!(state.bluetooth_speaker(), Some("00:11:22:AA:BB:CC"));
         assert_eq!(state.instrument(), DEFAULT_INSTRUMENT);
         assert_eq!(
             state.bus().status(Part::Audio),

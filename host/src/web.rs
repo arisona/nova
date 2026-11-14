@@ -12,6 +12,7 @@ use nova_audio::INSTRUMENTS;
 use nova_core::{PALETTES, Part, Status};
 use nova_voxel::Pattern;
 
+use crate::speaker::{Request, Speaker};
 use crate::state::State;
 
 type PendingSave = Mutex<Option<actix_web::rt::task::JoinHandle<()>>>;
@@ -35,15 +36,15 @@ pub struct WebServer {
 
 impl WebServer {
     /// Starts the web server on its own thread and returns.
-    pub fn start(state: Arc<Mutex<State>>) -> std::io::Result<Self> {
+    pub fn start(state: Arc<Mutex<State>>, speaker: Option<Speaker>) -> std::io::Result<Self> {
         let thread = thread::Builder::new()
             .name("nova-web".into())
-            .spawn(move || serve(state))?;
+            .spawn(move || serve(state, speaker))?;
         Ok(Self { _thread: thread })
     }
 }
 
-fn serve(state: Arc<Mutex<State>>) {
+fn serve(state: Arc<Mutex<State>>, speaker: Option<Speaker>) {
     let sys = actix_web::rt::System::new();
     let port = state.lock().unwrap().webserver_port();
     let address = format!("0.0.0.0:{port}");
@@ -51,11 +52,16 @@ fn serve(state: Arc<Mutex<State>>) {
     log::info!("Starting web server at http://localhost:{port}/");
 
     let pending_save = Data::new(PendingSave::default());
+    // Handlers find no speaker data when none is set.
+    let speaker = speaker.map(Data::new);
     let server = HttpServer::new(move || {
-        App::new()
+        let mut app = App::new()
             .app_data(Data::new(Arc::clone(&state)))
-            .app_data(pending_save.clone())
-            .service(get_state)
+            .app_data(pending_save.clone());
+        if let Some(speaker) = &speaker {
+            app = app.app_data(speaker.clone());
+        }
+        app.service(get_state)
             .service(get_status)
             .service(command)
             .service(files)
@@ -125,7 +131,10 @@ fn palettes_json() -> serde_json::Value {
 }
 
 #[get("/api/get-status")]
-async fn get_status(data: web::Data<Arc<Mutex<State>>>) -> impl Responder {
+async fn get_status(
+    data: web::Data<Arc<Mutex<State>>>,
+    speaker: Option<web::Data<Speaker>>,
+) -> impl Responder {
     let bus = data.lock().unwrap().bus();
     let report = |part| match bus.status(part) {
         Status::Ok(message) => (true, message),
@@ -139,6 +148,16 @@ async fn get_status(data: web::Data<Arc<Mutex<State>>>) -> impl Responder {
         "status-message": message,
         "audio-ok": audio_ok,
         "audio-message": audio_message,
+        // null while no Bluetooth speaker is set.
+        "speaker": speaker.map(|speaker| {
+            if speaker.busy() {
+                "busy"
+            } else if speaker.connected() {
+                "connected"
+            } else {
+                "disconnected"
+            }
+        }),
     }))
 }
 
@@ -191,6 +210,7 @@ async fn command(
     request: HttpRequest,
     data: web::Data<Arc<Mutex<State>>>,
     pending_save: web::Data<PendingSave>,
+    speaker: Option<web::Data<Speaker>>,
     command: web::Path<String>,
     query: web::Query<HashMap<String, String>>,
 ) -> impl Responder {
@@ -295,6 +315,19 @@ async fn command(
                     return HttpResponse::BadRequest();
                 };
                 state.set_calibration_pattern(pattern);
+                return HttpResponse::Ok();
+            }
+            // Connecting takes seconds; get-status shows the speaker as busy meanwhile.
+            "speaker" => {
+                let request = match value.as_str() {
+                    "connect" => Request::Connect,
+                    "disconnect" => Request::Disconnect,
+                    _ => return HttpResponse::BadRequest(),
+                };
+                let Some(speaker) = speaker else {
+                    return HttpResponse::BadRequest();
+                };
+                speaker.request(request);
                 return HttpResponse::Ok();
             }
             "module0-address" => {
@@ -602,6 +635,24 @@ mod tests {
         assert_eq!(response["status-ok"], true);
         assert_eq!(response["audio-ok"], false);
         assert_eq!(response["audio-message"], "Audio unavailable");
+        assert!(response["speaker"].is_null());
+    }
+
+    #[actix_web::test]
+    async fn speaker_requests_are_rejected_without_a_speaker() {
+        let state = Arc::new(Mutex::new(State::default()));
+        let app = actix_web::test::init_service(
+            App::new()
+                .app_data(Data::new(Arc::clone(&state)))
+                .app_data(Data::new(PendingSave::default()))
+                .service(command),
+        )
+        .await;
+        let request = actix_web::test::TestRequest::post()
+            .uri("/api/speaker?value=connect")
+            .to_request();
+        let response = actix_web::test::call_service(&app, request).await;
+        assert_eq!(response.status(), 400);
     }
 
     #[actix_web::test]

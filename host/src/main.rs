@@ -3,6 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
+mod speaker;
 mod state;
 mod voxel;
 mod web;
@@ -10,6 +11,7 @@ mod web;
 use nova_audio::Output;
 use nova_core::{Part, Status};
 use nova_voxel::{Hardware, Renderer, Simulator};
+use speaker::Speaker;
 use state::State;
 use voxel::Voxel;
 use web::WebServer;
@@ -36,10 +38,16 @@ fn main() {
     })
     .expect("Error setting signal handler");
 
-    let (bus, simulator, audio, dim) = {
+    let (bus, simulator, audio, bluetooth_speaker, dim) = {
         let state = state.lock().unwrap();
         log::debug!("Using settings:\n{:#?}", *state);
-        (state.bus(), state.simulator(), state.audio(), state.dim())
+        (
+            state.bus(),
+            state.simulator(),
+            state.audio(),
+            state.bluetooth_speaker().map(str::to_string),
+            state.dim(),
+        )
     };
     log::info!(
         "Starting Nova in {} mode",
@@ -61,7 +69,14 @@ fn main() {
         None
     };
 
-    let _web_server = WebServer::start(Arc::clone(&state)).expect("Cannot start the web server");
+    let speaker = bluetooth_speaker.filter(|_| audio).and_then(|address| {
+        Speaker::start(address)
+            .inspect_err(|error| log::error!("Cannot start the Bluetooth speaker: {error}"))
+            .ok()
+    });
+
+    let _web_server =
+        WebServer::start(Arc::clone(&state), speaker).expect("Cannot start the web server");
 
     let renderer = Renderer::new(dim, bus);
     let host = Box::new(Voxel::new(state));

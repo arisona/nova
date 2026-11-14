@@ -4,6 +4,7 @@ import {
   NovaStatus,
   Palette,
   Rgb,
+  SpeakerStatus,
   defaultNovaState,
 } from './App';
 
@@ -29,6 +30,7 @@ interface ApiSettingValues {
   'gain-blue': number;
   'calibration-pattern': CalibrationPattern;
   'module0-address': number;
+  speaker: 'connect' | 'disconnect';
 }
 
 export type CalibrationPattern =
@@ -94,6 +96,7 @@ interface ApiStatusResponse {
   'status-message': string;
   'audio-ok': boolean;
   'audio-message': string;
+  speaker: SpeakerStatus | null; // null while no Bluetooth speaker is set
 }
 
 function isStringArray(v: unknown): v is string[] {
@@ -232,6 +235,7 @@ export const apiGetStatus = async (): Promise<NovaStatus> => {
       statusMessage: payload['status-message'] ?? 'Unknown status',
       audioOk: payload['audio-ok'] ?? false,
       audioMessage: payload['audio-message'] ?? '',
+      speaker: payload.speaker ?? null,
     };
   } catch (error) {
     console.error('Request failed: ', error);
@@ -240,6 +244,7 @@ export const apiGetStatus = async (): Promise<NovaStatus> => {
       statusMessage: 'Cannot connect to the Nova server.',
       audioOk: false,
       audioMessage: '',
+      speaker: null,
     };
   }
 };

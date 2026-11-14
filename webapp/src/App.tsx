@@ -63,11 +63,15 @@ export const defaultNovaState: NovaState = {
   module0Address: '1',
 };
 
+/** The Bluetooth speaker; busy while it connects or disconnects. */
+export type SpeakerStatus = 'connected' | 'disconnected' | 'busy';
+
 export interface NovaStatus {
   statusOk: boolean;
   statusMessage: string;
   audioOk: boolean;
   audioMessage: string;
+  speaker: SpeakerStatus | null; // null while no Bluetooth speaker is set
 }
 
 export const defaultNovaStatus: NovaStatus = {
@@ -75,6 +79,7 @@ export const defaultNovaStatus: NovaStatus = {
   statusMessage: 'Unknown error',
   audioOk: false,
   audioMessage: '',
+  speaker: null,
 };
 
 const pollInterval = 500;
@@ -128,7 +133,13 @@ export const App = () => {
           <Routes>
             <Route
               path="/"
-              element={<MainPage state={state} setState={setState} />}
+              element={
+                <MainPage
+                  state={state}
+                  setState={setState}
+                  speaker={status.speaker}
+                />
+              }
             />
             <Route
               path="/settings"
