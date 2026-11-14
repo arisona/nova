@@ -43,58 +43,6 @@ git clone https://github.com/arisona/nova.git ~/nova
 
 The web app is already built into the repository, so the Pi needs no Node.js.
 
-## Native audio output
-
-Nova plays audio through ALSA; no PulseAudio or PipeWire is needed. Connect speakers through a USB DAC, an audio HAT, HDMI, or the analog output. `aplay -l` lists devices and `aplay -L` lists ALSA PCM names. Set the default output before starting Nova. A USB DAC with a stable card name is more reliable than card numbers.
-
-If a sound server is installed, configure the ALSA default to go through it rather than competing for the device. The user running Nova needs audio permissions (`pi` is in the `audio` group by default).
-
-Audio is off by default. To turn it on, set `"audio": true` in `~/nova_settings.json` (created on the first run) and restart Nova. Volume starts at zero; lower the speaker volume before raising it in the web app.
-
-## Bluetooth audio output
-
-For installations without a cable to the speakers, for example when Nova hangs high above the ground. [BlueALSA](https://github.com/arkq/bluez-alsa) makes a Bluetooth speaker the ALSA default, still without a sound server. Expect about 100–300 ms of latency, and little of the bass the sound is designed for. Wi-Fi and Bluetooth share one radio on the Pi; if the sound drops out, try a USB Bluetooth adapter.
-
-Install BlueALSA and allow `pi` to control Bluetooth, then log in again:
-
-```sh
-sudo apt install bluez bluez-alsa-utils libasound2-plugin-bluez
-sudo systemctl enable --now bluetooth bluealsa
-sudo usermod -aG bluetooth pi
-```
-
-Put the speaker into pairing mode and pair it once. `trust` lets the speaker connect to the Pi without confirmation:
-
-```sh
-bluetoothctl
-power on
-agent on
-scan on                         # wait for the speaker, note its address
-scan off
-pair XX:XX:XX:XX:XX:XX
-trust XX:XX:XX:XX:XX:XX
-connect XX:XX:XX:XX:XX:XX
-exit
-```
-
-Make the speaker the ALSA default in `~/.asoundrc`, with its address:
-
-```
-defaults.bluealsa.device "XX:XX:XX:XX:XX:XX"
-defaults.bluealsa.profile "a2dp"
-pcm.!default { type plug slave.pcm "bluealsa" }
-ctl.!default "bluealsa"
-```
-
-Check with `speaker-test -c 2 -t wav` (Ctrl+C stops it). Then set the address in `~/nova_settings.json`, `"bluetooth_speaker": "XX:XX:XX:XX:XX:XX"` (with `"audio": true`), and restart Nova. To return to the native output, remove `~/.asoundrc` and the address.
-
-The web app now shows a Bluetooth button next to Settings: tap it to connect or disconnect the speaker. While the speaker is not connected, Nova reports the audio as unavailable and retries; within a few seconds of connecting, it plays and Volume appears. Nova never connects by itself, so it does not take the speaker from another device. A speaker usually plays from one device at a time, and reconnects to the last one when switched on. To move it between Nova and, say, your phone:
-
-- To Nova: disconnect the speaker in the phone's Bluetooth settings, then tap the button in the web app.
-- To the phone: tap the button to disconnect, then connect from the phone.
-
-Without the web app, `bluetoothctl connect XX:XX:XX:XX:XX:XX` and `bluetoothctl disconnect XX:XX:XX:XX:XX:XX` do the same.
-
 ## Run Nova
 
 Sending raw Ethernet frames needs the `CAP_NET_RAW` and `CAP_NET_ADMIN` capabilities. Choose one of the two options below. Both run from the home directory and therefore share `~/nova_settings.json`. Do not run both at once.
@@ -156,3 +104,55 @@ To use port 80, add `CAP_NET_BIND_SERVICE` to `AmbientCapabilities` and set `web
 ## Configure the voxel display
 
 By default Nova uses `eth0` and one module with jumper address 1. Change the interface in the settings file or module address in the web app's settings. A layout of several modules is configured in `~/nova_settings.json`; see [Settings file](development.md#settings-file).
+
+## Native audio output
+
+Nova plays audio through ALSA; no PulseAudio or PipeWire is needed. Connect speakers through a USB DAC, an audio HAT, HDMI, or the analog output. `aplay -l` lists devices and `aplay -L` lists ALSA PCM names. Set the default output before starting Nova. A USB DAC with a stable card name is more reliable than card numbers.
+
+If a sound server is installed, configure the ALSA default to go through it rather than competing for the device. The user running Nova needs audio permissions (`pi` is in the `audio` group by default).
+
+Audio is off by default. To turn it on, set `"audio": true` in `~/nova_settings.json` (created on the first run) and restart Nova. Volume starts at zero; lower the speaker volume before raising it in the web app.
+
+## Bluetooth audio output
+
+For installations without a cable to the speakers, for example when Nova hangs high above the ground. [BlueALSA](https://github.com/arkq/bluez-alsa) makes a Bluetooth speaker the ALSA default, still without a sound server. Expect about 100–300 ms of latency, and little of the bass the sound is designed for. Wi-Fi and Bluetooth share one radio on the Pi; if the sound drops out, try a USB Bluetooth adapter.
+
+Install BlueALSA and allow `pi` to control Bluetooth, then log in again:
+
+```sh
+sudo apt install bluez bluez-alsa-utils libasound2-plugin-bluez
+sudo systemctl enable --now bluetooth bluealsa
+sudo usermod -aG bluetooth pi
+```
+
+Put the speaker into pairing mode and pair it once. `trust` lets the speaker connect to the Pi without confirmation:
+
+```sh
+bluetoothctl
+power on
+agent on
+scan on                         # wait for the speaker, note its address
+scan off
+pair XX:XX:XX:XX:XX:XX
+trust XX:XX:XX:XX:XX:XX
+connect XX:XX:XX:XX:XX:XX
+exit
+```
+
+Make the speaker the ALSA default in `~/.asoundrc`, with its address:
+
+```
+defaults.bluealsa.device "XX:XX:XX:XX:XX:XX"
+defaults.bluealsa.profile "a2dp"
+pcm.!default { type plug slave.pcm "bluealsa" }
+ctl.!default "bluealsa"
+```
+
+Check with `speaker-test -c 2 -t wav` (Ctrl+C stops it). Then set the address in `~/nova_settings.json`, `"bluetooth_speaker": "XX:XX:XX:XX:XX:XX"` (with `"audio": true`), and restart Nova. To return to the native output, remove `~/.asoundrc` and the address.
+
+The web app now shows a Bluetooth button next to Settings: tap it to connect or disconnect the speaker. While the speaker is not connected, Nova reports the audio as unavailable and retries; within a few seconds of connecting, it plays and Volume appears. Nova never connects by itself, so it does not take the speaker from another device. A speaker usually plays from one device at a time, and reconnects to the last one when switched on. To move it between Nova and, say, your phone:
+
+- To Nova: disconnect the speaker in the phone's Bluetooth settings, then tap the button in the web app.
+- To the phone: tap the button to disconnect, then connect from the phone.
+
+Without the web app, `bluetoothctl connect XX:XX:XX:XX:XX:XX` and `bluetoothctl disconnect XX:XX:XX:XX:XX:XX` do the same.
